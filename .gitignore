@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Console (Node)
+console/node_modules/
+console/dist/
+src/apiedge/static/
+
+# Runtime data / secrets
+.env
+*.db
+*.sqlite3
+*.key
+captures/
+*.har
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
