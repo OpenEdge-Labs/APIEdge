@@ -1,0 +1,22 @@
+# Vulnerability IDs ignored by the DEV-ONLY pip-audit run in CI (never applied to runtime.lock).
+# filelock 4.1.0 is pulled in by pip-audit (CacheControl[filecache]) and virtualenv (pre-commit),
+# used only on developer/CI machines for local cache locks. The fix (4.2.1) requires Python >= 3.11
+# and cannot be locked while Python 3.10 is supported. Remove when 3.10 support is dropped.
+# Reviewed 2026-10-31 (T-019).
+CVE-2026-112906
+CVE-2026-112940
+CVE-2026-112914
+CVE-2026-112913
+CVE-2026-112937
+CVE-2026-112907
+CVE-2026-112938
+CVE-2026-112910
+CVE-2026-112934
+CVE-2026-112909
+CVE-2026-112911
+CVE-2026-112939
+CVE-2026-112915
+CVE-2026-112935
+CVE-2026-112912
+CVE-2026-112908
+CVE-2026-112941

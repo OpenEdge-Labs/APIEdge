@@ -8,3 +8,5 @@
 *.tgz binary
 *.whl binary
 *.zip binary
+*.command text eol=lf
+*.sh text eol=lf

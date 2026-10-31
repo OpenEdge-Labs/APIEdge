@@ -1,0 +1,4 @@
+# Installer tooling, installed into the venv first so the APIEdge build is hash-checked too.
+pip==26.2.2
+setuptools==84.2.1
+wheel==0.48.0

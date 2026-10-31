@@ -1,0 +1,30 @@
+# Copyright 2026 Alingan Patra
+# SPDX-License-Identifier: Apache-2.0
+# Uses the tools already installed (hash-locked) in your venv, so pre-commit needs no
+# extra downloads. Setup:  python scripts/install.py --local --dev --no-start
+#                         .venv/bin/pre-commit install   (Windows: .venv\Scripts\pre-commit install)
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff (lint)
+        entry: ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff (format)
+        entry: ruff format
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy --strict
+        entry: mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: bandit
+        name: bandit
+        entry: bandit -c pyproject.toml -r src scripts -q
+        language: system
+        types: [python]
+        pass_filenames: false

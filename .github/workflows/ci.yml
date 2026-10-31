@@ -1,0 +1,116 @@
+# Copyright 2026 Alingan Patra
+# SPDX-License-Identifier: Apache-2.0
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, types, security, licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Developer install (hash-locked)
+        run: python scripts/install.py --local --dev --yes --no-start --no-shortcut
+      - run: .venv/bin/ruff check .
+      - run: .venv/bin/ruff format --check .
+      - run: .venv/bin/mypy
+      - run: .venv/bin/bandit -c pyproject.toml -r src scripts
+      - name: pip-audit runtime lock (strict, no exceptions)
+        run: .venv/bin/pip-audit --strict --disable-pip --require-hashes -r requirements/runtime.lock
+      - name: pip-audit dev lock (documented dev-only exceptions)
+        run: |
+          IGNORES=$(grep -v '^#' requirements/audit-ignore-dev.txt | sed 's/^/--ignore-vuln /' | tr '\n' ' ')
+          .venv/bin/pip-audit --strict --disable-pip --require-hashes \
+            -r requirements/runtime.lock -r requirements/dev.lock $IGNORES
+      - name: License gate (no GPL / AGPL / SSPL)
+        run: .venv/bin/python scripts/check-licenses.py
+
+  test:
+    name: Tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Developer install (hash-locked)
+        run: python scripts/install.py --local --dev --yes --no-start --no-shortcut
+      - name: pytest
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then PY=.venv/Scripts/python; else PY=.venv/bin/python; fi
+          "$PY" -m pytest
+
+  installer:
+    name: One-click installer smoke test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install + health check (Windows, install.bat)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\install.bat --unattended --smoke-test --no-shortcut --no-service
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Re-run = upgrade/repair must be idempotent
+          .\install.bat --unattended --smoke-test --no-shortcut --no-service
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .\install.bat --uninstall --purge-data --yes
+      - name: Install + health check (macOS, install.command)
+        if: runner.os == 'macOS'
+        run: |
+          ./install.command --unattended --smoke-test --no-shortcut --no-service
+          ./install.command --unattended --smoke-test --no-shortcut --no-service
+          ./install.command --uninstall --purge-data --yes
+      - name: Install + health check (Linux, install.sh)
+        if: runner.os == 'Linux'
+        run: |
+          ./install.sh --unattended --smoke-test --no-shortcut --no-service
+          ./install.sh --unattended --smoke-test --no-shortcut --no-service
+          ./install.sh --uninstall --purge-data --yes
+
+  console:
+    name: Console build is committed and current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+      - working-directory: console
+        run: npm ci
+      - working-directory: console
+        run: npm audit --audit-level=high
+      - working-directory: console
+        run: npm run build
+      - name: Prebuilt console in src/apiedge/static matches the source
+        run: git diff --exit-code -- src/apiedge/static

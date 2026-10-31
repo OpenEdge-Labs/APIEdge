@@ -2,7 +2,32 @@
 
 **APIEdge** is an on-premise, multi-tenant **API Gateway** with a web console for designing, securing, publishing, debugging and monitoring APIs, using **no-code** and **low-code** tools.
 
-> Status: early development. Features are being delivered task by task; see [APIProjectTask.md](APIProjectTask.md) and [CHANGELOG.md](CHANGELOG.md).
+> Status: early development (foundation delivered: T-001, T-019). Features are being delivered task by task; see [APIProjectTask.md](APIProjectTask.md) and [CHANGELOG.md](CHANGELOG.md).
+
+## Quick start
+
+You need **Python 3.10, 3.11 or 3.12**. The installer downloads everything else from PyPI and checks each file against pinned sha256 hashes. No Node.js is needed.
+
+```
+git clone https://github.com/alinganpatra20004/APIEdge.git
+cd APIEdge
+```
+
+| Windows | macOS | Linux |
+|---|---|---|
+| double-click **`install.bat`** | double-click **`install.command`** | run **`./install.sh`** |
+
+The installer creates a virtual environment and the database, asks for the first admin password (or generates one and shows it once), then starts APIEdge and opens the console at **http://localhost:8080/**. Run it again to upgrade or repair, or with `--uninstall` to remove it. Unattended: `--unattended`. All options are in the [Installation Guide](docs/installation.md).
+
+Once installed, the `apiedge` command is available inside the environment:
+
+```
+apiedge run --open          # start the console, admin API and gateway
+apiedge migrate             # apply database migrations
+apiedge create-admin        # create a SuperAdmin
+```
+
+Health probes: `GET /healthz` (liveness) and `GET /readyz` (database reachable).
 
 ## Planned features
 
@@ -14,11 +39,24 @@
 - **Packet inspector**: live and recorded traffic capture, policy traces, HAR export, replay
 - **Analytics**: traffic, latency and error dashboards for admins, plus Prometheus metrics
 - **Security**: designed against the OWASP Top 10, the OWASP API Security Top 10 and ASVS L2
-- **Runs everywhere**: Windows, Linux and macOS, with pip, offline bundles, standalone executables and Docker
+- **Runs everywhere**: Windows, Linux and macOS, with one-click installers, pip, standalone executables and Docker
+
+## Development
+
+```
+python scripts/install.py --local --dev --no-start    # ./.venv with ruff, mypy, bandit, pytest, pip-audit
+.venv/bin/ruff check . && .venv/bin/mypy && .venv/bin/pytest     # Windows: .venv\Scripts\...
+cd console && npm ci && npm run build                 # only when changing the console (Node.js 20+)
+```
+
+Dependencies are pinned with hashes in `requirements/*.lock`. To change them, edit `requirements/*.in` and run `python scripts/update-locks.py`. Third-party packages are never committed; the prebuilt console in `src/apiedge/static/` is. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ADR 0002](docs/adr/0002-online-hash-locked-installer.md).
 
 ## Documentation
 
-Installation, administrator, user, inspector, analytics, API reference and security guides will be published in [docs/](docs/) as features land.
+- [Installation Guide](docs/installation.md)
+- [Configuration (Administrator Guide)](docs/admin-guide/configuration.md)
+- [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/adr/)
+- [Third-party licenses](THIRD_PARTY_LICENSES.md)
 
 ## License
 

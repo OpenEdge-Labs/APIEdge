@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apiedge"
+version = "0.1.0.dev0"
+description = "APIEdge: on-premise, multi-tenant API Gateway with a no-code / low-code web console"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Alingan Patra" }]
+requires-python = ">=3.10,<3.13"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Framework :: FastAPI",
+]
+# Exact pins and hashes live in requirements/runtime.lock (the installer uses it).
+# These ranges only describe compatibility for `pip install apiedge`.
+dependencies = [
+    "fastapi>=0.162,<1",
+    "uvicorn>=0.54,<1",
+    "pydantic>=2.14,<3",
+    "pydantic-settings>=2.15,<3",
+    "SQLAlchemy>=2.0.55,<2.1",
+    "alembic>=1.20,<2",
+    "httpx>=0.28,<1",
+    "platformdirs>=4.12,<5",
+    "argon2-cffi>=25.1,<26",
+]
+
+[project.optional-dependencies]
+# Optional PostgreSQL driver (not part of the default hash lock yet).
+postgres = ["psycopg[binary]>=3.2,<4"]
+
+[project.urls]
+Homepage = "https://github.com/alinganpatra20004/APIEdge"
+
+[project.scripts]
+apiedge = "apiedge.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+apiedge = ["py.typed", "static/**/*", "db/migrations/script.py.mako", "db/migrations/versions/*.py"]
+
+# ---------------------------------------------------------------- tooling
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+extend-exclude = ["src/apiedge/static", "console"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "N", "SIM", "RUF", "PTH"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+"scripts/**" = ["S603", "S607", "S310", "T201"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src/apiedge", "scripts", "tests"]
+exclude = ["src/apiedge/db/migrations/versions/"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_decorators = false
+
+[tool.bandit]
+exclude_dirs = ["tests", "console", "src/apiedge/static"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers"
+filterwarnings = ["error::DeprecationWarning:apiedge.*"]
