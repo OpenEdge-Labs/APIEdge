@@ -30,7 +30,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 
 ## Phase 1: Foundation
 
-- [x] **T-001** (P1) Project scaffolding (Python/FastAPI)
+- [~] **T-001** (P1) Project scaffolding (Python/FastAPI)
   - Set up `pyproject.toml` with the `src/apiedge` package, the `apiedge` CLI (`init`, `migrate`, `run`, `create-admin`), pydantic-settings config and `platformdirs` data dirs.
   - Add SQLAlchemy and Alembic, with SQLite as the default and PostgreSQL optional.
   - Create `console/` as a React + Vite + TS skeleton, built into `src/apiedge/static`.
@@ -41,7 +41,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   > Delivered: `src/apiedge` package with the `apiedge` CLI (`init`, `migrate`, `run [--open]`, `create-admin`, `version`), pydantic-settings (`APIEDGE_*`, `.env.example`), platformdirs data dir, SQLAlchemy 2 + Alembic (SQLite default, PostgreSQL via `APIEDGE_DATABASE_URL` and the `apiedge[postgres]` extra), `/healthz` and `/readyz`, a React + Vite + TS console shell prebuilt into `src/apiedge/static`, ruff, mypy --strict, bandit, pytest and pre-commit, CI on 3 OS x Python 3.10-3.12, `docs/ARCHITECTURE.md`, ADR 0001 and 0002, and a README quick start. Local results: 36 tests pass, all linters clean. Try it: `python scripts/install.py --local --dev --no-start`, then `.venv/Scripts/apiedge run --open` (Windows) or `.venv/bin/apiedge run --open`.
   > Vendor decision: a minimal `users` table (Argon2id hash, `must_change_password`) ships now so `create-admin` and the installer work end to end. T-003 extends it through migrations.
 
-- [x] **T-019** (P1) One-click installer for all OSs
+- [~] **T-019** (P1) One-click installer for all OSs
   - Add `install.bat` (Windows, double-click), `install.command` (macOS, double-click) and `install.sh` (Linux), all calling the shared `scripts/install.py`.
   - The installer checks for Python 3.10+ and gives guided installation if it is missing. It creates an isolated venv, downloads and installs dependencies from PyPI using the hash-locked `requirements/runtime.lock`, then installs APIEdge, runs migrations, creates the first admin, optionally registers a service and shortcut, starts the gateway and opens the console.
   - Re-running it repairs or upgrades. It supports `--uninstall`, `--unattended`, `--proxy` and `--index-url`, and writes an install log.

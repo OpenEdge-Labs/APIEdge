@@ -44,3 +44,17 @@ committed or pushed.
 - Python 3.10 reached end of life in October 2026 (see Vendor Proposals).
 - PostgreSQL driver: the `apiedge[postgres]` extra is not in the hash lock yet.
 - Starlette warns that its TestClient's httpx backend is deprecated (`httpx2`). Revisit when upgrading.
+
+## 2026-10-31: T-001/T-019 fix: per-target environment markers in the lock files
+
+**Defect.** CI run 41226967643 failed on every Python 3.11 and 3.12 test job and on the quality job, at
+the developer-install step. Cause: the lock files had no markers and were resolved only on
+Windows/Python 3.10, so `backports-asyncio-runner==1.2.0` (Requires-Python <3.11) was required
+everywhere. The installer smoke test passed only because it uses `runtime.lock`, whose extra packages
+happened to be installable everywhere.
+
+**Fix.** `scripts/update-locks.py` now walks the dependency graph separately for each of the 15
+targets, emits PEP 508 markers, adds complementary `dev.lock` entries (`tomli`), and verifies each
+target with Requires-Python and wheel checks plus a `pip --dry-run --require-hashes` run (45 runs,
+all ok). New unit tests are in `tests/unit/test_update_locks.py`. Local results: 43 tests pass; ruff,
+mypy and bandit are clean; pip-audit is unchanged.
