@@ -15,7 +15,8 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 - **G-4 Documentation:** every feature ships with its user, admin and API documentation.
 - **G-5 RBAC and multi-tenancy:** every feature is permission-checked and tenant-isolated.
 - **G-6 Git:** after each completed task, commit and push to `origin main` (GitHub: APIEdge).
-- **G-7 Bundled dependencies:** every third-party package (Python wheels for all supported OSs and Python versions, dev tools, console npm packages and the prebuilt console) is committed to the repo. After `git clone` or `git pull`, APIEdge installs and runs with **no downloads**; Python is the only prerequisite. No Git LFS. Details are in `docs/PROJECT_GUIDE.md`, under "Vendored dependencies".
+- **G-7 One-click installer:** third-party dependencies are **not** committed to git. A one-click installer for each OS (`install.bat` for Windows, `install.command` for macOS, `install.sh` for Linux) downloads them from the internet and installs and starts APIEdge. Details are in `docs/PROJECT_GUIDE.md`.
+- **G-8 Enterprise feature parity:** APIEdge must provide the capabilities of IBM API Connect / DataPower and the other leading gateways (Kong, Apigee, Azure APIM, AWS API Gateway, MuleSoft, WSO2, Tyk, Gravitee), tracked in `docs/FEATURE_MATRIX.md`. All of it is our own original implementation.
 
 ## Task format
 
@@ -29,25 +30,23 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 
 ## Phase 1: Foundation
 
-- [ ] **T-001** (P1) Project scaffolding (Python/FastAPI)
+- [~] **T-001** (P1) Project scaffolding (Python/FastAPI)
   - Set up `pyproject.toml` with the `src/apiedge` package, the `apiedge` CLI (`init`, `migrate`, `run`, `create-admin`), pydantic-settings config and `platformdirs` data dirs.
   - Add SQLAlchemy and Alembic, with SQLite as the default and PostgreSQL optional.
   - Create `console/` as a React + Vite + TS skeleton, built into `src/apiedge/static`.
   - Configure ruff, mypy, bandit, pytest and pre-commit, plus `.env.example`.
   - Add a GitHub Actions CI matrix (Windows, Linux, macOS × Python 3.10–3.12).
   - Write `docs/ARCHITECTURE.md`, a README quick start, LICENSE and NOTICE.
-  - Set up the `vendor/` structure from the start (see T-019).
+  - Set up hash-locked dependency files in `requirements/` (see T-019).
 
-- [ ] **T-019** (P1) Bundled, offline dependency system
-  - Create `vendor/python/{runtime,dev,bootstrap}` wheelhouses for Windows, Linux (x86_64 and aarch64) and macOS (x86_64 and arm64) × Python 3.10–3.12, with hash-locked `requirements.lock` and `requirements-dev.lock`.
-  - Create `vendor/node/offline-mirror`, configured so the console builds offline.
-  - Commit the prebuilt console in `src/apiedge/static/`.
-  - Add `scripts/install.ps1`, `scripts/install.sh` and `scripts/install.py`, which create a venv and install with `--no-index --find-links vendor/...` only.
-  - Add `scripts/vendor-refresh.py` for maintainers.
-  - Generate `vendor/THIRD_PARTY_LICENSES.md` and add a license check that fails on GPL, AGPL or SSPL.
-  - Add a CI job that runs with **network disabled** after checkout and installs, tests and starts APIEdge on all three OSs.
-  - Document the offline install in the README and the Installation Guide.
-  - Report the size of `vendor/` in the delivery note.
+- [~] **T-019** (P1) One-click installer for all OSs
+  - Add `install.bat` (Windows, double-click), `install.command` (macOS, double-click) and `install.sh` (Linux), all calling the shared `scripts/install.py`.
+  - The installer checks for Python 3.10+ and gives guided installation if it is missing. It creates an isolated venv, downloads and installs dependencies from PyPI using the hash-locked `requirements/runtime.lock`, then installs APIEdge, runs migrations, creates the first admin, optionally registers a service and shortcut, starts the gateway and opens the console.
+  - Re-running it repairs or upgrades. It supports `--uninstall`, `--unattended`, `--proxy` and `--index-url`, and writes an install log.
+  - Do not commit dependencies (no `vendor/`, wheels or node_modules). The prebuilt console in `src/apiedge/static/` is committed.
+  - Add `THIRD_PARTY_LICENSES.md` and a CI license check that fails on GPL, AGPL or SSPL.
+  - Add a CI job that runs the installer unattended on Windows, Linux and macOS and smoke-tests the health endpoint.
+  - Document installation in the README and the Installation Guide.
   - Depends on: T-001 (do it together with T-001, before any feature work)
 
 - [ ] **T-002** (P1) Security foundation (OWASP baseline)
@@ -138,15 +137,15 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 
 - [ ] **T-016** (P1) Cross-platform packaging and release
   - Build the wheel with the console bundled inside.
-  - Build an offline bundle per OS (wheelhouse with all dependencies, plus `install.ps1` and `install.sh`).
-  - Build PyInstaller executables for Windows, Linux and macOS (x86_64 and arm64), and a multi-arch Docker image with docker-compose.
+  - Package the one-click installer as a downloadable zip per OS on GitHub Releases.
+  - Build a multi-arch Docker image with docker-compose, and a Kubernetes Helm chart.
   - Generate the SBOM (CycloneDX), checksums and signatures.
   - Add a GitHub Actions release workflow that publishes to GitHub Releases on a version tag.
   - Smoke-test the install on all three OSs in CI.
   - Depends on: T-007
 
 - [ ] **T-017** (P1) Complete documentation set
-  - Write the Installation Guide (per OS, online and offline), Administrator Guide, User Guide (no-code and low-code), Inspector Guide, Analytics Guide, the API reference (OpenAPI plus rendered HTML), Security and OWASP mapping, Upgrade notes, and a Troubleshooting guide.
+  - Write the Installation Guide (per OS, one-click installer, Docker, pip), Administrator Guide, User Guide (no-code and low-code), Inspector Guide, Analytics Guide, the API reference (OpenAPI plus rendered HTML), Security and OWASP mapping, Upgrade notes, and a Troubleshooting guide.
   - Publish the docs site with MkDocs, built in CI and shipped in the release bundle.
   - Depends on: T-016
 
@@ -155,6 +154,67 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   - Review the ASVS L2 checklist.
   - Fix every high and critical finding, and record the results in `docs/SECURITY.md`.
   - Depends on: T-012, T-013, T-016
+
+## Phase 7: Enterprise feature parity (IBM API Connect / DataPower and leading gateways)
+
+- [ ] **T-020** (P1) Feature parity matrix
+  - Research the capabilities of IBM API Connect / DataPower, Kong, Apigee, Azure APIM, AWS API Gateway, MuleSoft, WSO2, Tyk and Gravitee.
+  - Write `docs/FEATURE_MATRIX.md` (feature → which gateways have it → APIEdge task and status).
+  - Propose tasks for any gaps not covered below in Vendor Proposals.
+  - Depends on: T-001
+
+- [ ] **T-021** (P1) Catalogs, environments and API lifecycle governance
+  - Add catalogs/environments (dev, test, prod) with promotion, versions and revisions, approval workflows, API linting rules, change history and diff.
+  - Depends on: T-006
+
+- [ ] **T-022** (P1) Assembly policies
+  - Add invoke, proxy, switch, operation-switch, if, throw, catch/error flows, set-variable, visual data map, parse, validate (JSON Schema, XML Schema, OpenAPI), redact, log, XSLT, and JSON↔XML conversion, all usable in the flow builder.
+  - Depends on: T-009
+
+- [ ] **T-023** (P1) Advanced security
+  - Add a built-in OAuth 2.0 authorization server (client credentials, authorization code with PKCE, refresh, introspection, revocation), OIDC, and JWT generation.
+  - Add basic auth with LDAP/AD, mTLS, and HMAC signatures.
+  - Add JSON and XML threat protection, WAF rules, bot and IP reputation.
+  - Add management of TLS profiles, keystores and truststores, and secrets-vault integration (HashiCorp Vault).
+  - Add console SSO (OIDC, SAML, LDAP).
+  - Depends on: T-008
+
+- [ ] **T-024** (P2) Multi-protocol support
+  - Support SOAP/WSDL import, SOAP↔REST conversion and WS-Security.
+  - Support GraphQL (proxy, schema, depth and cost limits) and gRPC (with JSON transcoding).
+  - Support WebSocket and SSE.
+  - Support event and async APIs (Kafka, MQTT, AMQP, IBM MQ connectors, AsyncAPI import).
+  - Depends on: T-022
+
+- [ ] **T-025** (P1) Advanced traffic management
+  - Add load-balancing algorithms, active and passive health checks, a circuit breaker, and retries with backoff.
+  - Add canary, weighted and blue-green routing, and traffic mirroring.
+  - Add service discovery (DNS SRV, Consul, Kubernetes).
+  - Add response caching with invalidation, compression, spike arrest, quotas and concurrency limits.
+  - Depends on: T-008
+
+- [ ] **T-026** (P1) HA, clustering and distributed gateways
+  - Run multiple gateway nodes with config sync, and remote/federated gateways managed by one control plane.
+  - Support rolling upgrades and backup and restore.
+  - Add declarative YAML config (GitOps) and an `apiedge` CLI for import and export.
+  - Depends on: T-007
+
+- [ ] **T-027** (P2) Consumer organizations and monetization
+  - Add consumer organizations, app registration, credential rotation and plan approval workflows.
+  - Add usage metering and billing export.
+  - Depends on: T-014
+
+- [ ] **T-028** (P2) Observability integrations
+  - Add OpenTelemetry tracing, log shipping (syslog, Splunk, ELK), alerting rules (email, webhook, Slack) and SLA monitoring.
+  - Depends on: T-013
+
+- [ ] **T-029** (P2) API testing and service virtualization
+  - Add built-in API test suites, contract tests against OpenAPI, and mock and virtual services.
+  - Depends on: T-011
+
+- [ ] **T-030** (P3) AI gateway
+  - Add an LLM provider proxy, token-based rate limits and quotas, a prompt guard with PII redaction, a semantic cache, and model routing and fallback.
+  - Depends on: T-025
 
 ---
 

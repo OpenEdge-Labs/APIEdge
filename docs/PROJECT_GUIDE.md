@@ -38,6 +38,31 @@ Tenant (Organization)          ← hard isolation boundary
 4. **RBAC everywhere**: permissions are `resource:action` (for example `product:create`, `api:publish`, `inspector:view`). Roles bundle permissions. Assignments are scoped to a Tenant, or to a Product within it. Built-in roles are `SuperAdmin`, `TenantAdmin`, `ProductOwner`, `APIDeveloper`, `Viewer` and `Consumer`. Every admin API route enforces permissions server-side, and every privileged action is written to the audit log.
 5. **Multi-tenancy**: every tenant-owned row carries `tenant_id`. Queries are tenant-filtered in the data-access layer, never only in route handlers. Cross-tenant access is tested explicitly.
 
+### Enterprise feature parity (customer requirement)
+
+APIEdge must offer the capabilities of IBM API Connect / DataPower Gateway and of the other leading gateways (Kong, Apigee, Azure API Management, AWS API Gateway, MuleSoft, WSO2, Tyk, Gravitee). We build **our own original implementation**: the goal is equivalent *capabilities*, never copied code, branding, UI or proprietary formats. `docs/FEATURE_MATRIX.md` is the living capability matrix: each feature, which reference gateways have it, and APIEdge's status (planned, in progress or done) with the task ID. Feature areas:
+
+- **Lifecycle and governance:** catalogs/environments (dev, test, prod) with promotion, versions and revisions, approval workflows, API linting, change history and diff
+- **Assembly / policy flow:** invoke, proxy, switch, operation-switch, if, throw, catch, set-variable, map (visual data mapping), parse, validate (JSON Schema, XML Schema, OpenAPI), redact, log, script (low-code Python), XSLT, JSON↔XML conversion
+- **Security:**
+  - OAuth 2.0 authorization server (client credentials, authorization code with PKCE, refresh, introspection, revocation), OIDC, JWT generate and validate
+  - API key, basic auth with LDAP/AD, mTLS, HMAC signatures
+  - JSON and XML threat protection, WAF rules, bot and IP reputation
+  - TLS profiles, keystores and truststores, and integration with a secrets vault
+- **Protocols:** REST, SOAP/WSDL (including SOAP↔REST and WS-Security), GraphQL (with depth and cost limits), gRPC (with JSON transcoding), WebSocket, SSE, and event and async APIs (Kafka, MQTT, AMQP, IBM MQ connectors, AsyncAPI)
+- **Traffic management:**
+  - load-balancing algorithms, health checks, circuit breaker, retries with backoff
+  - canary, weighted and blue-green routing, traffic mirroring
+  - service discovery (DNS, Consul, Kubernetes)
+  - response caching, compression, rate limits, quotas, spike arrest, concurrency limits
+- **Consumers and monetization:** consumer organizations, apps, credential rotation, plans with approval, usage metering and billing export, and a developer portal with try-it and SDK generation
+- **Operations:**
+  - HA clustering, distributed gateways managed by one control plane, rolling upgrades, backup and restore
+  - declarative config (YAML, GitOps) and a CLI, plus a Kubernetes Helm chart and ingress
+- **Observability:** packet inspector, analytics, OpenTelemetry tracing, log shipping (syslog, Splunk, ELK), alerting (email, webhook, Slack), SLA monitoring
+- **Testing:** API test suites, contract tests, mocking and service virtualization
+- **AI gateway:** LLM provider proxy, token-based rate limits, prompt and PII guard, semantic cache, model routing
+
 ### Packet inspector (debugging)
 
 - The gateway records HTTP exchanges (request/response line, headers, body up to a size cap, timings, upstream chosen, and each policy's decision) for selected APIs, routes or consumers.
@@ -84,8 +109,9 @@ console/        web console source (React)
 tests/          unit, integration, security, e2e
 docs/           ARCHITECTURE.md, SECURITY.md, adr/, user-guide/, admin-guide/, PROGRESS.md
 packaging/      Docker, PyInstaller specs
-scripts/        offline install scripts, vendor-refresh
-vendor/         ALL third-party dependencies (see "Vendored dependencies")
+scripts/        installer logic (install.py, install.ps1, install.sh)
+requirements/   hash-locked dependency lock files
+install.bat / install.command / install.sh   one-click installers
 APIProjectTask.md   customer task inbox
 ```
 
@@ -105,48 +131,43 @@ APIEdge must satisfy the **OWASP Top 10 (2021)**, the **OWASP API Security Top 1
 - **SSRF (A10 / API7):** upstream URLs are validated against an allow/deny policy (private, link-local and metadata ranges are blocked by default and configurable for on-prem use); scripts and the inspector's replay cannot reach arbitrary hosts.
 - **Inventory (API9):** API lifecycle and version tracking; deprecated and retired APIs are enforced by the gateway.
 
-## Cross-platform shipping
+## Cross-platform shipping and the one-click installer (customer requirement)
 
-APIEdge must install and run on **Windows, Linux and macOS** (x86_64 and arm64):
+APIEdge must install and run on **Windows, Linux and macOS** (x86_64 and arm64). **Third-party dependencies are NOT committed to the repo.** Instead, a **one-click installer** downloads them from the internet (PyPI) and installs the gateway.
 
+```
+install.bat              Windows: double-click (calls scripts/install.ps1)
+install.command          macOS: double-click in Finder (calls scripts/install.sh)
+install.sh               Linux (and macOS from a terminal)
+scripts/install.py       shared installer logic, called by all of the above
+requirements/runtime.lock   pinned, hash-locked runtime dependencies (committed)
+requirements/dev.lock       pinned, hash-locked dev and test dependencies (committed)
+src/apiedge/static/      prebuilt web console (our own code, committed), so users never need Node.js
+```
+
+The installer must:
+
+1. Detect the OS and CPU and check for Python 3.10 or newer. If Python is missing, print clear OS-specific instructions and a download link, or offer to install it (winget on Windows, Homebrew on macOS, the system package manager on Linux) with the user's consent.
+2. Create an isolated virtual environment in the OS data directory, then run `pip install --require-hashes -r requirements/runtime.lock` followed by APIEdge itself.
+3. Run database migrations and create the first admin, either by prompting or by generating a password that is shown once and must be changed at first login.
+4. Optionally register a background service (a Windows service, systemd or launchd) and a desktop or start-menu shortcut.
+5. Start the gateway and open the console URL in the browser.
+6. Be **idempotent**: re-running it repairs or upgrades the install. Provide `--uninstall`, `--unattended`/`--yes` for scripted installs, and `--proxy` and `--index-url` for corporate networks and private PyPI mirrors.
+7. Show readable progress and errors, and write an install log.
+
+Also shipped:
 - A pip-installable wheel (`pip install apiedge`) with the built console included.
-- **Offline install straight from the git checkout**, using the vendored wheelhouse described in the next section, plus offline release bundles per OS.
-- Standalone executables built with PyInstaller for each OS.
 - A multi-arch Docker image and `docker-compose.yml` (APIEdge, PostgreSQL and Redis).
-- GitHub Actions CI runs lint and tests on a matrix of `windows-latest`, `ubuntu-latest` and `macos-latest`, and builds the release artifacts.
+- GitHub Actions CI runs lint and tests on a matrix of `windows-latest`, `ubuntu-latest` and `macos-latest`, **runs the one-click installer unattended on each OS**, and smoke-tests the health endpoint.
+
+Dependency rules:
+- **Adding or upgrading a dependency:** update the `.in` file, regenerate the hash-locked `.lock` with `pip-compile --generate-hashes`, run pip-audit, and update `THIRD_PARTY_LICENSES.md`.
+- **Licenses:** only Apache-2.0-compatible licenses are allowed (MIT, BSD, Apache-2.0, ISC, PSF, MPL-2.0 used as a dependency). GPL, AGPL and SSPL are not allowed, and CI enforces this.
 - Code uses `pathlib` and avoids OS-specific shell calls. Data and config directories follow each OS's conventions (`platformdirs`).
-
-## Vendored dependencies (customer requirement)
-
-**Every third-party dependency is committed to this repository.** After `git clone` or `git pull`, APIEdge must install, build, test and run **with no internet access**. The only prerequisite is a Python 3.10–3.12 interpreter. External services are optional, because SQLite is the default database and Redis has an in-process fallback.
-
-```
-vendor/
-  python/
-    runtime/        wheels needed to run APIEdge, for every supported platform
-    dev/            wheels for tests and tooling (pytest, ruff, mypy, bandit, pip-audit, ...)
-    bootstrap/      pip, setuptools and wheel, so even pip itself needs no download
-    requirements.lock       runtime lock with hashes (pip-compile --generate-hashes)
-    requirements-dev.lock   dev lock with hashes
-  node/
-    offline-mirror/ npm package tarballs for console development (an npm offline mirror)
-  THIRD_PARTY_LICENSES.md   every vendored package with its version, license and source URL
-src/apiedge/static/         prebuilt web console, committed, so running APIEdge never needs Node.js
-scripts/
-  install.ps1 / install.sh / install.py    offline install: `pip install --no-index --find-links vendor/python/...`
-  vendor-refresh.py                        maintainer-only: downloads wheels for every platform and updates the locks
-```
-
-- **Platforms vendored:** `win_amd64`, `manylinux x86_64` and `aarch64`, and `macosx x86_64` and `arm64`, for Python 3.10, 3.11 and 3.12. Pure-Python and `abi3` wheels are stored once.
-- **Install path:** every install script uses `--no-index --find-links` only, never PyPI. CI includes a job with **networking disabled** that clones, installs, tests and runs APIEdge on Windows, Linux and macOS to prove this works.
-- **Adding or upgrading a dependency:** pin it in the lock with hashes, run `scripts/vendor-refresh.py` to fetch wheels for every platform, commit the wheels, the lock and the updated `THIRD_PARTY_LICENSES.md` together, and run pip-audit on the vendored set.
-- **Licenses:** only Apache-2.0-compatible licenses are allowed (MIT, BSD, Apache-2.0, ISC, PSF, MPL-2.0 used as a dependency). GPL, AGPL and SSPL are not allowed.
-- **Size discipline:** prefer few, well-maintained dependencies. Every wheel must stay under 100 MB (GitHub's per-file limit), and `vendor/` should stay under about 1 GB. If it grows past that, raise it in Vendor Proposals rather than dropping platforms silently. **Do not use Git LFS**, because LFS content is downloaded separately.
-- Node.js is needed only by developers who change the console source, and its packages come from `vendor/node/offline-mirror`.
 
 ## Documentation shipped with every release
 
-README, Installation Guide (per OS, online and offline), Administrator Guide, User Guide (no-code and low-code), Packet Inspector Guide, Analytics Guide, the Admin API reference (OpenAPI plus a rendered HTML version), Architecture, Security (with the OWASP mapping), Upgrade notes, CHANGELOG, LICENSE (Apache-2.0) and NOTICE.
+README, Installation Guide (per OS, one-click installer, Docker, pip), Administrator Guide, User Guide (no-code and low-code), Packet Inspector Guide, Analytics Guide, the Admin API reference (OpenAPI plus a rendered HTML version), Architecture, Security (with the OWASP mapping), Upgrade notes, CHANGELOG, LICENSE (Apache-2.0) and NOTICE.
 
 ## Engineering rules
 

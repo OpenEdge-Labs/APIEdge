@@ -15,8 +15,13 @@ htmlcov/
 # Console (Node)
 console/node_modules/
 console/dist/
-# NOTE: src/apiedge/static/ (prebuilt console) and vendor/ (all third-party
-# wheels/tarballs) are intentionally COMMITTED — see docs/PROJECT_GUIDE.md "Vendored dependencies".
+# Third-party dependencies are downloaded by the one-click installer, never committed.
+# (src/apiedge/static/ — our own prebuilt console — IS committed.)
+vendor/
+*.whl
+*.tgz
+wheelhouse/
+install.log
 
 # Runtime data / secrets
 .env
