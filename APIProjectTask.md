@@ -15,6 +15,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 - **G-4 Documentation:** every feature ships with its user, admin and API documentation.
 - **G-5 RBAC and multi-tenancy:** every feature is permission-checked and tenant-isolated.
 - **G-6 Git:** after each completed task, commit and push to `origin main` (GitHub: APIEdge).
+- **G-7 Bundled dependencies:** every third-party package (Python wheels for all supported OSs and Python versions, dev tools, console npm packages and the prebuilt console) is committed to the repo. After `git clone` or `git pull`, APIEdge installs and runs with **no downloads**; Python is the only prerequisite. No Git LFS. Details are in `docs/PROJECT_GUIDE.md`, under "Vendored dependencies".
 
 ## Task format
 
@@ -35,6 +36,19 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   - Configure ruff, mypy, bandit, pytest and pre-commit, plus `.env.example`.
   - Add a GitHub Actions CI matrix (Windows, Linux, macOS × Python 3.10–3.12).
   - Write `docs/ARCHITECTURE.md`, a README quick start, LICENSE and NOTICE.
+  - Set up the `vendor/` structure from the start (see T-019).
+
+- [ ] **T-019** (P1) Bundled, offline dependency system
+  - Create `vendor/python/{runtime,dev,bootstrap}` wheelhouses for Windows, Linux (x86_64 and aarch64) and macOS (x86_64 and arm64) × Python 3.10–3.12, with hash-locked `requirements.lock` and `requirements-dev.lock`.
+  - Create `vendor/node/offline-mirror`, configured so the console builds offline.
+  - Commit the prebuilt console in `src/apiedge/static/`.
+  - Add `scripts/install.ps1`, `scripts/install.sh` and `scripts/install.py`, which create a venv and install with `--no-index --find-links vendor/...` only.
+  - Add `scripts/vendor-refresh.py` for maintainers.
+  - Generate `vendor/THIRD_PARTY_LICENSES.md` and add a license check that fails on GPL, AGPL or SSPL.
+  - Add a CI job that runs with **network disabled** after checkout and installs, tests and starts APIEdge on all three OSs.
+  - Document the offline install in the README and the Installation Guide.
+  - Report the size of `vendor/` in the delivery note.
+  - Depends on: T-001 (do it together with T-001, before any feature work)
 
 - [ ] **T-002** (P1) Security foundation (OWASP baseline)
   - Add security headers and CSP middleware, a CORS allow-list, request body-size limits, CSRF protection for cookie auth, a global error handler with no stack traces in production, and structured JSON logging with secret masking.

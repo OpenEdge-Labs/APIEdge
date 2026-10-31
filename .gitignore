@@ -4,8 +4,8 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
-build/
-dist/
+/build/
+/dist/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -15,7 +15,8 @@ htmlcov/
 # Console (Node)
 console/node_modules/
 console/dist/
-src/apiedge/static/
+# NOTE: src/apiedge/static/ (prebuilt console) and vendor/ (all third-party
+# wheels/tarballs) are intentionally COMMITTED — see docs/PROJECT_GUIDE.md "Vendored dependencies".
 
 # Runtime data / secrets
 .env

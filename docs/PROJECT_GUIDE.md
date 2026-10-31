@@ -79,11 +79,13 @@ src/apiedge/
   security/     auth, RBAC, crypto, OWASP controls
   db/           models, Alembic migrations
   cli.py        `apiedge` command (init, migrate, run, create-admin)
-  static/       built web console (generated, not hand-edited)
+  static/       built web console (generated and committed, never hand-edited)
 console/        web console source (React)
 tests/          unit, integration, security, e2e
 docs/           ARCHITECTURE.md, SECURITY.md, adr/, user-guide/, admin-guide/, PROGRESS.md
-packaging/      Docker, PyInstaller specs, installer scripts
+packaging/      Docker, PyInstaller specs
+scripts/        offline install scripts, vendor-refresh
+vendor/         ALL third-party dependencies (see "Vendored dependencies")
 APIProjectTask.md   customer task inbox
 ```
 
@@ -108,11 +110,39 @@ APIEdge must satisfy the **OWASP Top 10 (2021)**, the **OWASP API Security Top 1
 APIEdge must install and run on **Windows, Linux and macOS** (x86_64 and arm64):
 
 - A pip-installable wheel (`pip install apiedge`) with the built console included.
-- An **offline bundle** per OS: a wheelhouse with all dependencies plus install scripts (`install.ps1`, `install.sh`), so it works without internet.
+- **Offline install straight from the git checkout**, using the vendored wheelhouse described in the next section, plus offline release bundles per OS.
 - Standalone executables built with PyInstaller for each OS.
 - A multi-arch Docker image and `docker-compose.yml` (APIEdge, PostgreSQL and Redis).
 - GitHub Actions CI runs lint and tests on a matrix of `windows-latest`, `ubuntu-latest` and `macos-latest`, and builds the release artifacts.
 - Code uses `pathlib` and avoids OS-specific shell calls. Data and config directories follow each OS's conventions (`platformdirs`).
+
+## Vendored dependencies (customer requirement)
+
+**Every third-party dependency is committed to this repository.** After `git clone` or `git pull`, APIEdge must install, build, test and run **with no internet access**. The only prerequisite is a Python 3.10–3.12 interpreter. External services are optional, because SQLite is the default database and Redis has an in-process fallback.
+
+```
+vendor/
+  python/
+    runtime/        wheels needed to run APIEdge, for every supported platform
+    dev/            wheels for tests and tooling (pytest, ruff, mypy, bandit, pip-audit, ...)
+    bootstrap/      pip, setuptools and wheel, so even pip itself needs no download
+    requirements.lock       runtime lock with hashes (pip-compile --generate-hashes)
+    requirements-dev.lock   dev lock with hashes
+  node/
+    offline-mirror/ npm package tarballs for console development (an npm offline mirror)
+  THIRD_PARTY_LICENSES.md   every vendored package with its version, license and source URL
+src/apiedge/static/         prebuilt web console, committed, so running APIEdge never needs Node.js
+scripts/
+  install.ps1 / install.sh / install.py    offline install: `pip install --no-index --find-links vendor/python/...`
+  vendor-refresh.py                        maintainer-only: downloads wheels for every platform and updates the locks
+```
+
+- **Platforms vendored:** `win_amd64`, `manylinux x86_64` and `aarch64`, and `macosx x86_64` and `arm64`, for Python 3.10, 3.11 and 3.12. Pure-Python and `abi3` wheels are stored once.
+- **Install path:** every install script uses `--no-index --find-links` only, never PyPI. CI includes a job with **networking disabled** that clones, installs, tests and runs APIEdge on Windows, Linux and macOS to prove this works.
+- **Adding or upgrading a dependency:** pin it in the lock with hashes, run `scripts/vendor-refresh.py` to fetch wheels for every platform, commit the wheels, the lock and the updated `THIRD_PARTY_LICENSES.md` together, and run pip-audit on the vendored set.
+- **Licenses:** only Apache-2.0-compatible licenses are allowed (MIT, BSD, Apache-2.0, ISC, PSF, MPL-2.0 used as a dependency). GPL, AGPL and SSPL are not allowed.
+- **Size discipline:** prefer few, well-maintained dependencies. Every wheel must stay under 100 MB (GitHub's per-file limit), and `vendor/` should stay under about 1 GB. If it grows past that, raise it in Vendor Proposals rather than dropping platforms silently. **Do not use Git LFS**, because LFS content is downloaded separately.
+- Node.js is needed only by developers who change the console source, and its packages come from `vendor/node/offline-mirror`.
 
 ## Documentation shipped with every release
 
