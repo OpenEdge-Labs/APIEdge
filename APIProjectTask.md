@@ -30,7 +30,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 
 ## Phase 1: Foundation
 
-- [~] **T-001** (P1) Project scaffolding (Python/FastAPI)
+- [x] **T-001** (P1) Project scaffolding (Python/FastAPI)
   - Set up `pyproject.toml` with the `src/apiedge` package, the `apiedge` CLI (`init`, `migrate`, `run`, `create-admin`), pydantic-settings config and `platformdirs` data dirs.
   - Add SQLAlchemy and Alembic, with SQLite as the default and PostgreSQL optional.
   - Create `console/` as a React + Vite + TS skeleton, built into `src/apiedge/static`.
@@ -41,7 +41,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   > Delivered: `src/apiedge` package with the `apiedge` CLI (`init`, `migrate`, `run [--open]`, `create-admin`, `version`), pydantic-settings (`APIEDGE_*`, `.env.example`), platformdirs data dir, SQLAlchemy 2 + Alembic (SQLite default, PostgreSQL via `APIEDGE_DATABASE_URL` and the `apiedge[postgres]` extra), `/healthz` and `/readyz`, a React + Vite + TS console shell prebuilt into `src/apiedge/static`, ruff, mypy --strict, bandit, pytest and pre-commit, CI on 3 OS x Python 3.10-3.12, `docs/ARCHITECTURE.md`, ADR 0001 and 0002, and a README quick start. Local results: 36 tests pass, all linters clean. Try it: `python scripts/install.py --local --dev --no-start`, then `.venv/Scripts/apiedge run --open` (Windows) or `.venv/bin/apiedge run --open`.
   > Vendor decision: a minimal `users` table (Argon2id hash, `must_change_password`) ships now so `create-admin` and the installer work end to end. T-003 extends it through migrations.
 
-- [~] **T-019** (P1) One-click installer for all OSs
+- [x] **T-019** (P1) One-click installer for all OSs
   - Add `install.bat` (Windows, double-click), `install.command` (macOS, double-click) and `install.sh` (Linux), all calling the shared `scripts/install.py`.
   - The installer checks for Python 3.10+ and gives guided installation if it is missing. It creates an isolated venv, downloads and installs dependencies from PyPI using the hash-locked `requirements/runtime.lock`, then installs APIEdge, runs migrations, creates the first admin, optionally registers a service and shortcut, starts the gateway and opens the console.
   - Re-running it repairs or upgrades. It supports `--uninstall`, `--unattended`, `--proxy` and `--index-url`, and writes an install log.
@@ -51,6 +51,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   - Document installation in the README and the Installation Guide.
   - Depends on: T-001 (do it together with T-001, before any feature work)
   > Delivered: `install.bat` (to `scripts/install.ps1`), `install.command` and `install.sh` (to `scripts/install.sh`), all calling `scripts/install.py`. The installer checks for Python 3.10-3.12 (with OS-specific guidance if missing), creates a venv in the data dir, installs `requirements/build.lock`, `runtime.lock` and APIEdge itself with `--require-hashes` (every download is hash-verified), runs migrations, creates the first admin (prompted, or generated and shown once, never logged), and optionally adds shortcuts and start-at-logon (systemd user unit / launchd agent / Windows Startup folder) before starting APIEdge and opening the console. Re-running it repairs or upgrades. Options: `--uninstall [--purge-data]`, `--unattended`, `--proxy`, `--index-url`. The log is `<data dir>/install.log`. Locks are regenerated with `scripts/update-locks.py`. `scripts/check-licenses.py` maintains `THIRD_PARTY_LICENSES.md` and fails on GPL, AGPL or SSPL. CI runs each OS's installer unattended (install, re-install, uninstall) with a `/healthz` smoke test. Verified locally on Windows: `install.bat --unattended --smoke-test` passes on a fresh venv and on a re-run; the macOS and Linux installers and CI are verified only by the first CI run. No dependencies were ever committed: no `vendor/` directory, wheels or `node_modules`.
+  > Fixed 2026-10-31: the first CI run (41226967643) failed on Python 3.11 and 3.12 because the lock files had no environment markers. The locks now carry per-target PEP 508 markers and every target is verified (commit da08eff). CI run 41228102117 passed all 14 jobs: tests on 3 OS x 3 Python versions, the installer smoke test on 3 OSs, quality and console.
   > Vendor decision: Windows "service" means a per-user Startup-folder entry, because a real Windows service needs admin rights or extra tooling. Shortcut and service creation were not run on this machine; the generated files are unit-tested.
   > Vendor decision: `filelock` 4.1.0 is a dev-only dependency (through pip-audit and pre-commit) with 17 CVEs, and the fix needs Python 3.11 or newer. CI audits `runtime.lock` strictly and `dev.lock` with these IDs listed in `requirements/audit-ignore-dev.txt`. `argon2-cffi-bindings` is held at 25.1.0, because 26.1.0 has no macOS x86_64 wheel.
 
