@@ -5,6 +5,7 @@ All notable changes to APIEdge are documented here. Format: [Keep a Changelog](h
 ## [Unreleased]
 
 ### Security
+- T-005: fixed the tenant filter being silently skipped for a session factory created at the memory address of a garbage-collected one (install guard relied on `event.contains`, which is keyed by object id); sessions from such a factory were not tenant-filtered. Regression test added.
 - T-002: OWASP baseline: security headers and strict CSP, CORS allow-list (closed by default), request body-size limit (413), CSRF protection (double-submit cookie plus Origin check) for cookie-authenticated requests, global error handler without stack traces, 422 responses that never echo input, structured JSON logging with secret masking and request ids, AES-256-GCM secrets encryption helper with key rotation (`pycryptodome`), SSRF guard for upstream URLs, `docs/SECURITY.md` with the OWASP mapping, CodeQL in CI. A CodeQL finding is accepted only with both an inline `codeql[<rule id>]` justification and a row in the `docs/SECURITY.md` "Accepted findings" table, enforced by `scripts/codeql-gate.py`.
 
 ### Changed

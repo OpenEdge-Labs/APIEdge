@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pytest
 
@@ -15,10 +16,10 @@ def _url(world: World, suffix: str = "", tenant: int | None = None) -> str:
     return f"/api/v1/tenants/{tenant or world.tenant_a}/products{suffix}"
 
 
-def _create(world: World, h: dict[str, str], name: str, **extra: object) -> dict[str, object]:
+def _create(world: World, h: dict[str, str], name: str, **extra: object) -> dict[str, Any]:
     r = world.client.post(_url(world), json={"name": name, **extra}, headers=h)
     assert r.status_code == 201, r.text
-    body: dict[str, object] = r.json()
+    body: dict[str, Any] = r.json()
     return body
 
 
@@ -52,7 +53,7 @@ def test_crud_lifecycle_and_audit(world: World) -> None:
     h = world.login("alice")
     p = _create(world, h, "Payments", description="Card payments")
     assert p["lifecycle"] == "draft"
-    assert [o["username"] for o in p["owners"]] == ["alice"]  # type: ignore[union-attr,index]
+    assert [o["username"] for o in p["owners"]] == ["alice"]
     pid = p["id"]
 
     r = world.client.patch(
@@ -176,7 +177,7 @@ def test_product_scoped_owner(world: World) -> None:
     admin = world.login("alice")
     mine = _create(world, admin, "Mine")["id"]
     other = _create(world, admin, "Other")["id"]
-    _scoped_user(world, admin, "polly", "ProductOwner", int(str(mine)))
+    _scoped_user(world, admin, "polly", "ProductOwner", mine)
     h = world.login("polly")
 
     assert [p["id"] for p in world.client.get(_url(world), headers=h).json()] == [mine]
@@ -206,7 +207,7 @@ def test_product_scoped_owner(world: World) -> None:
 
 def test_deleting_a_product_removes_its_scoped_grants(world: World) -> None:
     admin = world.login("alice")
-    pid = int(str(_create(world, admin, "Temp")["id"]))
+    pid = int(_create(world, admin, "Temp")["id"])
     uid = _scoped_user(world, admin, "temp-owner", "Viewer", pid)
     assert world.client.delete(_url(world, f"/{pid}"), headers=admin).status_code == 204
     grants = world.client.get(

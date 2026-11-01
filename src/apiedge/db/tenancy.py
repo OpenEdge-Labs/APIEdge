@@ -70,8 +70,18 @@ def _guard_writes(session: Session, _ctx: Any, _instances: Any) -> None:
             raise CrossTenantWriteError(type(obj).__name__)
 
 
+_INSTALLED = "_apiedge_tenant_filter"
+
+
 def install_tenant_filter(target: Any) -> None:
-    """Register the filter on a ``sessionmaker`` (or ``Session`` class). Idempotent."""
-    if not event.contains(target, "do_orm_execute", _filter):
-        event.listen(target, "do_orm_execute", _filter)
-        event.listen(target, "before_flush", _guard_writes)
+    """Register the filter on a ``sessionmaker`` (or ``Session`` class). Idempotent.
+
+    The guard is a marker stored on the target itself. ``event.contains`` must not be used:
+    SQLAlchemy's event registry is keyed by ``id(target)``, so a new factory allocated at the
+    address of a garbage-collected one would be reported as filtered and left unfiltered.
+    """
+    if vars(target).get(_INSTALLED):
+        return
+    event.listen(target, "do_orm_execute", _filter)
+    event.listen(target, "before_flush", _guard_writes)
+    setattr(target, _INSTALLED, True)

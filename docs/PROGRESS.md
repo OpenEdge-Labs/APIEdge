@@ -204,3 +204,15 @@ disclosure); with it for some products, other products answer 404.
 
 **Follow-ups.** T-006 APIs inside products reuse the product checks; block deleting products that
 still contain APIs once APIs exist.
+
+**CI fix (tenant isolation defect).** CI run 41275045193 failed on Windows / Python 3.12:
+`test_audit_log_is_tenant_scoped` saw tenant B's audit event in tenant A's log. Root cause: the
+tenant filter's install guard used `sqlalchemy.event.contains`, whose registry is keyed by
+`id(target)`; a new session factory placed at the address of a garbage-collected one (each test
+creates an app) was reported as already filtered, so the filter was never installed and its
+sessions ran unfiltered. Proved with a probe (2985 of 3000 fresh factories at reused addresses were
+reported as filtered) and a deterministic regression test that fails on the old code (3 audit rows
+visible instead of 1). Fixed by marking the factory itself; recorded in `docs/SECURITY.md`
+(Fixed defects). The local intermittent failure seen earlier in this task (1 in 7 full runs) has
+the same cause. The same run's mypy error in `tests/integration/test_products_api.py` was fixed by
+typing the helper's return value.

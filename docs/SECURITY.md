@@ -112,6 +112,12 @@ containing "password" as a secret, so the policy constants were renamed (`MIN_PA
 `POLICY_MIN_LENGTH`, `PASSWORD_POLICY_TEXT` to `POLICY_TEXT`). The policy error message is static
 text and never contains the password.
 
+### Fixed defects
+
+| Date | Found by | Defect | Fix |
+|---|---|---|---|
+| 2026-11-01 | CI (Windows, Python 3.12), during T-005 | Tenant filter could be silently missing. `install_tenant_filter` skipped installation when `event.contains(...)` said the listener was present, but SQLAlchemy's event registry is keyed by `id(target)`: a session factory allocated at the address of a garbage-collected factory was reported as filtered, so its sessions ran unfiltered and a tenant's audit log (and other list queries that rely only on the data-layer filter) could include other tenants' rows. Route-level tenant checks (`require`, 404 for foreign tenants, explicit `tenant_id` comparisons on object lookups) were unaffected. The server creates one factory per process, so a long-running `apiedge run` was exposed only if a factory had been created and collected earlier in the same process (tests, embedding `create_app` more than once). | The guard is now a marker attribute on the factory itself (`src/apiedge/db/tenancy.py`). Regression test `tests/integration/test_tenancy.py::test_filter_installed_on_every_new_factory` creates factories at recycled addresses and fails on the old code. |
+
 ## 6. Security configuration
 
 See `docs/admin-guide/configuration.md` and `.env.example`. Security-relevant settings:

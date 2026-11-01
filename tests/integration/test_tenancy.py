@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import gc
 from pathlib import Path
 
 import pytest
@@ -104,3 +105,24 @@ def test_migration_downgrade_to_0001_and_back(tmp_path: Path) -> None:
     assert "tenant_id" not in {c["name"] for c in inspect(engine).get_columns("users")}
     engine.dispose()
     run_migrations(url)
+
+
+def test_filter_installed_on_every_new_factory(factory: sessionmaker[Session]) -> None:
+    """Regression: the install guard used ``event.contains``, whose registry is keyed by
+    ``id(target)``. A new session factory allocated at the address of a garbage-collected one
+    was reported as already filtered, so its sessions were not tenant-filtered at all."""
+    engine = factory.kw["bind"]
+    seen: set[int] = set()
+    reused = 0
+    for _ in range(50):
+        f = make_session_factory(engine)
+        reused += id(f) in seen
+        seen.add(id(f))
+        with f() as s:
+            bind_tenant(s, 1)
+            assert len(s.scalars(select(AuditEvent)).all()) == 1
+            assert [u.username for u in s.scalars(select(User))] == ["ua"]
+        del f, s
+        gc.collect()
+    # CPython hands freed addresses straight back, so the failing condition was exercised.
+    assert reused > 0
