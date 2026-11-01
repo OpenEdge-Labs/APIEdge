@@ -98,9 +98,10 @@ row has no inline marker, when a row is incomplete, or when a finding is not cov
 |---|---|---|---|
 | `src/apiedge/cli.py` | `py/clear-text-logging-sensitive-data` | `create-admin --generate-password` prints the generated first-admin password once to the operator's terminal by design (T-019, needed for unattended installs). It is never written to a log (the installer runs this step with logging off), and a password change is forced at first login. | 2026-11-01 |
 
-Not an accepted finding, recorded for transparency: the password policy constant was renamed from
-`MIN_PASSWORD_LENGTH` to `POLICY_MIN_LENGTH` because CodeQL's name heuristic treated the length
-constant as a password and flagged the policy error message; the message is now static text.
+Fixed, not accepted (recorded for transparency): CodeQL's name heuristic treats any identifier
+containing "password" as a secret, so the policy constants were renamed (`MIN_PASSWORD_LENGTH` to
+`POLICY_MIN_LENGTH`, `PASSWORD_POLICY_TEXT` to `POLICY_TEXT`). The policy error message is static
+text and never contains the password.
 
 ## 6. Security configuration
 

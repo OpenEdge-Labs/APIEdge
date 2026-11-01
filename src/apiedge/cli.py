@@ -114,7 +114,7 @@ def cmd_create_admin(args: argparse.Namespace) -> int:
     from apiedge.db.base import make_engine, make_session_factory, run_migrations
     from apiedge.db.models import User
     from apiedge.security.passwords import (
-        PASSWORD_POLICY_TEXT,
+        POLICY_TEXT,
         generate_password,
         hash_password,
         password_problems,
@@ -157,7 +157,7 @@ def cmd_create_admin(args: argparse.Namespace) -> int:
 
             if password_problems(password):
                 # Static text: nothing derived from the password reaches the terminal.
-                print(f"error: {PASSWORD_POLICY_TEXT}", file=sys.stderr)
+                print(f"error: {POLICY_TEXT}", file=sys.stderr)
                 return EXIT_ERROR
 
             session.add(

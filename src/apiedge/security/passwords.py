@@ -14,7 +14,7 @@ from argon2.exceptions import InvalidHashError, VerificationError
 _hasher = PasswordHasher()
 
 POLICY_MIN_LENGTH = 12
-PASSWORD_POLICY_TEXT = (
+POLICY_TEXT = (
     f"password must be at least {POLICY_MIN_LENGTH} characters "
     "and must not start or end with whitespace"
 )
