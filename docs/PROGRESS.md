@@ -258,3 +258,11 @@ except that a retired product freezes its APIs apart from winding them down.
 **Follow-ups.** T-007 re-checks upstream addresses at connect time and serves only published or
 deprecated APIs of non-retired products; T-011 imports OpenAPI into this model; load-balancing
 algorithms and health checks in T-025.
+
+**CI fix (flaky precondition).** CI run 41312919574 failed only on ubuntu / Python 3.10:
+`test_filter_installed_on_every_new_factory` (T-005) asserted that at least one new session
+factory reused a freed memory address, which depends on the allocator; the tenant-filter
+assertions themselves passed. The allocator precondition was replaced by a deterministic
+regression test that makes the event registry report every target as already listened to (what
+an address reuse looks like) and checks that the filter is still installed; it fails on the
+pre-T-005 guard. CodeQL run 41312919641 was green.

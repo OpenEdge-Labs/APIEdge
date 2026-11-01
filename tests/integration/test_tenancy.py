@@ -112,17 +112,29 @@ def test_filter_installed_on_every_new_factory(factory: sessionmaker[Session]) -
     ``id(target)``. A new session factory allocated at the address of a garbage-collected one
     was reported as already filtered, so its sessions were not tenant-filtered at all."""
     engine = factory.kw["bind"]
-    seen: set[int] = set()
-    reused = 0
     for _ in range(50):
         f = make_session_factory(engine)
-        reused += id(f) in seen
-        seen.add(id(f))
         with f() as s:
             bind_tenant(s, 1)
             assert len(s.scalars(select(AuditEvent)).all()) == 1
             assert [u.username for u in s.scalars(select(User))] == ["ua"]
         del f, s
         gc.collect()
-    # CPython hands freed addresses straight back, so the failing condition was exercised.
-    assert reused > 0
+    # CPython usually hands the freed addresses straight back, but that depends on the allocator
+    # (CI run 41312919574 saw no reuse on ubuntu / Python 3.10), so the next test forces the
+    # failing condition deterministically.
+
+
+def test_filter_installed_even_if_the_event_registry_claims_it(
+    factory: sessionmaker[Session], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Deterministic form of the regression above: the event registry reports every target as
+    already listened to (what an address reuse looks like); the filter must still be installed."""
+    from sqlalchemy import event
+
+    monkeypatch.setattr(event, "contains", lambda *_a, **_k: True)
+    f = make_session_factory(factory.kw["bind"])
+    with f() as s:
+        bind_tenant(s, 1)
+        assert len(s.scalars(select(AuditEvent)).all()) == 1
+        assert [u.username for u in s.scalars(select(User))] == ["ua"]
