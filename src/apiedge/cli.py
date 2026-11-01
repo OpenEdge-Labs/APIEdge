@@ -113,7 +113,12 @@ def _open_browser_when_ready(url: str) -> None:
 def cmd_create_admin(args: argparse.Namespace) -> int:
     from apiedge.db.base import make_engine, make_session_factory, run_migrations
     from apiedge.db.models import User
-    from apiedge.security.passwords import generate_password, hash_password, password_problems
+    from apiedge.security.passwords import (
+        PASSWORD_POLICY_TEXT,
+        generate_password,
+        hash_password,
+        password_problems,
+    )
 
     settings = _settings(args)
     run_migrations(settings.effective_database_url)
@@ -150,9 +155,9 @@ def cmd_create_admin(args: argparse.Namespace) -> int:
                 )
                 return EXIT_USAGE
 
-            problems = password_problems(password)
-            if problems:
-                print("error: password " + "; ".join(problems), file=sys.stderr)
+            if password_problems(password):
+                # Static text: nothing derived from the password reaches the terminal.
+                print(f"error: {PASSWORD_POLICY_TEXT}", file=sys.stderr)
                 return EXIT_ERROR
 
             session.add(
