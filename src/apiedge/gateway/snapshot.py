@@ -13,18 +13,25 @@ Which APIs are visible (OWASP API9, ADR 0006 lifecycle):
   header;
 * retired API, or any API of a retired product: answered with 410 Gone;
 * draft APIs and APIs of inactive tenants: unknown (404).
+
+Each served API carries its policy :class:`~apiedge.policies.base.Pipeline` (T-008), built from
+the stored chain with the product's active API keys (only their SHA-256 hashes).
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from apiedge.db.models import Api, Product, Tenant
+from apiedge.db.models import Api, ApiKey, Product, Tenant
+from apiedge.policies.base import Pipeline
+from apiedge.policies.builtin import ApiKeyInfo, PolicyServices, build_pipeline
+from apiedge.security.crypto import SecretBox
 
 SERVED = "served"
 DEPRECATED = "deprecated"
@@ -92,6 +99,7 @@ class RuntimeApi:
     balancer: WeightedBalancer = field(repr=False)
     tenant_id: int = 0
     product_id: int = 0
+    pipeline: Pipeline = field(default_factory=Pipeline, repr=False)
 
     def remainder(self, path: str) -> str | None:
         """The path below the base path, or None if ``path`` is not under it."""
@@ -135,7 +143,15 @@ def _state(api_lifecycle: str, product_lifecycle: str) -> str | None:
     return None  # draft
 
 
-def build_runtime_api(api: Api, tenant_slug: str, product_lifecycle: str) -> RuntimeApi | None:
+def build_runtime_api(
+    api: Api,
+    tenant_slug: str,
+    product_lifecycle: str,
+    *,
+    services: PolicyServices | None = None,
+    keys: Mapping[str, ApiKeyInfo] | None = None,
+    box: SecretBox | None = None,
+) -> RuntimeApi | None:
     state = _state(api.lifecycle, product_lifecycle)
     if state is None:
         return None
@@ -146,6 +162,16 @@ def build_runtime_api(api: Api, tenant_slug: str, product_lifecycle: str) -> Run
     )
     if state != RETIRED and not (upstreams and routes):
         return None
+    pipeline = Pipeline()
+    if services is not None and state != RETIRED:
+        pipeline = build_pipeline(
+            api.policies,
+            tenant_id=api.tenant_id,
+            api_id=api.id,
+            keys=keys or {},
+            services=services,
+            box=box,
+        )
     return RuntimeApi(
         api_id=api.id,
         tenant_slug=tenant_slug,
@@ -157,10 +183,27 @@ def build_runtime_api(api: Api, tenant_slug: str, product_lifecycle: str) -> Run
         balancer=WeightedBalancer([u.weight for u in upstreams]),
         tenant_id=api.tenant_id,
         product_id=api.product_id,
+        pipeline=pipeline,
     )
 
 
-def load_snapshot(factory: sessionmaker[Session]) -> Snapshot:
+def _active_keys(session: Session) -> dict[tuple[int, int], dict[str, ApiKeyInfo]]:
+    """(tenant, product) -> {key hash -> key} for unrevoked keys (expiry is checked per request)."""
+    keys: dict[tuple[int, int], dict[str, ApiKeyInfo]] = {}
+    for k in session.scalars(select(ApiKey).where(ApiKey.revoked_at.is_(None))):
+        expires = k.expires_at
+        if expires is not None and expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)  # SQLite drops the offset
+        info = ApiKeyInfo(k.id, k.name, k.prefix, expires)
+        keys.setdefault((k.tenant_id, k.product_id), {})[k.key_hash] = info
+    return keys
+
+
+def load_snapshot(
+    factory: sessionmaker[Session],
+    services: PolicyServices | None = None,
+    box: SecretBox | None = None,
+) -> Snapshot:
     """Read every tenant's servable APIs. Runs in a worker thread (blocking DB access).
 
     The session is not bound to a tenant (platform scope); tenant separation comes from keying
@@ -169,6 +212,7 @@ def load_snapshot(factory: sessionmaker[Session]) -> Snapshot:
     tenants: dict[str, list[RuntimeApi]] = {}
     with factory() as session:
         slugs = {t.id: t.slug for t in session.scalars(select(Tenant).where(Tenant.is_active))}
+        keys = _active_keys(session) if services is not None else {}
         rows = session.execute(
             select(Api, Product.lifecycle)
             .join(Product, (Product.id == Api.product_id) & (Product.tenant_id == Api.tenant_id))
@@ -178,7 +222,14 @@ def load_snapshot(factory: sessionmaker[Session]) -> Snapshot:
             slug = slugs.get(api.tenant_id)
             if slug is None:
                 continue
-            runtime = build_runtime_api(api, slug, product_lifecycle)
+            runtime = build_runtime_api(
+                api,
+                slug,
+                product_lifecycle,
+                services=services,
+                keys=keys.get((api.tenant_id, api.product_id), {}),
+                box=box,
+            )
             if runtime is not None:
                 tenants.setdefault(slug, []).append(runtime)
     return Snapshot(

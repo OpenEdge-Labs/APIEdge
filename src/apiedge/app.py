@@ -33,26 +33,13 @@ from apiedge.config import Settings, get_settings
 from apiedge.db.base import make_engine, make_session_factory
 from apiedge.gateway.bus import ConfigBus, build_bus, install_change_notifier
 from apiedge.security.auth import LoginThrottle, TokenSigner
-from apiedge.security.crypto import KeyConfigError, SecretBox, build_secret_box
+from apiedge.security.crypto import SecretBox, load_secret_box
 from apiedge.security.middleware import install_security
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 DOCS_URL = "/api/docs"
 
 log = logging.getLogger("apiedge")
-
-
-def load_secret_box(settings: Settings) -> SecretBox | None:
-    """The secrets-encryption box, or None (with a warning) if no master key is configured."""
-    try:
-        return build_secret_box(
-            settings.secret_key.get_secret_value() if settings.secret_key else None,
-            settings.effective_secret_key_file,
-            [k.get_secret_value() for k in settings.secret_key_previous],
-        )
-    except KeyConfigError as exc:
-        log.warning("secrets encryption unavailable: %s", exc)
-        return None
 
 
 def jwt_signing_key(settings: Settings, box: SecretBox | None) -> bytes:

@@ -48,6 +48,8 @@ PERMISSIONS: dict[str, str] = {
     "policy:read": "View policy chains",
     "policy:update": "Change policy chains",
     "script:update": "Write low-code script policies",
+    "apikey:read": "View API keys",
+    "apikey:manage": "Create and revoke API keys",
     # Debugging and analytics (T-012, T-013)
     "inspector:view": "View captured traffic (masked)",
     "inspector:capture": "Start and stop traffic capture",
@@ -86,7 +88,7 @@ BUILTIN_ROLES: dict[str, tuple[str, frozenset[str]]] = {
         "Owns products: APIs, policies, plans, subscriptions and debugging",
         frozenset(
             _all("product", actions=("read", "update", "publish"))
-            | _all("api", "policy", "script", "plan", "subscription")
+            | _all("api", "policy", "script", "plan", "subscription", "apikey")
             | {"consumer:read", "inspector:view", "inspector:capture", "analytics:view"}
         ),
     ),
@@ -94,7 +96,7 @@ BUILTIN_ROLES: dict[str, tuple[str, frozenset[str]]] = {
         "Builds APIs and policies",
         frozenset(
             {"product:read", "api:read", "api:create", "api:update"}
-            | _all("policy", "script")
+            | _all("policy", "script", "apikey")
             | {"inspector:view", "inspector:capture", "analytics:view", "plan:read"}
         ),
     ),

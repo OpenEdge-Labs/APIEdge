@@ -9,9 +9,15 @@ timeouts and 502/503/504 answers only for idempotent methods. Hop-by-hop headers
 forwarded, ``X-Forwarded-*`` is set, request bodies are size-limited, and the gateway's own
 errors are fixed JSON documents that never contain upstream or exception details.
 
+Between matching and forwarding the API's policy pipeline runs (T-008, ADR 0009): policies may
+change the request, answer it themselves (authentication failures, rate limits, mocks, cache
+hits) and change the response on its way back. Every policy decision is recorded in the
+request's trace, which is handed to the registered trace listeners (the packet inspector, T-012).
+CORS preflights are answered by the route's CORS policy before the rest of the chain runs.
+
 Every request that resolves to an API is measured (T-013): status, latency until the last
-response byte, body sizes, route and method go to the shared ``MetricsCollector``, which a
-background task flushes to the analytics tables.
+response byte, body sizes, route, method and consumer go to the shared ``MetricsCollector``,
+which a background task flushes to the analytics tables.
 
 The data plane is a separate ASGI app on its own port (``APIEDGE_GATEWAY_PORT``): it does not
 use the console's cookie, CSRF or CSP middleware, and console paths cannot shadow API paths.
@@ -21,13 +27,16 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import ipaddress
+import json
 import logging
 import re
 import time
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
-from urllib.parse import quote
+from typing import Any
+from urllib.parse import parse_qsl, quote, urlencode
 
 import anyio
 import httpx
@@ -42,6 +51,17 @@ from apiedge.db.base import make_engine, make_session_factory
 from apiedge.gateway.bus import ConfigBus, build_bus
 from apiedge.gateway.snapshot import DEPRECATED, RETIRED, RuntimeApi, Snapshot, load_snapshot
 from apiedge.gateway.transport import build_client
+from apiedge.policies.base import (
+    BodyTooLargeError,
+    GatewayResponse,
+    RequestContext,
+    TraceEntry,
+    json_error,
+)
+from apiedge.policies.builtin import Cors, PolicyServices
+from apiedge.policies.jwt import JwksCache
+from apiedge.policies.stores import Limiter, MemoryLimiter, RedisLimiter, ResponseCache
+from apiedge.security.crypto import SecretBox, load_secret_box
 from apiedge.security.ssrf import AsyncResolver
 
 log = logging.getLogger("apiedge.gateway")
@@ -74,6 +94,46 @@ _REQUEST_DROP = HOP_BY_HOP | {
 _REQUEST_ID = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _PATH_SAFE = "/:@!$&'()*+,;=-._~"
 
+TraceListener = Callable[[RequestContext, int], None]
+IPNetwork = ipaddress.IPv4Network | ipaddress.IPv6Network
+
+
+def _ip(text: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    try:
+        ip = ipaddress.ip_address(text.strip().split("%", 1)[0])
+    except ValueError:
+        return None
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        return ip.ipv4_mapped
+    return ip
+
+
+def client_address(peer: str, forwarded_for: Sequence[str], trusted: Sequence[IPNetwork]) -> str:
+    """The client's address: the peer, unless the peer is a trusted proxy.
+
+    Behind trusted proxies, ``X-Forwarded-For`` is read from the right and the first address
+    that is not a trusted proxy is the client. Entries left of it are client-controlled and
+    ignored; a malformed entry stops the walk at the last address known to be good.
+    """
+    current = _ip(peer)
+    if current is None:
+        return peer
+
+    def is_trusted(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+        return any(ip.version == n.version and ip in n for n in trusted)
+
+    if not is_trusted(current):
+        return str(current)
+    hops = [h for value in forwarded_for for h in value.split(",") if h.strip()]
+    for hop in reversed(hops):
+        ip = _ip(hop)
+        if ip is None:
+            break
+        current = ip
+        if not is_trusted(ip):
+            break
+    return str(current)
+
 
 class GatewayRuntime:
     """Holds the current snapshot and reloads it on change events."""
@@ -84,6 +144,7 @@ class GatewayRuntime:
         bus: ConfigBus,
         resolver: AsyncResolver | None = None,
         metrics: MetricsCollector | None = None,
+        limiter: Limiter | None = None,
     ) -> None:
         self.settings = settings
         self.bus = bus
@@ -94,10 +155,35 @@ class GatewayRuntime:
         self._engine = make_engine(settings.effective_database_url)
         self._factory = make_session_factory(self._engine)
         self.client: httpx.AsyncClient | None = None
+        self.trusted_proxies: tuple[IPNetwork, ...] = tuple(
+            ipaddress.ip_network(c, strict=False) for c in settings.gateway_trusted_proxies
+        )
+        self.secret_box: SecretBox | None = load_secret_box(settings)
+        self._redis: Any = None
+        if limiter is None:
+            memory = MemoryLimiter(settings.gateway_rate_limit_max_keys)
+            limiter = memory
+            if settings.redis_url is not None:
+                import redis.asyncio
+
+                self._redis = redis.asyncio.Redis.from_url(
+                    settings.redis_url.get_secret_value(),
+                    socket_timeout=0.5,
+                    socket_connect_timeout=0.5,
+                )
+                limiter = RedisLimiter(self._redis, memory)
+        self.services = PolicyServices(
+            limiter=limiter,
+            cache=ResponseCache(settings.gateway_cache_max_bytes),
+            jwks=JwksCache(lambda: self.client),
+        )
+        self.trace_listeners: list[TraceListener] = []
 
     async def reload(self) -> None:
         try:
-            snapshot = await anyio.to_thread.run_sync(load_snapshot, self._factory)
+            snapshot = await anyio.to_thread.run_sync(
+                load_snapshot, self._factory, self.services, self.secret_box
+            )
         except Exception:
             log.exception("gateway configuration reload failed; keeping the previous one")
             return
@@ -123,6 +209,13 @@ class GatewayRuntime:
         while True:
             await asyncio.sleep(self.settings.analytics_flush_interval_seconds)
             await self.flush_metrics()
+
+    def emit_trace(self, ctx: RequestContext, status: int) -> None:
+        for listener in self.trace_listeners:
+            try:
+                listener(ctx, status)
+            except Exception:
+                log.exception("trace listener failed")
 
     @asynccontextmanager
     async def running(self) -> AsyncIterator[None]:
@@ -152,22 +245,13 @@ class GatewayRuntime:
             await asyncio.gather(*tasks, return_exceptions=True)
             await self.flush_metrics()  # keep the last seconds of traffic
             await self.client.aclose()
+            if self._redis is not None:
+                with contextlib.suppress(Exception):
+                    await self._redis.aclose()
             self._engine.dispose()
 
 
-def _error(status: int, code: str, message: str, request_id: str) -> JSONResponse:
-    return JSONResponse(
-        {"error": code, "message": message, "request_id": request_id},
-        status_code=status,
-        headers={
-            "x-request-id": request_id,
-            "cache-control": "no-store",
-            "x-content-type-options": "nosniff",
-        },
-    )
-
-
-def _connection_tokens(headers: list[tuple[bytes, bytes]]) -> set[str]:
+def _connection_tokens(headers: Sequence[tuple[bytes, bytes]]) -> set[str]:
     tokens: set[str] = set()
     for name, value in headers:
         if name.lower() == b"connection":
@@ -175,34 +259,48 @@ def _connection_tokens(headers: list[tuple[bytes, bytes]]) -> set[str]:
     return tokens
 
 
-def _forward_headers(request: Request, request_id: str, prefix: str) -> list[tuple[bytes, bytes]]:
+def _client_headers(request: Request) -> list[tuple[str, str]]:
+    """The client's headers that may be forwarded (lower-case names)."""
     raw = request.scope["headers"]
     drop = _REQUEST_DROP | _connection_tokens(raw)
-    out = [(k, v) for k, v in raw if k.decode("latin-1").lower() not in drop]
-    client_ip = request.client.host if request.client else ""
-    prior = ", ".join(request.headers.getlist("x-forwarded-for"))
-    if client_ip:
-        out = [(k, v) for k, v in out if k.lower() != b"x-forwarded-for"]
-        chain = f"{prior}, {client_ip}" if prior else client_ip
+    out = []
+    for k, v in raw:
+        name = k.decode("latin-1").lower()
+        if name not in drop:
+            out.append((name, v.decode("latin-1")))
+    return out
+
+
+def _forward_headers(
+    ctx: RequestContext, request: Request, prefix: str
+) -> list[tuple[bytes, bytes]]:
+    out = [
+        (k.encode("latin-1"), v.encode("latin-1")) for k, v in ctx.headers if k != "x-forwarded-for"
+    ]
+    peer = request.client.host if request.client else ""
+    prior = ", ".join(v for k, v in ctx.headers if k == "x-forwarded-for")
+    if peer:
+        chain = f"{prior}, {peer}" if prior else peer
         out.append((b"x-forwarded-for", chain.encode("latin-1")))
+    elif prior:
+        out.append((b"x-forwarded-for", prior.encode("latin-1")))
     host = request.headers.get("host")
     if host:
         out.append((b"x-forwarded-host", host.encode("latin-1")))
     out.append((b"x-forwarded-proto", request.url.scheme.encode("latin-1")))
     out.append((b"x-forwarded-prefix", quote(prefix, safe=_PATH_SAFE).encode("latin-1")))
-    out.append((b"x-request-id", request_id.encode("latin-1")))
+    out.append((b"x-request-id", ctx.request_id.encode("latin-1")))
     return out
 
 
-def _response_headers(
-    upstream: httpx.Response, request_id: str, api: RuntimeApi
-) -> list[tuple[bytes, bytes]]:
+def _upstream_headers(upstream: httpx.Response) -> list[tuple[str, str]]:
     raw = upstream.headers.raw
     drop = HOP_BY_HOP | _connection_tokens(raw) | {"x-request-id"}
-    out = [(k, v) for k, v in raw if k.decode("latin-1").lower() not in drop]
-    out.append((b"x-request-id", request_id.encode("latin-1")))
-    if api.state == DEPRECATED:
-        out.append((b"deprecation", b"true"))
+    out = []
+    for k, v in raw:
+        name = k.decode("latin-1").lower()
+        if name not in drop:
+            out.append((name, v.decode("latin-1")))
     return out
 
 
@@ -214,6 +312,7 @@ class _Meter:
         self.api = api
         self.method = method
         self.route = ""
+        self.consumer = ""
         self.bytes_in = 0
         self.at = time.time()
         self.started = time.perf_counter()
@@ -228,6 +327,7 @@ class _Meter:
                 api_id=api.api_id,
                 route=self.route,
                 method=self.method,
+                consumer=self.consumer,
                 status=status,
                 latency_ms=(time.perf_counter() - self.started) * 1000,
                 bytes_in=self.bytes_in,
@@ -236,13 +336,17 @@ class _Meter:
             )
         )
 
-    def done(self, response: Response) -> Response:
-        self.finish(response.status_code, len(response.body))
-        return response
 
-
-class BodyTooLargeError(Exception):
-    pass
+def _plain_error(status: int, code: str, message: str, request_id: str) -> JSONResponse:
+    return JSONResponse(
+        {"error": code, "message": message, "request_id": request_id},
+        status_code=status,
+        headers={
+            "x-request-id": request_id,
+            "cache-control": "no-store",
+            "x-content-type-options": "nosniff",
+        },
+    )
 
 
 async def _read_body(request: Request, limit: int) -> bytes:
@@ -259,6 +363,125 @@ async def _read_body(request: Request, limit: int) -> bytes:
     return b"".join(chunks)
 
 
+def _context(
+    request: Request,
+    runtime: GatewayRuntime,
+    api: RuntimeApi,
+    method: str,
+    remainder: str,
+    route: str,
+    request_id: str,
+) -> RequestContext:
+    raw_query = request.scope.get("query_string", b"").decode("latin-1")
+    peer = request.client.host if request.client else ""
+    limit = runtime.settings.gateway_max_request_body_bytes
+    return RequestContext(
+        method=method,
+        path=remainder,
+        route=route,
+        query=parse_qsl(raw_query, keep_blank_values=True),
+        raw_query=raw_query,
+        headers=_client_headers(request),
+        client_ip=client_address(
+            peer, request.headers.getlist("x-forwarded-for"), runtime.trusted_proxies
+        ),
+        request_id=request_id,
+        tenant_id=api.tenant_id,
+        product_id=api.product_id,
+        api_id=api.api_id,
+        body_reader=lambda: _read_body(request, limit),
+    )
+
+
+def _finish(
+    runtime: GatewayRuntime,
+    api: RuntimeApi,
+    ctx: RequestContext | None,
+    resp: GatewayResponse,
+    meter: _Meter,
+    request_id: str,
+) -> Response:
+    """Turn a pipeline response into the ASGI response; meter it and emit the trace."""
+    headers = [(k, v) for k, v in resp.headers if k != "x-request-id"]
+    headers.append(("x-request-id", request_id))
+    if api.state == DEPRECATED:
+        headers.append(("deprecation", "true"))
+    if ctx is not None:
+        meter.consumer = ctx.consumer
+        runtime.emit_trace(ctx, resp.status)
+    stream = resp.stream
+    if stream is None:
+        body = resp.body or b""
+        if resp.error is not None and body == json.dumps(resp.error).encode():
+            body = json.dumps({**resp.error, "request_id": request_id}).encode()
+        headers = [(k, v) for k, v in headers if k != "content-length"]
+        out = Response(content=body, status_code=resp.status)
+        out.raw_headers = [
+            *((k.encode("latin-1"), v.encode("latin-1")) for k, v in headers),
+            (b"content-length", str(len(body)).encode()),
+        ]
+        meter.finish(resp.status, len(body))
+        return out
+
+    async def body_iter() -> AsyncIterator[bytes]:
+        sent = 0
+        try:
+            async for chunk in stream:
+                sent += len(chunk)
+                yield chunk
+        finally:
+            await stream.aclose()
+            meter.finish(resp.status, sent)
+
+    streaming = StreamingResponse(body_iter(), status_code=resp.status)
+    streaming.raw_headers = [(k.encode("latin-1"), v.encode("latin-1")) for k, v in headers]
+    return streaming
+
+
+async def _upstream_body(upstream: httpx.Response, api: RuntimeApi) -> AsyncGenerator[bytes, None]:
+    try:
+        async for chunk in upstream.aiter_raw():
+            yield chunk
+    except httpx.HTTPError:
+        log.warning("upstream response interrupted (api %s)", api.api_id)
+    finally:
+        await upstream.aclose()
+
+
+async def _buffer(resp: GatewayResponse, limit: int) -> None:
+    """Read up to ``limit`` bytes of a streamed response into ``resp.body``.
+
+    Larger bodies keep streaming (already read chunks first) and are marked too large.
+    """
+    stream = resp.stream
+    if stream is None:
+        return
+    chunks: list[bytes] = []
+    size = 0
+    async for chunk in stream:
+        chunks.append(chunk)
+        size += len(chunk)
+        if size > limit:
+            break
+    else:
+        resp.body = b"".join(chunks)
+        resp.stream = None
+        return
+
+    async def rest() -> AsyncGenerator[bytes, None]:
+        try:
+            for chunk in chunks:
+                yield chunk
+            async for chunk in stream:
+                yield chunk
+        finally:
+            await stream.aclose()
+
+    resp.body = None
+    resp.body_too_large = True
+    resp.stream = rest()
+
+
 async def proxy(request: Request) -> Response:
     runtime: GatewayRuntime = request.app.state.runtime
     supplied = request.headers.get("x-request-id", "")
@@ -267,41 +490,71 @@ async def proxy(request: Request) -> Response:
     path = request.url.path
     segments = path.split("/")
     if any(seg in (".", "..") for seg in segments) or "\x00" in path:
-        return _error(400, "bad_request", "Invalid request path.", request_id)
+        return _plain_error(400, "bad_request", "Invalid request path.", request_id)
     slug = segments[1] if len(segments) > 1 else ""
     rest = "/" + "/".join(segments[2:])
     found = runtime.snapshot.resolve(slug, rest)
     if found is None:
         runtime.metrics.record_unmatched()
-        return _error(404, "not_found", "No API matches this path.", request_id)
+        return _plain_error(404, "not_found", "No API matches this path.", request_id)
     api, remainder = found
     method = request.method.upper()
     meter = _Meter(runtime.metrics, api, method)
+
+    def done(resp: GatewayResponse, ctx: RequestContext | None = None) -> Response:
+        return _finish(runtime, api, ctx, resp, meter, request_id)
+
     if api.state == RETIRED:
-        return meter.done(_error(410, "api_retired", "This API has been retired.", request_id))
+        return done(json_error(410, "api_retired", "This API has been retired."))
+
+    # CORS preflight: answered by the CORS policy of the route the browser asks about.
+    preflight_method = request.headers.get("access-control-request-method")
+    if method == "OPTIONS" and preflight_method and request.headers.get("origin"):
+        target, others = api.match(preflight_method.strip().upper(), remainder)
+        if target is None and others:  # the path exists: let its CORS policy refuse the method
+            target, _ = api.match(sorted(others)[0], remainder)
+        cors = api.pipeline.find(Cors, target.path) if target is not None else None
+        if target is not None and isinstance(cors, Cors):
+            meter.route = target.path
+            ctx = _context(request, runtime, api, method, remainder, target.path, request_id)
+            started = time.perf_counter()
+            outcome, detail, preflight = cors.preflight(ctx)
+            elapsed = (time.perf_counter() - started) * 1000
+            ctx.trace.append(TraceEntry(cors.id, cors.type, "request", outcome, detail, elapsed))
+            return done(preflight, ctx)
 
     rule, allowed = api.match(method, remainder)
     if rule is None:
         if not allowed:
-            return meter.done(_error(404, "not_found", "No API matches this path.", request_id))
-        resp = _error(405, "method_not_allowed", "Method not allowed.", request_id)
-        resp.headers["allow"] = ", ".join(sorted(allowed))
-        return meter.done(resp)
+            return done(json_error(404, "not_found", "No API matches this path."))
+        resp = json_error(405, "method_not_allowed", "Method not allowed.")
+        resp.add("allow", ", ".join(sorted(allowed)))
+        return done(resp)
     meter.route = rule.path
+    ctx = _context(request, runtime, api, method, remainder, rule.path, request_id)
+    too_large = json_error(413, "payload_too_large", "Request body is too large.")
 
+    pipeline = api.pipeline
     try:
-        body = await _read_body(request, runtime.settings.gateway_max_request_body_bytes)
+        answer, ran = await pipeline.run_request(ctx, pipeline.for_route(rule.path))
+        if answer is None:
+            body = await ctx.body()
+            meter.bytes_in = len(body)
+            prefix = f"/{slug}{api.base_path}"
+            headers = _forward_headers(ctx, request, prefix)
+            target_path = quote(remainder, safe=_PATH_SAFE)
+            query = urlencode(ctx.query) if ctx.query_changed else ctx.raw_query
+            answer = await _send(runtime, api, method, target_path, query, headers, body)
+            limit = max((p.response_body_limit(ctx) for p in ran), default=0)
+            if limit:
+                await _buffer(answer, limit)
     except BodyTooLargeError:
-        return meter.done(
-            _error(413, "payload_too_large", "Request body is too large.", request_id)
-        )
-    meter.bytes_in = len(body)
-
-    prefix = f"/{slug}{api.base_path}"
-    headers = _forward_headers(request, request_id, prefix)
-    target = quote(remainder, safe=_PATH_SAFE)
-    query = request.scope.get("query_string", b"").decode("latin-1")
-    return await _send(runtime, api, method, target, query, headers, body, request_id, meter)
+        return done(too_large, ctx)
+    original_stream = answer.stream
+    final = await pipeline.run_response(ctx, ran, answer)
+    if original_stream is not None and final.stream is not original_stream:
+        await original_stream.aclose()  # the upstream body is not used: release the connection
+    return done(final, ctx)
 
 
 async def _send(
@@ -312,9 +565,7 @@ async def _send(
     query: str,
     headers: list[tuple[bytes, bytes]],
     body: bytes,
-    request_id: str,
-    meter: _Meter,
-) -> Response:
+) -> GatewayResponse:
     assert runtime.client is not None  # noqa: S101  # nosec B101 - set during lifespan
     idempotent = method in IDEMPOTENT
     attempts = 1 + runtime.settings.gateway_retries
@@ -357,27 +608,15 @@ async def _send(
         if upstream.status_code in RETRY_STATUSES and idempotent and not last:
             await upstream.aclose()
             continue
-        return _stream(upstream, request_id, api, meter)
+        return GatewayResponse(
+            status=upstream.status_code,
+            headers=_upstream_headers(upstream),
+            body=None,
+            stream=_upstream_body(upstream, api),
+            source="upstream",
+        )
     status, code, message = failure
-    return meter.done(_error(status, code, message, request_id))
-
-
-def _stream(upstream: httpx.Response, request_id: str, api: RuntimeApi, meter: _Meter) -> Response:
-    async def body() -> AsyncIterator[bytes]:
-        sent = 0
-        try:
-            async for chunk in upstream.aiter_raw():
-                sent += len(chunk)
-                yield chunk
-        except httpx.HTTPError:
-            log.warning("upstream response interrupted (api %s)", api.api_id)
-        finally:
-            await upstream.aclose()
-            meter.finish(upstream.status_code, sent)
-
-    response = StreamingResponse(body(), status_code=upstream.status_code)
-    response.raw_headers = _response_headers(upstream, request_id, api)
-    return response
+    return json_error(status, code, message)
 
 
 async def healthz(_request: Request) -> Response:
@@ -396,11 +635,12 @@ def create_gateway_app(
     bus: ConfigBus | None = None,
     resolver: AsyncResolver | None = None,
     metrics: MetricsCollector | None = None,
+    limiter: Limiter | None = None,
 ) -> Starlette:
     """The gateway ASGI app. Share ``bus`` with :func:`apiedge.app.create_app` in one process."""
     settings = settings or get_settings()
     redis_url = settings.redis_url.get_secret_value() if settings.redis_url else None
-    runtime = GatewayRuntime(settings, bus or build_bus(redis_url), resolver, metrics)
+    runtime = GatewayRuntime(settings, bus or build_bus(redis_url), resolver, metrics, limiter)
 
     @asynccontextmanager
     async def lifespan(_app: Starlette) -> AsyncIterator[None]:

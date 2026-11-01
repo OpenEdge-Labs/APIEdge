@@ -118,3 +118,11 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .sw-req { background: var(--accent); }
 .sw-err { background: var(--bad); }
 .sw-p95 { background: var(--ok); }
+
+/* Policy chain editor and API keys (T-008) */
+.policy { border: 1px solid var(--border, #d0d7de); border-radius: 6px; padding: 12px; margin: 12px 0; }
+.policy-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.policy-head .actions { margin-left: auto; }
+.policy-fields { display: flex; flex-wrap: wrap; gap: 0 12px; }
+.check.wide { min-width: 100%; }
+.secret-once { display: inline-block; padding: 4px 8px; border: 1px dashed var(--ok); word-break: break-all; user-select: all; }

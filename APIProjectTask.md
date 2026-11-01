@@ -109,9 +109,10 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 
 ## Phase 3: No-code / Low-code
 
-- [ ] **T-008** (P2) Built-in policies
+- [~] **T-008** (P2) Built-in policies
   - Add API key auth (keys stored hashed), JWT validation, rate limit/quota, header/body transform, CORS, IP allow/deny, cache and mock response policies, each configurable in the console.
   - Depends on: T-007
+  > Vendor decision: taken before T-016 (P1) because the P1 tasks T-012, T-023 and T-025 depend on it and the gateway had no authentication or rate limiting yet.
 
 - [ ] **T-009** (P2) Visual policy flow builder
   - Add a drag-and-drop editor (React Flow) for composing a route's policy chain.

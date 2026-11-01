@@ -24,8 +24,9 @@ unknown route, 405, 410 for retired APIs, 413, 502 and 504):
 - latency from receiving the request to sending the last response byte;
 - request and response body bytes.
 
-Consumers are introduced with plans and subscriptions (T-014). Until then all traffic is shown as
-**(anonymous)**.
+Callers authenticated by a [policy](policies.md) are shown as `key:<API key name>` or
+`jwt:<subject>`; unauthenticated traffic is shown as **(anonymous)**. Consumer applications with
+plans and subscriptions (T-014) will replace the key names.
 
 Requests whose path matches no API at all belong to no tenant; they are only counted in the
 Prometheus metric `apiedge_gateway_unmatched_requests_total`.

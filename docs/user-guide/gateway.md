@@ -53,7 +53,7 @@ fraction of a second (see [hot reload](#hot-reload)).
 * Hop-by-hop headers (`Connection` and the headers it names, `Keep-Alive`, `TE`, `Trailer`,
   `Transfer-Encoding`, `Upgrade`, `Proxy-Authorization`, `Proxy-Authenticate`) are not forwarded
   in either direction. Other headers, including `Authorization` and cookies, pass through
-  (authentication policies arrive with T-008).
+  unless a [policy](policies.md) removes them (API keys are removed by default).
 * The gateway adds `X-Forwarded-For` (appended), `X-Forwarded-Host`, `X-Forwarded-Proto`,
   `X-Forwarded-Prefix` (`/<tenant><base path>`) and `X-Request-ID`. A client's `X-Request-ID` is
   kept if it is 1-128 characters of letters, digits and `. _ : -`; otherwise a new id is made.

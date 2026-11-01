@@ -250,6 +250,9 @@ class Api(TenantOwned, Base):
     base_path: Mapped[str] = mapped_column(String(255), nullable=False)
     timeout_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=30000)
     lifecycle: Mapped[str] = mapped_column(String(16), nullable=False, default="draft")
+    # Ordered policy chain (T-008): JSON list of apiedge.policies.config.PolicySpec documents,
+    # secret fields encrypted with the secrets box.
+    policies: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
@@ -304,6 +307,32 @@ class ApiRoute(TenantOwned, Base):
     methods: Mapped[str] = mapped_column(String(64), nullable=False)  # "GET,POST"
     path: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class ApiKey(TenantOwned, Base):
+    """An API key for the APIs of one product (T-008). Only the SHA-256 of the key is stored.
+
+    Keys are shown once when created and can be revoked; T-014 attaches them to consumers.
+    """
+
+    __tablename__ = "api_keys"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    prefix: Mapped[str] = mapped_column(String(16), nullable=False)  # shown to identify a key
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    created_by: Mapped[int | None] = mapped_column(Integer, nullable=True)  # user id (no FK)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class RefreshToken(Base):

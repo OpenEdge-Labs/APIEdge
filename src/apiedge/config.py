@@ -92,6 +92,14 @@ class Settings(BaseSettings):
     # Without it, changes reach the gateway in the same process immediately and other
     # processes through the periodic reload.
     redis_url: SecretStr | None = None
+    # --- Gateway policies (T-008, ADR 0009).
+    # Reverse proxies / load balancers in front of the gateway (CIDRs). Only when the direct peer
+    # is one of them is X-Forwarded-For used to find the client address (IP filter, rate limits).
+    gateway_trusted_proxies: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    # Memory for the response cache policy, per gateway process (0 = caching off).
+    gateway_cache_max_bytes: int = Field(default=64 * 1024 * 1024, ge=0, le=16 * 1024**3)
+    # Fixed windows kept in memory by the rate-limit policy (without Redis, or as its fallback).
+    gateway_rate_limit_max_keys: int = Field(default=100_000, ge=100, le=10_000_000)
 
     # --- Analytics (T-013, ADR 0008).
     # How often the gateway writes its per-minute aggregates to the database (seconds).
@@ -111,6 +119,7 @@ class Settings(BaseSettings):
         "secret_key_previous",
         "ssrf_allow_cidrs",
         "ssrf_deny_cidrs",
+        "gateway_trusted_proxies",
         mode="before",
     )
     @classmethod
@@ -137,7 +146,7 @@ class Settings(BaseSettings):
             out.append(origin.rstrip("/"))
         return out
 
-    @field_validator("ssrf_allow_cidrs", "ssrf_deny_cidrs")
+    @field_validator("ssrf_allow_cidrs", "ssrf_deny_cidrs", "gateway_trusted_proxies")
     @classmethod
     def _check_cidrs(cls, v: list[str]) -> list[str]:
         for cidr in v:

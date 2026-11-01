@@ -27,7 +27,7 @@ apiedge migrate             # apply database migrations
 apiedge create-admin        # create a SuperAdmin
 ```
 
-The console's admin panel (sign-in with MFA, tenants, users, roles and permissions, audit log, system settings) is described in [docs/admin-guide/access-control.md](docs/admin-guide/access-control.md); product management in [docs/user-guide/products.md](docs/user-guide/products.md); APIs and the no-code form editor in [docs/user-guide/apis.md](docs/user-guide/apis.md); calling published APIs through the gateway (default `http://127.0.0.1:8081/<tenant>/<base path>`) in [docs/user-guide/gateway.md](docs/user-guide/gateway.md); traffic dashboards, CSV export and the Prometheus `/metrics` endpoint in the [Analytics Guide](docs/user-guide/analytics.md).
+The console's admin panel (sign-in with MFA, tenants, users, roles and permissions, audit log, system settings) is described in [docs/admin-guide/access-control.md](docs/admin-guide/access-control.md); product management in [docs/user-guide/products.md](docs/user-guide/products.md); APIs and the no-code form editor in [docs/user-guide/apis.md](docs/user-guide/apis.md); calling published APIs through the gateway (default `http://127.0.0.1:8081/<tenant>/<base path>`) in [docs/user-guide/gateway.md](docs/user-guide/gateway.md); API keys, JWT validation, rate limits, transforms, CORS, IP filters, caching and mocks in [docs/user-guide/policies.md](docs/user-guide/policies.md); traffic dashboards, CSV export and the Prometheus `/metrics` endpoint in the [Analytics Guide](docs/user-guide/analytics.md).
 
 Health probes: `GET /healthz` (liveness) and `GET /readyz` (database reachable).
 
@@ -60,6 +60,7 @@ Dependencies are pinned with hashes in `requirements/*.lock`. To change them, ed
 - [Products (User Guide)](docs/user-guide/products.md)
 - [APIs (User Guide)](docs/user-guide/apis.md)
 - [Gateway (User Guide)](docs/user-guide/gateway.md)
+- [Policies (User Guide)](docs/user-guide/policies.md)
 - [Analytics Guide](docs/user-guide/analytics.md)
 - [Security and OWASP mapping](docs/SECURITY.md)
 - [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/adr/)

@@ -21,13 +21,20 @@ import base64
 import binascii
 import hashlib
 import hmac
+import logging
 import os
 import secrets
 from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 # pycryptodome (maintained) reuses the legacy `Crypto` namespace; B413 targets abandoned pyCrypto.
 from Crypto.Cipher import AES  # nosec B413
+
+if TYPE_CHECKING:
+    from apiedge.config import Settings
+
+log = logging.getLogger("apiedge")
 
 TOKEN_VERSION = "v1"  # noqa: S105  # nosec B105 - format tag, not a secret
 KEY_BYTES = 32
@@ -165,3 +172,16 @@ def build_secret_box(
     keys = [parse_key(primary) if primary else read_key_file(key_file)]
     keys.extend(parse_key(p) for p in previous if p.strip())
     return SecretBox(keys)
+
+
+def load_secret_box(settings: Settings) -> SecretBox | None:
+    """The secrets-encryption box, or None (with a warning) if no master key is configured."""
+    try:
+        return build_secret_box(
+            settings.secret_key.get_secret_value() if settings.secret_key else None,
+            settings.effective_secret_key_file,
+            [k.get_secret_value() for k in settings.secret_key_previous],
+        )
+    except KeyConfigError as exc:
+        log.warning("secrets encryption unavailable: %s", exc)
+        return None

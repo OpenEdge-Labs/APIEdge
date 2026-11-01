@@ -74,6 +74,10 @@ class Upstream:
                 (b"set-cookie", b"a=1"),
                 (b"set-cookie", b"b=2"),
             ]
+        if path.endswith("/nostore"):
+            out.append((b"cache-control", b"no-store"))
+        if path.endswith("/text"):
+            out[0] = (b"content-type", b"text/plain")
         if path.endswith("/redirect"):
             status = 302
             out.append((b"location", b"http://169.254.169.254/latest/meta-data/"))

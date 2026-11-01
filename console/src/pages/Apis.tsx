@@ -8,6 +8,8 @@ import { api } from "../api";
 import { canProduct } from "../access";
 import { METHODS, emptyForm, formErrors, formFromApi, toBody, type ApiForm } from "../apis";
 import { TRANSITIONS, deletable } from "../products";
+import { ApiKeysPanel } from "./ApiKeys";
+import { PoliciesEditor } from "./Policies";
 import type { Api, HttpMethod, Lifecycle, Me, Product } from "../types";
 import { Card, ErrorBox, Field, Notice, fmtDate, useAction, useLoad } from "../ui";
 
@@ -23,6 +25,8 @@ export function ApisPanel({ me, tenantId, product, onClose }: { me: Me; tenantId
   const apis = useLoad(() => api<Api[]>(base), [base]);
   const action = useAction();
   const [editing, setEditing] = useState<Api | null>(null);
+  const [policiesOf, setPoliciesOf] = useState<Api | null>(null);
+  const [showKeys, setShowKeys] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const retiredProduct = product.lifecycle === "retired";
   const may = (permission: string) => canProduct(me, permission, product.id);
@@ -48,7 +52,15 @@ export function ApisPanel({ me, tenantId, product, onClose }: { me: Me; tenantId
 
   return (
     <>
-      <Card title={`APIs of ${product.name}`} actions={<button onClick={onClose}>Close</button>}>
+      <Card
+        title={`APIs of ${product.name}`}
+        actions={
+          <span className="actions">
+            {may("apikey:read") && <button onClick={() => setShowKeys(!showKeys)}>{showKeys ? "Hide API keys" : "API keys"}</button>}
+            <button onClick={onClose}>Close</button>
+          </span>
+        }
+      >
         <ErrorBox error={apis.error || action.error} />
         <Notice text={notice} />
         <table>
@@ -83,9 +95,12 @@ export function ApisPanel({ me, tenantId, product, onClose }: { me: Me; tenantId
                 <td>{a.routes.length}</td>
                 <td>{fmtDate(a.updated_at)}</td>
                 <td className="actions">
-                  <button onClick={() => setEditing(a)}>
+                  <button onClick={() => { setPoliciesOf(null); setEditing(a); }}>
                     {a.lifecycle !== "retired" && !retiredProduct && may("api:update") ? "Edit" : "View"}
                   </button>
+                  {may("policy:read") && (
+                    <button onClick={() => { setEditing(null); setPoliciesOf(a); }}>Policies</button>
+                  )}
                   {may("api:publish") &&
                     moves(a).map((to) => (
                       <button key={to} disabled={action.busy} onClick={() => void move(a, to)}>{VERB[to]}</button>
@@ -104,6 +119,16 @@ export function ApisPanel({ me, tenantId, product, onClose }: { me: Me; tenantId
           </tbody>
         </table>
       </Card>
+      {showKeys && <ApiKeysPanel me={me} tenantId={tenantId} product={product} onClose={() => setShowKeys(false)} />}
+      {policiesOf && (
+        <PoliciesEditor
+          key={policiesOf.id}
+          base={base}
+          api={policiesOf}
+          readOnly={policiesOf.lifecycle === "retired" || retiredProduct || !may("policy:update")}
+          onClose={() => setPoliciesOf(null)}
+        />
+      )}
       {editing && (
         <ApiEditor
           key={editing.id}
@@ -116,7 +141,7 @@ export function ApisPanel({ me, tenantId, product, onClose }: { me: Me; tenantId
           }}
         />
       )}
-      {!editing && !retiredProduct && may("api:create") && (
+      {!editing && !policiesOf && !retiredProduct && may("api:create") && (
         <ApiEditor key="new" base={base} api={null} readOnly={false} onDone={(changed) => changed && apis.reload()} />
       )}
     </>
