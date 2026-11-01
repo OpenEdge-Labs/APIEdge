@@ -43,3 +43,36 @@ def test_invalid_port_rejected() -> None:
 
 def test_default_data_dir_is_os_conventional() -> None:
     assert "APIEdge" in default_data_dir().parts
+
+
+def test_security_lists_from_env_csv(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("APIEDGE_CORS_ALLOW_ORIGINS", "https://a.example, https://b.example:8443/")
+    monkeypatch.setenv("APIEDGE_SSRF_ALLOW_CIDRS", "10.0.0.0/8,fd00::/8")
+    monkeypatch.setenv("APIEDGE_SECRET_KEY_PREVIOUS", "k1,k2")
+    s = Settings(data_dir=tmp_path)
+    assert s.cors_allow_origins == ["https://a.example", "https://b.example:8443"]
+    assert s.ssrf_allow_cidrs == ["10.0.0.0/8", "fd00::/8"]
+    assert [k.get_secret_value() for k in s.secret_key_previous] == ["k1", "k2"]
+    assert s.effective_secret_key_file == tmp_path.resolve() / "secret.key"
+
+
+def test_security_defaults_are_closed(tmp_path: Path) -> None:
+    s = Settings(data_dir=tmp_path)
+    assert s.cors_allow_origins == []
+    assert s.ssrf_allow_private is False
+    assert s.log_format == "json"
+    assert s.max_request_body_bytes == 2 * 1024 * 1024
+    assert "topsecret" not in repr(Settings(data_dir=tmp_path, secret_key="topsecret"))
+
+
+@pytest.mark.parametrize(
+    "origin", ["*", "null", "ftp://x.example", "https://x.example/path", "https://u@x.example"]
+)
+def test_invalid_cors_origin_rejected(origin: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings(cors_allow_origins=[origin])
+
+
+def test_invalid_cidr_rejected() -> None:
+    with pytest.raises(ValidationError):
+        Settings(ssrf_deny_cidrs=["not-a-cidr"])

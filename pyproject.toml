@@ -31,6 +31,7 @@ dependencies = [
     "httpx>=0.28,<1",
     "platformdirs>=4.12,<5",
     "argon2-cffi>=25.1,<26",
+    "pycryptodome>=4.1,<5",
 ]
 
 [project.optional-dependencies]

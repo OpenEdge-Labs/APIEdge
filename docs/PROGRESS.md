@@ -58,3 +58,32 @@ targets, emits PEP 508 markers, adds complementary `dev.lock` entries (`tomli`),
 target with Requires-Python and wheel checks plus a `pip --dry-run --require-hashes` run (45 runs,
 all ok). New unit tests are in `tests/unit/test_update_locks.py`. Local results: 43 tests pass; ruff,
 mypy and bandit are clean; pip-audit is unchanged.
+
+## 2026-11-01: T-002 Security foundation (OWASP baseline)
+
+**Summary.** Pure-ASGI hardening stack on every console/admin API response (security headers and
+strict CSP, request id + access log + global error barrier, CORS allow-list, body-size limit, CSRF
+double-submit cookie with Origin check), 422 responses without echoed input, structured JSON
+logging with secret masking (`apiedge.logs`, `apiedge.security.masking`), AES-256-GCM secrets box
+with associated data and key rotation (`apiedge.security.crypto`, key file created by
+`apiedge init`), SSRF guard (`apiedge.security.ssrf`), `docs/SECURITY.md` (OWASP Top 10, API Top
+10, ASVS L2 mapping), CodeQL workflow, ADR 0003, settings documented in `.env.example` and the
+admin configuration guide. `apiedge run` now uses masked JSON logs and no `server` header.
+
+**Files.** `src/apiedge/{app,cli,config,logs}.py`, `src/apiedge/security/{middleware,masking,crypto,ssrf}.py`,
+`tests/integration/test_security_middleware.py`, `tests/unit/{test_crypto,test_ssrf,test_masking_logs,test_config}.py`,
+`.github/workflows/codeql.yml`, `requirements/runtime.{in,lock}`, `requirements/dev.lock`,
+`pyproject.toml`, `docs/{SECURITY,ARCHITECTURE}.md`, `docs/adr/0003-security-foundation.md`,
+`docs/admin-guide/configuration.md`, `.env.example`, `CHANGELOG.md`.
+
+**Tests.** 120 pytest pass (77 new tests); ruff, ruff format,
+mypy --strict, bandit clean; pip-audit runtime.lock: no known vulnerabilities; license gate: 0
+forbidden. Live run: headers, CSRF cookie, 403 on cookie POST without token, JSON logs verified.
+
+**Decisions.** `pycryptodome` 4.1.0 instead of `cryptography` (49+ lacks macOS x86_64 wheels;
+48.0.1 has three advisories). CodeQL runs with `upload: never` plus a SARIF gate because the repo is
+private. B413 suppressed (pycryptodome shares pyCrypto's namespace).
+
+**Follow-ups.** T-003 must use the `apiedge_session`/`apiedge_refresh` cookie names for CSRF to
+apply; T-007/T-010/T-012 must call `check_url` and connect to the vetted addresses; a secrets
+re-encryption command ships with the first feature that stores secrets.

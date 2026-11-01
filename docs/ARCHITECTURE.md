@@ -28,7 +28,8 @@ API consumers ──────► /<api base>  gateway ──► policy pipeli
 | `apiedge.app` | `create_app()` factory: health probes, admin API routers, console mount |
 | `apiedge.cli` | `apiedge init | migrate | run | create-admin | version` |
 | `apiedge.db` | Declarative `Base` (with constraint naming convention), engine/session factories, Alembic migrations in `db/migrations` |
-| `apiedge.security` | Argon2id password hashing (T-001); auth, RBAC, crypto, SSRF guard (T-002/T-003) |
+| `apiedge.security` | Argon2id passwords (T-001); HTTP hardening middleware, secret masking, AES-256-GCM secrets box, SSRF guard (T-002); auth and RBAC (T-003) |
+| `apiedge.logs` | Structured JSON logging with secret masking and request ids (T-002) |
 | `apiedge.admin`, `gateway`, `policies`, `inspector`, `analytics` | Placeholders for later tasks |
 | `console/` | React + Vite + TypeScript source; `npm run build` writes to `src/apiedge/static` |
 
@@ -59,9 +60,16 @@ installs with `pip --require-hashes`. The prebuilt console is committed, so user
 
 ## 6. Security
 
-The OWASP mapping lives in `docs/SECURITY.md` (created in T-002). T-001 baseline:
-loopback bind by default, docs UI off in production, health probes expose no version or error
-details, Argon2id for passwords, generated admin password shown once, DB password redacted in CLI output.
+The OWASP mapping lives in `docs/SECURITY.md`. T-001 baseline: loopback bind by default, docs UI
+off in production, health probes expose no version or error details, Argon2id for passwords,
+generated admin password shown once, DB password redacted in CLI output.
+
+T-002 (ADR 0003) adds the HTTP hardening stack, applied to every console and admin API response
+(outermost first): security headers and CSP, request context (request id, access log, global error
+barrier), CORS allow-list, body-size limit, CSRF (double-submit cookie plus Origin check). It also
+adds structured JSON logging with masking, the AES-256-GCM secrets box (master key from
+`APIEDGE_SECRET_KEY` or `<data dir>/secret.key`, exposed as `app.state.secret_box`) and the SSRF guard
+(`apiedge.security.ssrf.check_url`) that every outbound call site must use.
 
 ## 7. Cross-platform
 

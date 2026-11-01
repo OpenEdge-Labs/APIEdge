@@ -11,3 +11,6 @@ platformdirs==4.12.4
 argon2-cffi==25.1.0
 # Held back: 26.x dropped the macOS x86_64 wheel (would need a C compiler there).
 argon2-cffi-bindings==25.1.0
+# AES-256-GCM secrets encryption at rest (T-002, ADR 0003). Not `cryptography`: its releases
+# with current security fixes (49+) have no macOS x86_64 wheel.
+pycryptodome==4.1.0

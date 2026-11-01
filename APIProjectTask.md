@@ -55,12 +55,15 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   > Vendor decision: Windows "service" means a per-user Startup-folder entry, because a real Windows service needs admin rights or extra tooling. Shortcut and service creation were not run on this machine; the generated files are unit-tested.
   > Vendor decision: `filelock` 4.1.0 is a dev-only dependency (through pip-audit and pre-commit) with 17 CVEs, and the fix needs Python 3.11 or newer. CI audits `runtime.lock` strictly and `dev.lock` with these IDs listed in `requirements/audit-ignore-dev.txt`. `argon2-cffi-bindings` is held at 25.1.0, because 26.1.0 has no macOS x86_64 wheel.
 
-- [ ] **T-002** (P1) Security foundation (OWASP baseline)
+- [~] **T-002** (P1) Security foundation (OWASP baseline)
   - Add security headers and CSP middleware, a CORS allow-list, request body-size limits, CSRF protection for cookie auth, a global error handler with no stack traces in production, and structured JSON logging with secret masking.
   - Add the secrets-encryption helper and an SSRF guard utility for upstream URLs.
   - Create `docs/SECURITY.md` with an OWASP mapping table.
   - Add pip-audit, bandit and CodeQL to CI.
   - Depends on: T-001
+  > Delivered: hardening middleware on every console/admin API response (CSP and security headers, HSTS over HTTPS, CORS allow-list closed by default, 2 MiB body limit with 413, CSRF double-submit cookie plus Origin check for cookie-authenticated requests, global error handler returning a generic 500 with a request id, 422 without echoed input), structured JSON logs with secret masking (`APIEDGE_LOG_FORMAT`), AES-256-GCM secrets helper with key rotation (`apiedge.security.crypto`; `apiedge init` creates `<data dir>/secret.key`), SSRF guard for upstream URLs (`apiedge.security.ssrf`), `docs/SECURITY.md` with the OWASP mapping, CodeQL workflow (pip-audit and bandit were already in CI), ADR 0003. Try it: `apiedge run`, then `curl -i http://localhost:8080/healthz` to see the headers and CSRF cookie. Settings: `.env.example`, `docs/admin-guide/configuration.md`.
+  > Vendor decision: `pycryptodome` 4.1.0 rather than `cryptography`, because `cryptography` 49+ has no macOS x86_64 wheel and 48.0.1 has three open advisories that the strict runtime pip-audit gate rejects. T-023 (mTLS/X.509) will revisit this.
+  > Vendor decision: the repository is private with no code-scanning upload, so CodeQL runs with `upload: never`, keeps the SARIF as an artifact, and fails the build on any error- or warning-level result.
 
 - [ ] **T-003** (P1) Authentication, multi-tenancy and RBAC core
   - Add tenants, users, roles, permissions and role assignments (scoped to a tenant or a product), with built-in roles seeded.

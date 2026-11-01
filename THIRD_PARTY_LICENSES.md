@@ -46,7 +46,7 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | msgpack | 1.2.4 | Apache-2.0 | development / install tooling | https://msgpack.org/ |
 | mypy | 2.4.1 | MIT | development / install tooling | https://www.mypy-lang.org/ |
 | mypy_extensions | 1.1.0 | MIT | development / install tooling | https://github.com/python/mypy_extensions |
-| nodeenv | 1.11.1 | BSD License | development / install tooling | https://github.com/ekalinin/nodeenv |
+| nodeenv | 1.12.0 | BSD License | development / install tooling | https://github.com/ekalinin/nodeenv |
 | opentelemetry-api | 1.45.2 | Apache-2.0 | runtime | https://github.com/open-telemetry/opentelemetry-python/tree/main/opentelemetry-api |
 | packageurl-python | 0.17.6 | MIT License | development / install tooling | https://github.com/package-url/packageurl-python |
 | packaging | 26.3 | Apache-2.0 OR BSD-2-Clause | development / install tooling | https://github.com/pypa/packaging |
@@ -60,6 +60,7 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | pre_commit | 4.6.2 | MIT | development / install tooling | https://github.com/pre-commit/pre-commit |
 | py-serializable | 2.1.0 | Apache Software License | development / install tooling | https://github.com/madpah/serializable#readme |
 | pycparser | 3.11 | BSD-3-Clause | runtime | https://github.com/eliben/pycparser |
+| pycryptodome | 4.1.0 | BSD-2-Clause AND Unlicense AND MIT | runtime | https://www.pycryptodome.org |
 | pydantic | 2.14.2 | MIT | runtime | https://github.com/pydantic/pydantic |
 | pydantic_core | 2.50.2 | MIT | runtime | https://github.com/pydantic/pydantic |
 | pydantic-settings | 2.15.0 | MIT | runtime | https://github.com/pydantic/pydantic-settings |

@@ -1,0 +1,75 @@
+# Copyright 2026 Alingan Patra
+# SPDX-License-Identifier: Apache-2.0
+#
+# CodeQL static analysis (T-002). The repository is private and has no GitHub code-scanning
+# upload, so results are kept as a SARIF artifact and a gate step fails the build on any
+# error- or warning-level finding (see docs/SECURITY.md, "CI security gates").
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+          config: |
+            paths-ignore:
+              - src/apiedge/static
+              - console/node_modules
+              - tests
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          upload: never
+          output: sarif-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: sarif-results
+          retention-days: 30
+      - name: Fail on findings
+        run: |
+          python3 - <<'EOF'
+          import json, pathlib, sys
+          found = 0
+          for f in pathlib.Path("sarif-results").glob("*.sarif"):
+              for run in json.loads(f.read_text())["runs"]:
+                  for r in run.get("results", []):
+                      level = r.get("level", "warning")
+                      if level in ("error", "warning"):
+                          found += 1
+                          loc = r["locations"][0]["physicalLocation"]
+                          print(f"::error file={loc['artifactLocation']['uri']},"
+                                f"line={loc.get('region', {}).get('startLine', 1)}::"
+                                f"{r['ruleId']}: {r['message']['text']}")
+          print(f"CodeQL findings (error/warning): {found}")
+          sys.exit(1 if found else 0)
+          EOF

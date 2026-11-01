@@ -30,12 +30,21 @@ def _settings(args: argparse.Namespace) -> Settings:
     return Settings(**overrides)
 
 
+def _ensure_secret_key(settings: Settings) -> None:
+    """Create the secrets-encryption key file unless a key is configured in the environment."""
+    from apiedge.security.crypto import ensure_key_file
+
+    if settings.secret_key is None and ensure_key_file(settings.effective_secret_key_file):
+        print(f"created secrets key: {settings.effective_secret_key_file} (back it up securely)")
+
+
 def cmd_init(args: argparse.Namespace) -> int:
     settings = _settings(args)
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     print(f"APIEdge {__version__}")
     print(f"data directory : {settings.data_dir}")
     print(f"database       : {_redact(settings.effective_database_url)}")
+    _ensure_secret_key(settings)
     if not args.no_migrate:
         return cmd_migrate(args)
     return EXIT_OK
@@ -62,12 +71,23 @@ def cmd_run(args: argparse.Namespace) -> int:
         from apiedge.db.base import run_migrations
 
         run_migrations(settings.effective_database_url)
+    _ensure_secret_key(settings)
     local = host in ("127.0.0.1", "::1", "0.0.0.0")  # noqa: S104  # nosec B104 - comparison, not a bind
     url = f"http://{'localhost' if local else host}:{port}/"
     print(f"APIEdge console: {url}")
     if args.open:
         _open_browser_when_ready(url)
-    uvicorn.run(create_app(settings), host=host, port=port, log_level=settings.log_level)
+    from apiedge.logs import configure_logging, logging_config
+
+    configure_logging(settings.log_level, settings.log_format)
+    uvicorn.run(
+        create_app(settings),
+        host=host,
+        port=port,
+        log_level=settings.log_level,
+        log_config=logging_config(settings.log_level, settings.log_format),
+        server_header=False,  # no product/version disclosure
+    )
     return EXIT_OK
 
 
