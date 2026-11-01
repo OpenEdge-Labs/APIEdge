@@ -105,6 +105,7 @@ def test_crud_lifecycle_and_audit(world: World) -> None:
     assert r.status_code == 200, r.text
     got = r.json()
     assert got["base_path"] == "/shop/orders"
+    assert got["gateway_path"] == "/acme/shop/orders"
     assert [u["weight"] for u in got["upstreams"]] == [3, 1]
     assert got["routes"] == [{"methods": ["GET", "PUT"], "path": "/*", "description": ""}]
 

@@ -29,6 +29,9 @@ Report vulnerabilities privately to the maintainer (Alingan Patra); do not open 
 | Product-level authorization: product routes check the permission for the product (tenant-wide or product-scoped grant); unreadable products answer 404 (T-005) | `src/apiedge/admin/products.py`, `admin/deps.py` (`require_any`) | `tests/integration/test_products_api.py` |
 | API-level authorization: API routes check `api:*` for the product (tenant-wide or product-scoped); an API outside the product in the path answers 404 (T-006) | `src/apiedge/admin/apis.py` | `tests/integration/test_apis_api.py` (`test_product_scoped_developer_and_bola`, `test_cross_tenant_access_is_not_found`) |
 | Upstream URLs pass the SSRF guard under the configured policy when saved; the response carries a fixed message, not the guard's exception text (T-006) | `src/apiedge/admin/apis.py` (`_upstreams`), `config.py` (`Settings.ssrf_policy`) | `tests/integration/test_apis_api.py::test_upstreams_go_through_the_ssrf_guard`, `::test_ssrf_policy_comes_from_settings` |
+| Gateway connect-time SSRF guard: every new upstream connection re-resolves the host, checks all addresses and connects to a checked one while keeping Host/SNI (DNS rebinding); no redirects followed; proxy env vars ignored (T-007) | `src/apiedge/gateway/transport.py`, `src/apiedge/security/ssrf.py` (`resolve_checked_async`) | `tests/integration/test_gateway.py::test_connect_time_ssrf_guard`, `::test_host_name_is_kept_when_connecting_to_the_checked_address`, `::test_redirects_are_passed_through_not_followed`, `tests/unit/test_gateway_units.py::test_connect_time_resolution` |
+| Gateway hardening: hop-by-hop headers stripped both ways, `X-Forwarded-*` set by the gateway, request body limit (413), dot-segment paths refused, fixed error documents without upstream or exception details, TLS 1.2+ with certificate verification always on (T-007) | `src/apiedge/gateway/app.py`, `transport.py` | `test_gateway.py::test_header_handling`, `::test_body_size_limit`, `::test_dot_segments_are_refused`, `::test_timeout_answers_504_without_details` |
+| Gateway lifecycle and tenant enforcement: drafts and inactive tenants invisible, retired APIs/products 410, deprecated flagged; routing snapshot keyed by each API's own tenant (T-007) | `src/apiedge/gateway/snapshot.py` | `test_gateway.py::test_lifecycle_gating`, `::test_tenant_separation`, `::test_inactive_tenant_is_not_served` |
 | Audit log of sign-ins (success/failure), lockouts, refresh-token reuse and every privileged change; masked details; tenant-scoped reading | `src/apiedge/security/audit.py`, `admin/tenants.py` | `test_rbac_api.py::test_audit_log_is_tenant_scoped`, `::test_tenant_admin_user_and_role_lifecycle` |
 | Console (T-004): strict CSP without `unsafe-inline` (bundle has no inline scripts or styles), double-submit CSRF header on every unsafe request, session only in HttpOnly cookies (no token in JS storage), React output encoding, permission-aware navigation as UX only (the server enforces); system settings view never returns secrets | `console/src/api.ts`, `console/src/access.ts`, `src/apiedge/admin/system.py` | `tests/integration/test_console.py`, `console/test/*.test.ts` |
 | No server/version disclosure (`server_header=False`, minimal `/healthz`) | `cli.py`, `app.py` | `tests/integration/test_app.py` |
@@ -41,13 +44,13 @@ Report vulnerabilities privately to the maintainer (Alingan Patra); do not open 
 | A01 | Broken Access Control | Deny-by-default RBAC dependency, tenant-filtered data access, BOLA and cross-tenant tests (T-003); CSRF protection (T-002) | Done (admin API; each new resource adds its own tests) |
 | A02 | Cryptographic Failures | AES-256-GCM secrets at rest with key outside the DB (T-002); Argon2id (T-001); HSTS (T-002); TLS on gateway and console (T-016/T-023) | Partial |
 | A03 | Injection | SQLAlchemy ORM / bound parameters only; Pydantic validation; strict CSP; no `eval`/`exec` outside the sandbox (T-010); bandit + CodeQL in CI | Done (baseline) |
-| A04 | Insecure Design | Body-size limits (T-002); login throttling and lockout, anti-escalation rules (T-003); gateway rate limits (T-008) | Partial (T-008) |
+| A04 | Insecure Design | Body-size limits (T-002, gateway T-007); login throttling and lockout, anti-escalation rules (T-003); gateway rate limits (T-008) | Partial (T-008) |
 | A05 | Security Misconfiguration | Secure defaults (localhost bind, production mode, CORS closed), security headers, docs only in development, no stack traces | Done (baseline) |
 | A06 | Vulnerable and Outdated Components | Hash-locked pins, pip-audit (runtime strict), npm audit, license gate; SBOM per release (T-016) | Partial (T-016) |
 | A07 | Identification and Authentication Failures | Argon2id (T-001); password policy, lockout, TOTP MFA, refresh rotation with reuse detection, session invalidation, forced first password change (T-003); OIDC SSO later | Done |
 | A08 | Software and Data Integrity Failures | Hash-verified installs, CSRF (T-002); signed releases and checksums (T-016) | Partial |
 | A09 | Security Logging and Monitoring Failures | Structured JSON logs with masking and request ids (T-002); audit log with tenant-scoped viewer API (T-003); log shipping and alerting (T-028) | Partial (T-028) |
-| A10 | Server-Side Request Forgery | SSRF guard utility (T-002); enforced when upstream URLs are saved (T-006); enforced in the proxy, scripts and inspector replay (T-007, T-010, T-012) | Partial |
+| A10 | Server-Side Request Forgery | SSRF guard utility (T-002); enforced when upstream URLs are saved (T-006); enforced at connect time in the gateway proxy against DNS rebinding (T-007); scripts and inspector replay (T-010, T-012) | Partial |
 
 ## 3. OWASP API Security Top 10 (2023)
 
@@ -56,12 +59,12 @@ Report vulnerabilities privately to the maintainer (Alingan Patra); do not open 
 | API1 | Broken Object Level Authorization | Tenant filter in the data-access layer plus explicit ownership checks; BOLA tests (T-003); product-level checks and product BOLA tests (T-005); API BOLA tests (T-006) | Done (admin API) |
 | API2 | Broken Authentication | Argon2id, throttling, lockout, MFA, short-lived JWT + rotating refresh cookie (T-003) | Done |
 | API3 | Broken Object Property Level Authorization | Explicit Pydantic response models (no ORM passthrough), 422 without echoed input (T-002) | Partial |
-| API4 | Unrestricted Resource Consumption | Admin API body-size limit (T-002); gateway rate limits, quotas, timeouts (T-007/T-008) | Partial |
+| API4 | Unrestricted Resource Consumption | Admin API body-size limit (T-002); gateway body limit, upstream timeouts and bounded retries (T-007); rate limits and quotas (T-008) | Partial |
 | API5 | Broken Function Level Authorization | `resource:action` permission on every admin route, 403 tests (T-003) | Done |
 | API6 | Unrestricted Access to Sensitive Business Flows | Rate limits and quotas per consumer/plan | Planned (T-008/T-014) |
-| API7 | Server Side Request Forgery | SSRF guard (T-002), enforced at every outbound call site; upstream URLs checked on save (T-006) | Partial |
+| API7 | Server Side Request Forgery | SSRF guard (T-002), enforced at every outbound call site; upstream URLs checked on save (T-006) and at every gateway connect (T-007) | Partial |
 | API8 | Security Misconfiguration | Same as A05; CORS allow-list | Done (baseline) |
-| API9 | Improper Inventory Management | API lifecycle and versions (T-006); retired APIs enforced by the gateway (T-007); catalogs and governance (T-021) | Partial |
+| API9 | Improper Inventory Management | API lifecycle and versions (T-006); deprecated and retired APIs enforced by the gateway (T-007, 410 / `Deprecation`); catalogs and governance (T-021) | Partial |
 | API10 | Unsafe Consumption of APIs | Upstream timeouts, response size caps, SSRF guard, TLS verification | Planned (T-007) |
 
 ## 4. ASVS 4.0 Level 2 (by chapter)

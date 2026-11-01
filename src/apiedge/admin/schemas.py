@@ -375,6 +375,8 @@ class ApiOut(Out):
     name: str
     version: str
     base_path: str
+    # Where the gateway serves it: /<tenant slug><base path> on the gateway port (T-007).
+    gateway_path: str
     description: str
     timeout_ms: int
     lifecycle: ProductLifecycle

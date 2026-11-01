@@ -64,7 +64,7 @@ test("the body drops empty rows, trims and orders methods", () => {
 
 test("an API round-trips through the form", () => {
   const a: Api = {
-    id: 1, tenant_id: 1, product_id: 2, name: "Orders", version: "v2", base_path: "/o", description: "d",
+    id: 1, tenant_id: 1, product_id: 2, name: "Orders", version: "v2", base_path: "/o", gateway_path: "/t/o", description: "d",
     timeout_ms: 1000, lifecycle: "draft", upstreams: [{ url: "https://b.example.com", weight: 2 }],
     routes: [{ methods: ["GET"], path: "/*", description: "" }], created_at: "", updated_at: "",
   };

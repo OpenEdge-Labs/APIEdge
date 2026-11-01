@@ -21,6 +21,14 @@ directory (see `.env.example`). Command-line options `--data-dir` and `--databas
 | `APIEDGE_SSRF_ALLOW_PRIVATE` | `false` | Allow private, loopback and link-local upstreams (on-prem). Cloud metadata stays blocked |
 | `APIEDGE_SSRF_ALLOW_CIDRS` | empty | Comma-separated CIDRs always allowed as upstreams (preferred over `ALLOW_PRIVATE`) |
 | `APIEDGE_SSRF_DENY_CIDRS` | empty | Comma-separated CIDRs always blocked (wins over every allow) |
+| `APIEDGE_GATEWAY_ENABLED` | `true` | Serve the gateway (data plane) from `apiedge run` |
+| `APIEDGE_GATEWAY_HOST` | `127.0.0.1` | Gateway bind address; `0.0.0.0` to accept API consumers from the network |
+| `APIEDGE_GATEWAY_PORT` | `8081` | Gateway port. APIs are served at `/<tenant slug><base path>` (see [the gateway guide](../user-guide/gateway.md)) |
+| `APIEDGE_GATEWAY_MAX_REQUEST_BODY_BYTES` | `10485760` (10 MiB) | Larger request bodies get `413` from the gateway |
+| `APIEDGE_GATEWAY_RETRIES` | `1` | Extra attempts (0-5) on another upstream: connection failures for every method, timeouts and 502/503/504 only for idempotent methods |
+| `APIEDGE_GATEWAY_CA_BUNDLE` | public CAs | PEM file of CAs trusted for HTTPS upstreams (internal CAs). Certificates are always verified |
+| `APIEDGE_GATEWAY_RELOAD_INTERVAL_SECONDS` | `30` | Periodic configuration reload as a safety net (`0` = only on change events) |
+| `APIEDGE_REDIS_URL` | unset | Optional Redis (`redis://[:password@]host:6379/0`, `rediss://` for TLS) carrying configuration change events between processes and hosts. Without it, changes reach the gateway in the same process at once and other processes via the periodic reload |
 | `APIEDGE_ACCESS_TOKEN_TTL_SECONDS` | `900` | Lifetime of console access tokens (60-3600) |
 | `APIEDGE_REFRESH_TOKEN_TTL_HOURS` | `12` | Absolute lifetime of a sign-in session (refresh token family) |
 | `APIEDGE_LOGIN_MAX_FAILURES` | `5` | Failed sign-ins (password or MFA code) before the account locks |

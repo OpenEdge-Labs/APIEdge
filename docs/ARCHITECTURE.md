@@ -12,12 +12,12 @@ APIEdge is a single Python application (FastAPI on Uvicorn). One process serves:
 | Liveness / readiness probes | `GET /healthz`, `GET /readyz` | T-001 |
 | Admin API (OpenAPI 3) | `/api/v1/...`, schema at `/api/v1/openapi.json` | T-003: auth, tenants, users, roles, audit; T-005: products; T-006: APIs in products |
 | Web console (static SPA) | `/` | T-004 admin panel (sign-in, MFA, tenants, users, roles, audit, settings); T-005 products; T-006 API form editor; later tasks add screens |
-| Gateway data plane | API base paths | T-007 *(planned)* |
+| Gateway data plane (own port, `APIEDGE_GATEWAY_PORT`, default 8081) | `/<tenant slug><base path>/...`, probes `/-/healthz`, `/-/readyz` | T-007 |
 
 ```
           browser ──► /            static console (React build, committed in src/apiedge/static)
                  └──► /api/v1/*    admin API ──► RBAC dependency ──► services ──► SQLAlchemy ──► SQLite / PostgreSQL
-API consumers ──────► /<api base>  gateway ──► policy pipeline ──► httpx ──► upstreams   (planned, T-007)
+API consumers ──────► :8081/<tenant>/<api base>  gateway ──► (policy pipeline, T-008) ──► guarded httpx ──► upstreams
 ```
 
 ## 2. Package layout
@@ -33,7 +33,8 @@ API consumers ──────► /<api base>  gateway ──► policy pipeli
 | `apiedge.admin` | Admin API routers (`auth_routes`, `tenants`, `users`, `roles`, `products`, `apis`) and RBAC dependencies (`deps`) (T-003) |
 | `apiedge.db.tenancy` | Tenant-bound sessions: automatic `tenant_id` criteria and cross-tenant write guard (T-003) |
 | `apiedge.security.auth`, `rbac`, `audit` | Tokens, refresh rotation, throttling, lockout, TOTP; permission catalog and evaluation; audit writer (T-003) |
-| `apiedge.gateway`, `policies`, `inspector`, `analytics` | Placeholders for later tasks |
+| `apiedge.gateway` | Data plane (T-007, [ADR 0007](adr/0007-gateway-runtime.md)): `app` (proxy ASGI app, retries, headers, errors), `snapshot` (routing snapshot, lifecycle states, weighted balancer), `transport` (SSRF-guarded connection pool, TLS), `bus` (config change events: in-process, Redis) |
+| `policies`, `inspector`, `analytics` | Placeholders for later tasks |
 | `console/` | React + Vite + TypeScript source; `npm run build` writes to `src/apiedge/static` |
 
 ## 3. Data
@@ -106,3 +107,19 @@ change shows only the change-password form; otherwise `console/src/access.ts` de
 navigation and actions from the user's permissions (UX only, the server enforces). SuperAdmins pick
 the tenant to work in; other users work in their own tenant. Console unit tests run with Node's
 built-in test runner on the TypeScript compiler output (`npm test`), so no test framework is added.
+
+## Gateway runtime (T-007)
+
+See [ADR 0007](adr/0007-gateway-runtime.md) and the [gateway guide](user-guide/gateway.md).
+
+```
+request /<slug>/<base>/<rest> -> snapshot.resolve (tenant, longest base path) -> lifecycle (404/410)
+  -> route match (404/405) -> body limit (413) -> forward headers (hop-by-hop out, X-Forwarded-*)
+  -> weighted pick -> httpx -> GuardedNetworkBackend (resolve, SSRF-check all IPs, connect to a
+     checked IP; Host/SNI unchanged) -> retry on another upstream if allowed -> stream response
+admin commit (tenant/product/API rows) -> after_commit hook -> ConfigBus (in-process | Redis)
+  -> gateway reloader -> load_snapshot (worker thread) -> atomic swap; periodic reload as safety net
+```
+
+`apiedge run` serves the console/admin app and the gateway app in one event loop and shares one
+`ConfigBus` between them.

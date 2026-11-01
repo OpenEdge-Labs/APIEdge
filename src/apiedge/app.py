@@ -29,6 +29,7 @@ from apiedge import __version__
 from apiedge.admin import build_router
 from apiedge.config import Settings, get_settings
 from apiedge.db.base import make_engine, make_session_factory
+from apiedge.gateway.bus import ConfigBus, build_bus, install_change_notifier
 from apiedge.security.auth import LoginThrottle, TokenSigner
 from apiedge.security.crypto import KeyConfigError, SecretBox, build_secret_box
 from apiedge.security.middleware import install_security
@@ -62,8 +63,12 @@ def jwt_signing_key(settings: Settings, box: SecretBox | None) -> bytes:
     return secrets.token_bytes(32)
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, bus: ConfigBus | None = None) -> FastAPI:
+    """The console and admin API app. ``bus`` carries config change events to the gateway."""
     settings = settings or get_settings()
+    if bus is None:
+        redis_url = settings.redis_url.get_secret_value() if settings.redis_url else None
+        bus = build_bus(redis_url)
     engine = make_engine(settings.effective_database_url)
 
     @asynccontextmanager
@@ -83,6 +88,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
+    app.state.config_bus = bus
+    # Gateway hot reload (T-007): committed API/product/tenant changes publish an event.
+    install_change_notifier(app.state.session_factory, bus)
     app.state.secret_box = load_secret_box(settings)
     app.state.token_signer = TokenSigner(
         jwt_signing_key(settings, app.state.secret_box), settings.access_token_ttl_seconds

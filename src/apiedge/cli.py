@@ -7,7 +7,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import sys
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -80,15 +80,71 @@ def cmd_run(args: argparse.Namespace) -> int:
     from apiedge.logs import configure_logging, logging_config
 
     configure_logging(settings.log_level, settings.log_format)
-    uvicorn.run(
-        create_app(settings),
-        host=host,
-        port=port,
-        log_level=settings.log_level,
-        log_config=logging_config(settings.log_level, settings.log_format),
-        server_header=False,  # no product/version disclosure
+    log_config = logging_config(settings.log_level, settings.log_format)
+    if not settings.gateway_enabled:
+        uvicorn.run(
+            create_app(settings),
+            host=host,
+            port=port,
+            log_level=settings.log_level,
+            log_config=log_config,
+            server_header=False,  # no product/version disclosure
+        )
+        return EXIT_OK
+
+    from apiedge.gateway.app import create_gateway_app
+    from apiedge.gateway.bus import build_bus
+
+    redis_url = settings.redis_url.get_secret_value() if settings.redis_url else None
+    bus = build_bus(redis_url)  # shared: admin changes reload the gateway in-process
+    print(f"APIEdge gateway: http://{settings.gateway_host}:{settings.gateway_port}/<tenant>/<api>")
+    common: dict[str, Any] = {
+        "log_level": settings.log_level,
+        "log_config": log_config,
+        "server_header": False,  # no product/version disclosure
+    }
+    _serve_all(
+        [
+            uvicorn.Config(create_app(settings, bus), host=host, port=port, **common),
+            uvicorn.Config(
+                create_gateway_app(settings, bus),
+                host=settings.gateway_host,
+                port=settings.gateway_port,
+                **common,
+            ),
+        ]
     )
     return EXIT_OK
+
+
+def _serve_all(configs: list[Any]) -> None:
+    """Run several uvicorn servers in one event loop; Ctrl+C / SIGTERM stops all of them."""
+    import asyncio
+    import contextlib
+    import signal
+
+    import uvicorn
+
+    class _Server(uvicorn.Server):
+        @contextlib.contextmanager
+        def capture_signals(self) -> Iterator[None]:  # handled below for all servers
+            yield
+
+    servers = [_Server(cfg) for cfg in configs]
+
+    def stop(sig: int, _frame: object) -> None:
+        for server in servers:
+            if server.should_exit and sig == signal.SIGINT:
+                server.force_exit = True
+            server.should_exit = True
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, stop)
+
+    async def main() -> None:
+        await asyncio.gather(*(server.serve() for server in servers))
+
+    asyncio.run(main())
 
 
 def _open_browser_when_ready(url: str) -> None:

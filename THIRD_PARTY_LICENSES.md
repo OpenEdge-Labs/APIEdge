@@ -10,10 +10,11 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | alembic | 1.20.1 | MIT | runtime | https://alembic.sqlalchemy.org |
 | annotated-doc | 0.0.5 | MIT | runtime | https://github.com/fastapi/annotated-doc |
 | annotated-types | 0.8.0 | MIT | runtime | https://github.com/annotated-types/annotated-types |
-| anyio | 4.15.1 | MIT | runtime | https://github.com/agronholm/anyio |
+| anyio | 4.16.0 | MIT | runtime | https://github.com/agronholm/anyio |
 | argon2-cffi | 25.1.0 | MIT | runtime | https://pypi.org/project/argon2-cffi/ |
 | argon2-cffi-bindings | 25.1.0 | MIT | runtime | https://pypi.org/project/argon2-cffi-bindings/ |
 | ast_serialize | 0.13.1 | MIT | development / install tooling | https://github.com/mypyc/ast_serialize |
+| async-timeout | 5.0.1 | Apache Software License | runtime | https://github.com/aio-libs/async-timeout |
 | backports.asyncio.runner | 1.2.0 | Python Software Foundation License | development / install tooling | https://github.com/samypr100/backports.asyncio.runner |
 | bandit | 1.9.4 | Apache-2.0 | development / install tooling | https://bandit.readthedocs.io/ |
 | boolean.py | 5.0 | BSD-2-Clause | development / install tooling | https://github.com/bastikr/boolean.py |
@@ -73,6 +74,7 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | python-discovery | 1.9.0 | MIT | development / install tooling | https://github.com/tox-dev/python-discovery |
 | python-dotenv | 1.2.4 | BSD-3-Clause | runtime | https://github.com/theskumar/python-dotenv |
 | PyYAML | 6.0.3 | MIT License | development / install tooling | https://pyyaml.org/ |
+| redis | 8.1.0 | MIT | runtime | https://github.com/redis/redis-py |
 | requests | 2.34.2 | Apache Software License | development / install tooling | https://github.com/psf/requests |
 | rich | 15.0.0 | MIT License | development / install tooling | https://github.com/Textualize/rich |
 | ruff | 0.17.3 | MIT | development / install tooling | https://docs.astral.sh/ruff |

@@ -93,6 +93,7 @@ export interface Api {
   name: string;
   version: string;
   base_path: string;
+  gateway_path: string;
   description: string;
   timeout_ms: number;
   lifecycle: Lifecycle;

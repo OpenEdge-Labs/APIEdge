@@ -1,7 +1,7 @@
 # APIs
 
-An **API** lives inside a [product](products.md). It has a base path where the gateway will expose
-it (T-007), one or more **upstreams** (the backend servers the gateway forwards to) and **routes**
+An **API** lives inside a [product](products.md). It has a base path where the
+[gateway](gateway.md) exposes it (at `/<tenant slug><base path>` on the gateway port), one or more **upstreams** (the backend servers the gateway forwards to) and **routes**
 (the operations it accepts). APIs are invisible to other tenants.
 
 | Field | Rules |

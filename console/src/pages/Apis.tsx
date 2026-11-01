@@ -70,7 +70,14 @@ export function ApisPanel({ me, tenantId, product, onClose }: { me: Me; tenantId
                   <strong>{a.name}</strong> <span className="badge">{a.version}</span>
                   {a.description && <div className="muted small">{a.description}</div>}
                 </td>
-                <td><code>{a.base_path}</code></td>
+                <td>
+                  <code>{a.base_path}</code>
+                  {(a.lifecycle === "published" || a.lifecycle === "deprecated") && (
+                    <div className="muted small" title="Path on the gateway port">
+                      Gateway: <code>{a.gateway_path}</code>
+                    </div>
+                  )}
+                </td>
                 <td><span className={`lifecycle ${a.lifecycle}`}>{a.lifecycle}</span></td>
                 <td>{a.upstreams.length}</td>
                 <td>{a.routes.length}</td>

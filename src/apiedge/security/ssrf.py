@@ -24,7 +24,7 @@ import asyncio
 import ipaddress
 import re
 import socket
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
@@ -179,20 +179,51 @@ def check_url(url: str, policy: SsrfPolicy, resolver: Resolver = system_resolver
     return CheckedUrl(url=url, scheme=scheme, host=host, port=port, addresses=tuple(addresses))
 
 
-async def check_url_async(url: str, policy: SsrfPolicy) -> CheckedUrl:
-    """Async variant using the event loop's resolver (does not block the loop)."""
-    scheme, host, port, literal = _parse(url, policy)
+AsyncResolver = Callable[[str, int], Awaitable[Sequence[str]]]
+
+
+async def system_resolver_async(host: str, port: int) -> list[str]:
+    """Resolve with the event loop's resolver (does not block the loop)."""
+    loop = asyncio.get_running_loop()
+    try:
+        infos = await loop.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except (socket.gaierror, UnicodeError) as exc:
+        raise SsrfError(f"cannot resolve host {host!r}") from exc
+    return sorted({str(info[4][0]) for info in infos})
+
+
+async def resolve_checked_async(
+    host: str, port: int, policy: SsrfPolicy, resolver: AsyncResolver | None = None
+) -> tuple[str, ...]:
+    """Resolve ``host`` and return its addresses only if **every** one passes ``policy``.
+
+    Used at connect time (gateway proxy): the caller connects to one of the returned addresses,
+    so a DNS answer that changed since the URL was saved (DNS rebinding) is checked again.
+    """
+    host = host.strip("[]").rstrip(".")
+    if not host:
+        raise SsrfError("URL has no host")
+    if policy.allowed_ports is not None and port not in policy.allowed_ports:
+        raise SsrfError(f"port {port} is not allowed")
+    try:
+        literal: IPAddress | None = ipaddress.ip_address(host.split("%", 1)[0])
+    except ValueError:
+        literal = None
+        if _NUMERIC_HOST.match(host):
+            raise SsrfError("non-canonical numeric host is not allowed") from None
     if literal is not None:
-        addresses = [str(literal)]
+        addresses: Sequence[str] = [str(literal)]
     else:
-        loop = asyncio.get_running_loop()
-        try:
-            infos = await loop.getaddrinfo(host, port, type=socket.SOCK_STREAM)
-        except (socket.gaierror, UnicodeError) as exc:
-            raise SsrfError(f"cannot resolve host {host!r}") from exc
-        addresses = sorted({str(info[4][0]) for info in infos})
+        addresses = await (resolver or system_resolver_async)(host, port)
     if not addresses:
         raise SsrfError(f"host {host!r} resolved to no addresses")
     for addr in addresses:
         check_ip(addr, policy)
-    return CheckedUrl(url=url, scheme=scheme, host=host, port=port, addresses=tuple(addresses))
+    return tuple(addresses)
+
+
+async def check_url_async(url: str, policy: SsrfPolicy) -> CheckedUrl:
+    """Async variant of :func:`check_url` using the event loop's resolver."""
+    scheme, host, port, _literal = _parse(url, policy)
+    addresses = await resolve_checked_async(host, port, policy)
+    return CheckedUrl(url=url, scheme=scheme, host=host, port=port, addresses=addresses)

@@ -75,6 +75,24 @@ class Settings(BaseSettings):
     # Secure automatically when the request itself is HTTPS.
     cookie_secure: bool = False
 
+    # --- Gateway runtime (T-007, ADR 0007).
+    gateway_enabled: bool = True
+    gateway_host: str = "127.0.0.1"
+    gateway_port: int = Field(default=8081, ge=1, le=65535)
+    gateway_max_request_body_bytes: int = Field(default=10 * 1024 * 1024, ge=1024, le=1024**3)
+    # Extra attempts after a failed upstream call (connection failures for every method;
+    # timeouts and 502/503/504 answers only for idempotent methods).
+    gateway_retries: int = Field(default=1, ge=0, le=5)
+    # PEM file of CA certificates trusted for HTTPS upstreams (default: the public CA bundle).
+    # Upstream certificates are always verified.
+    gateway_ca_bundle: Path | None = None
+    # Safety-net reload of the gateway configuration in seconds (0 = only on change events).
+    gateway_reload_interval_seconds: int = Field(default=30, ge=0, le=3600)
+    # Redis for configuration change events across processes, e.g. redis://localhost:6379/0.
+    # Without it, changes reach the gateway in the same process immediately and other
+    # processes through the periodic reload.
+    redis_url: SecretStr | None = None
+
     @field_validator("data_dir")
     @classmethod
     def _expand(cls, v: Path) -> Path:

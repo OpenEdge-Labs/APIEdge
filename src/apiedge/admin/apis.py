@@ -57,7 +57,7 @@ SSRF_HINT = (
 )
 
 
-def _out(a: Api) -> ApiOut:
+def _out(a: Api, tenant_slug: str) -> ApiOut:
     return ApiOut(
         id=a.id,
         tenant_id=a.tenant_id,
@@ -65,6 +65,7 @@ def _out(a: Api) -> ApiOut:
         name=a.name,
         version=a.version,
         base_path=a.base_path,
+        gateway_path=f"/{tenant_slug}{a.base_path}",
         description=a.description,
         timeout_ms=a.timeout_ms,
         lifecycle=a.lifecycle,
@@ -203,7 +204,7 @@ def list_apis(
         .where(Api.tenant_id == caller.tenant_id, Api.product_id == product.id)
         .order_by(Api.name, Api.version)
     )
-    return [_out(a) for a in caller.session.scalars(stmt)]
+    return [_out(a, caller.tenant.slug) for a in caller.session.scalars(stmt)]
 
 
 @router.post("", response_model=ApiOut, status_code=201, summary="Create an API in a product")
@@ -233,7 +234,7 @@ def create_api(
     _audit(caller, "api.create", api, upstreams=len(body.upstreams), routes=len(body.routes))
     caller.session.commit()
     caller.session.refresh(api)
-    return _out(api)
+    return _out(api, caller.tenant.slug)
 
 
 @router.get("/{api_id}", response_model=ApiOut, summary="Get an API")
@@ -242,7 +243,8 @@ def get_api(
     api_id: int,
     caller: Annotated[TenantCaller, Depends(require_any("api:read"))],
 ) -> ApiOut:
-    return _out(_api(caller, _product(caller, product_id, "api:read"), api_id))
+    api = _api(caller, _product(caller, product_id, "api:read"), api_id)
+    return _out(api, caller.tenant.slug)
 
 
 @router.patch("/{api_id}", response_model=ApiOut, summary="Update an API, its upstreams and routes")
@@ -283,7 +285,7 @@ def update_api(
     _audit(caller, "api.update", api, changed=changed)
     caller.session.commit()
     caller.session.refresh(api)
-    return _out(api)
+    return _out(api, caller.tenant.slug)
 
 
 @router.post("/{api_id}/lifecycle", response_model=ApiOut, summary="Change an API's lifecycle")
@@ -313,7 +315,7 @@ def change_api_lifecycle(
     _audit(caller, "api.lifecycle", api, before=before, after=body.lifecycle)
     caller.session.commit()
     caller.session.refresh(api)
-    return _out(api)
+    return _out(api, caller.tenant.slug)
 
 
 @router.delete("/{api_id}", status_code=204, summary="Delete a draft or retired API")

@@ -7,6 +7,8 @@ pydantic-settings==2.15.0
 SQLAlchemy==2.0.55
 alembic==1.20.1
 httpx==0.28.1
+# Used directly by the gateway's SSRF-guarded connection pool (T-007).
+httpcore==1.0.9
 platformdirs==4.12.4
 argon2-cffi==25.1.0
 # Held back: 26.x dropped the macOS x86_64 wheel (would need a C compiler there).
@@ -17,3 +19,5 @@ pycryptodome==4.1.0
 # Console auth (T-003): JWT access tokens (HS256) and TOTP MFA.
 pyjwt==2.15.1
 pyotp==2.10.0
+# Gateway config change events across processes (T-007). Redis itself stays optional.
+redis==8.1.0

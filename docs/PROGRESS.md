@@ -266,3 +266,57 @@ assertions themselves passed. The allocator precondition was replaced by a deter
 regression test that makes the event registry report every target as already listened to (what
 an address reuse looks like) and checks that the filter is still installed; it fails on the
 pre-T-005 guard. CodeQL run 41312919641 was green.
+
+### 2026-11-01 - T-007 Gateway runtime
+
+**Summary.** Data plane as a separate Starlette app on `APIEDGE_GATEWAY_PORT` (default 8081),
+served by `apiedge run` together with the console in one event loop. Requests
+`/<tenant slug><base path><route path>` are resolved against an immutable routing snapshot
+(longest base path, segment-wise; `{name}` and final `/*` routes; 404/405 with `Allow`), then
+forwarded with smooth weighted round-robin, the API's timeout (504), retries on another upstream
+(connection failures for all methods, timeouts and 502/503/504 for idempotent methods only),
+verified TLS 1.2+ (optional CA bundle, no switch to disable), hop-by-hop headers stripped both
+ways, `X-Forwarded-For/Host/Proto/Prefix` and `X-Request-ID`, a 10 MiB body limit (413), dot
+segments refused (400) and fixed JSON errors. Lifecycle: published served; deprecated API or
+product flagged `Deprecation: true`; retired API or product 410; draft and inactive tenants 404.
+SSRF guard re-applied at connect time below httpx's pool (resolve, check every address, connect to
+a checked address with Host/SNI unchanged: DNS rebinding); redirects not followed; proxy env vars
+ignored. Hot reload: an `after_commit` hook on the admin session factory publishes a data-less
+event through `ConfigBus` (in-process) or `RedisConfigBus` (`APIEDGE_REDIS_URL`, pub/sub with
+reconnect), plus a periodic reload (30 s); failed reloads keep the previous snapshot. Admin API
+returns `gateway_path`; the console shows it for published/deprecated APIs; system settings list
+the gateway settings. ADR 0007, guide `docs/user-guide/gateway.md`.
+
+**Files.** `src/apiedge/gateway/{__init__,app,bus,snapshot,transport}.py`,
+`src/apiedge/security/ssrf.py` (`resolve_checked_async`), `src/apiedge/{app,cli,config}.py`,
+`src/apiedge/admin/{apis,schemas,system}.py`, `console/src/{types.ts,pages/Apis.tsx}`,
+`console/test/apis.test.ts`, `src/apiedge/static/*`, `tests/integration/{test_gateway,test_apis_api}.py`,
+`tests/unit/test_gateway_units.py`, `requirements/runtime.{in,lock}`, `pyproject.toml`,
+`THIRD_PARTY_LICENSES.md`, `.env.example`, `docs/adr/0007-gateway-runtime.md`,
+`docs/{ARCHITECTURE,SECURITY}.md`, `docs/user-guide/{gateway,apis}.md`,
+`docs/admin-guide/configuration.md`, `README.md`, `CHANGELOG.md`.
+
+**Tests.** 316 pytest pass (49 new gateway tests: 23 integration against real HTTP upstreams on
+127.0.0.1 - routing with upstream base path and query, params/wildcards/405, longest base path,
+dot segments, redirects not followed, lifecycle matrix, tenant separation and inactive tenant,
+hot reload through the admin API (publish, upstream change, deprecate, retire), reload failure
+keeps the old config, 504 without details, idempotent retry vs POST pass-through, connect-failure
+retry for POST, retries disabled, 3:1 weighted distribution, header handling, request-id
+validation, body limit incl. streamed body, 4 SSRF/DNS-rebinding refusals with the upstream never
+hit, Host kept when connecting to the checked address; 26 unit - route patterns, balancer,
+lifecycle states, in-process and Redis buses with fakes incl. reconnect, change notifier,
+connect-time resolution); 23 console tests; ruff, ruff format, mypy --strict, bandit, CodeQL gate,
+tsc, npm audit (0), pip-audit runtime lock (0), license check (84 packages, 0 forbidden) clean.
+Live run: `apiedge run` with console on 18080 and gateway on 18081, an API with upstream
+`https://example.com` proxied with verified TLS (200), unknown path 404 JSON with request id,
+both probes 200.
+
+**Decisions.** Separate gateway port; tenant slug as the first path segment; `Deprecation: true`
+until a deprecation date is stored; TLS verification cannot be disabled (custom CA bundle
+instead; per-API TLS profiles in T-025); `redis` client is a runtime dependency (Redis server
+optional); `httpcore` pinned explicitly because the gateway uses it directly.
+
+**Follow-ups.** T-008 policy pipeline between match and forward; T-025 health checks, circuit
+breaker, more algorithms, retry policies and TLS profiles. The lock marks `async-timeout` for
+`python_version < "3.11"` while redis needs it below 3.11.3 (only `redis.asyncio` on 3.11.0-3.11.2
+is affected).
