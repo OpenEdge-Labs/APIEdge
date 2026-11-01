@@ -137,13 +137,14 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   - Write the Inspector Guide.
   - Depends on: T-008
 
-- [~] **T-013** (P1) Analytics interface for admins
+- [x] **T-013** (P1) Analytics interface for admins
   - Collect per-request metrics and aggregate them into time buckets.
   - Add dashboards for traffic, p50/p95/p99 latency, error rate and status codes, with top APIs and consumers and time-range and API/consumer filters.
   - Add CSV export and a Prometheus `/metrics` endpoint.
   - Write the Analytics Guide.
   - Depends on: T-007
   > Vendor decision: the error rate counts 4xx and 5xx responses (both are also shown separately). Until consumers exist (T-014) all traffic is attributed to the anonymous consumer. `/metrics` is served on the console port and is off unless `APIEDGE_METRICS_TOKEN` is set (bearer token), because the metrics cover every tenant.
+  > Delivered: the gateway measures every API request (status, latency, bytes, route, method, consumer) into per-minute aggregates with latency histograms, flushed every 10 s to the analytics tables (30-day retention). Console **Analytics** page: time range (15 min to 30 days), requests, error rate, 4xx/5xx, p50/p95/p99, data in/out, traffic chart with errors and p95, top APIs, status codes and top consumers with click-to-filter, CSV export (audited). Admin API `GET /api/v1/tenants/{id}/analytics/summary` and `.../export.csv` (`analytics:view`, tenant-wide or per product). Prometheus `GET /metrics` with `APIEDGE_METRICS_TOKEN`. Try: send traffic through the gateway, then open Analytics in the console. Guide: `docs/user-guide/analytics.md`, ADR 0008. CI 41318323346 and CodeQL 41318323315 green.
 
 ## Phase 5: Consumers
 
