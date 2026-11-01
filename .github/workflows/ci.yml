@@ -112,6 +112,9 @@ jobs:
         run: npm ci
       - working-directory: console
         run: npm audit --audit-level=high
+      - name: Console unit tests (Node built-in test runner, no extra dependencies)
+        working-directory: console
+        run: npm test
       - working-directory: console
         run: npm run build
       - name: Prebuilt console in src/apiedge/static matches the source

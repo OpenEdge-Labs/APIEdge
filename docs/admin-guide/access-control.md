@@ -94,6 +94,17 @@ A role grant applies to the whole tenant, or only to one product when `product_i
 (products arrive with T-005). You can only put permissions you hold into a custom role, and only
 grant roles whose permissions you hold.
 
+## System settings
+
+| API | Permission |
+|---|---|
+| `GET /system/settings` | `settings:read` platform-wide (SuperAdmins) |
+
+Read-only list of the effective configuration (`name`, `value`, `group`). Settings are changed
+through `APIEDGE_*` environment variables or the `.env` file and take effect after a restart (see
+[configuration](configuration.md)). Secrets are never returned, only whether they are configured,
+and the database URL is reduced to its backend name.
+
 ## Audit log
 
 | API | Permission |
@@ -104,3 +115,24 @@ grant roles whose permissions you hold.
 Recorded: sign-ins (success and failure, with the client address), lockouts, refresh-token reuse,
 password changes and resets, MFA changes, and every create/update/delete of tenants, users, roles
 and role grants. Details are masked like the logs; passwords are never recorded.
+
+## Using the console
+
+Open the console (default **http://localhost:8080/**) and sign in.
+
+1. **First sign-in.** The first SuperAdmin, new users and users whose password was reset see only a
+   *Change your password* form until they choose a new password.
+2. **MFA.** If the account has two-factor authentication, the sign-in form asks for the 6-digit
+   authenticator code after the password. Turn it on or off under **My account**: *Set up* shows
+   the secret key and an `otpauth://` URI to enter in an authenticator app; confirm with a code.
+3. **Navigation follows your permissions.** The menu shows only what you may use:
+   **Tenants** (`tenant:read`; creating, suspending and deleting are SuperAdmin-only),
+   **Users** (`user:read`; create, disable/enable, unlock, reset MFA, reset password, delete and
+   role grants under *Manage* need `user:create`, `user:update`, `user:delete`, `role:assign`),
+   **Roles & permissions** (`role:read`; custom roles need `role:create`/`role:update`/
+   `role:delete`, and you can only tick permissions you hold), **Audit log** (`audit:read`;
+   SuperAdmins can switch to *All tenants*), **System settings** (SuperAdmins) and
+   **My account** (everyone). Hidden buttons are a convenience: the server checks every request.
+4. **SuperAdmins** choose the tenant to work in with the *Tenant* selector in the top bar.
+5. Sessions renew automatically while you work; after the refresh period, or when an administrator
+   changes your password or roles, you are returned to the sign-in screen.

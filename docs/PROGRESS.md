@@ -132,3 +132,38 @@ SuperAdmin role is not assignable; tenant suspension is SuperAdmin-only; foreign
 
 **Follow-ups.** T-004 console screens use these APIs; T-005 adds the products FK on
 `role_assignments.product_id` and product routes use `Principal.has(..., product_id)`.
+
+### 2026-11-01 - T-004 Admin panel UI
+
+**Summary.** React console admin panel on the existing admin API: sign-in with the TOTP step,
+forced password change before anything else, app shell with permission-aware navigation (hash
+routing, no router library) and a tenant selector for SuperAdmins; tenants, users (with role
+grants, reset password, unlock, reset MFA), roles and permissions (custom role editor limited to
+held permissions), audit log (filter, paging, all-tenants view) and My account (password, MFA).
+API client keeps the session in HttpOnly cookies, sends the double-submit CSRF header and renews
+the session once on 401. New read-only `GET /api/v1/system/settings` (platform `settings:read`,
+SuperAdmins) backs the System settings screen; it never returns secrets.
+
+**Files.** `console/src/{App,auth,ui}.tsx`, `console/src/{api,access,types}.ts`,
+`console/src/pages/{Tenants,Users,Roles,Audit,Settings,Account}.tsx`, `console/src/styles.css`,
+`console/test/*`, `console/scripts/run-tests.mjs`, `console/tsconfig.test.json`,
+`console/package.json`, `src/apiedge/admin/{system,__init__}.py`, `src/apiedge/static/*`,
+`tests/integration/test_console.py`, `.github/workflows/ci.yml`, `.gitignore`,
+`docs/{ARCHITECTURE,SECURITY}.md`, `docs/admin-guide/access-control.md`, `README.md`, `CHANGELOG.md`.
+
+**Tests.** 214 pytest pass (5 new: settings RBAC denial for TenantAdmin/Viewer/other tenant,
+401, no secrets in the view, bundle CSP-compatible and served); 13 console unit tests (navigation
+per role, hash cannot open hidden pages, grantable permissions, CSRF header, refresh-once,
+session end, error texts); tsc, npm audit (0 vulnerabilities), ruff, ruff format, mypy --strict,
+bandit clean. Live run: headless Edge renders the sign-in form under the production CSP; a
+scripted browser-equivalent session (cookies + CSRF header) exercised first sign-in, forced
+password change, tenant/user/role/grant/audit/settings calls, MFA enrolment and MFA sign-in,
+tenant admin and viewer restrictions, refresh, and CSRF refusal.
+
+**Decisions.** No Playwright in CI and no vitest: vitest 3.x carries critical advisories and
+vitest 4 cannot be resolved by npm 10.7; Node's built-in runner on `tsc` output adds no
+dependencies. Settings are read-only in the console (they are environment-based); the MFA screen
+shows the secret and `otpauth://` URI as text instead of a QR code to avoid a QR dependency.
+
+**Follow-ups.** Browser E2E (Playwright) for console flows when the CI budget allows; QR code for
+MFA enrolment; editable runtime settings if a task asks for `settings:update`.

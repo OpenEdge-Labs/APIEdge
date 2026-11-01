@@ -27,6 +27,8 @@ apiedge migrate             # apply database migrations
 apiedge create-admin        # create a SuperAdmin
 ```
 
+The console's admin panel (sign-in with MFA, tenants, users, roles and permissions, audit log, system settings) is described in [docs/admin-guide/access-control.md](docs/admin-guide/access-control.md).
+
 Health probes: `GET /healthz` (liveness) and `GET /readyz` (database reachable).
 
 ## Planned features
@@ -35,7 +37,6 @@ Health probes: `GET /healthz` (liveness) and `GET /readyz` (database reachable).
 - **Products → APIs → Routes → Policies**, with lifecycle management
 - **No-code**: form-based API configuration, a drag-and-drop policy flow builder, OpenAPI import/export, mocks
 - **Low-code**: sandboxed Python script policies with an in-browser editor
-- **RBAC and multi-tenancy** throughout, with an admin panel and an audit log
 - **Packet inspector**: live and recorded traffic capture, policy traces, HAR export, replay
 - **Analytics**: traffic, latency and error dashboards for admins, plus Prometheus metrics
 - **Security**: designed against the OWASP Top 10, the OWASP API Security Top 10 and ASVS L2
@@ -46,7 +47,7 @@ Health probes: `GET /healthz` (liveness) and `GET /readyz` (database reachable).
 ```
 python scripts/install.py --local --dev --no-start    # ./.venv with ruff, mypy, bandit, pytest, pip-audit
 .venv/bin/ruff check . && .venv/bin/mypy && .venv/bin/pytest     # Windows: .venv\Scripts\...
-cd console && npm ci && npm run build                 # only when changing the console (Node.js 20+)
+cd console && npm ci && npm test && npm run build     # only when changing the console (Node.js 20+)
 ```
 
 Dependencies are pinned with hashes in `requirements/*.lock`. To change them, edit `requirements/*.in` and run `python scripts/update-locks.py`. Third-party packages are never committed; the prebuilt console in `src/apiedge/static/` is. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ADR 0002](docs/adr/0002-online-hash-locked-installer.md).

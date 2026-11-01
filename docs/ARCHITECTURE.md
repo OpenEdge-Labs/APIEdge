@@ -11,7 +11,7 @@ APIEdge is a single Python application (FastAPI on Uvicorn). One process serves:
 |---|---|---|
 | Liveness / readiness probes | `GET /healthz`, `GET /readyz` | T-001 |
 | Admin API (OpenAPI 3) | `/api/v1/...`, schema at `/api/v1/openapi.json` | T-003: auth, tenants, users, roles, audit |
-| Web console (static SPA) | `/` | T-001 shell, T-004+ screens |
+| Web console (static SPA) | `/` | T-004 admin panel (sign-in, MFA, tenants, users, roles, audit, settings); later tasks add screens |
 | Gateway data plane | API base paths | T-007 *(planned)* |
 
 ```
@@ -91,3 +91,15 @@ permission (403) -> bind_tenant(session) -> handler -> audit() -> commit
 
 Pure `pathlib`, no shell calls from Python (installer subprocesses use argument lists). CI runs the
 test suite on Windows, Linux and macOS × Python 3.10–3.12, and runs each OS's one-click installer.
+
+## Web console (T-004)
+
+The console is a React single-page app with no router or state library: the location hash
+(`#/users`) selects the page, so the server only serves `index.html` at `/`. It talks only to the
+admin API through `console/src/api.ts`, which keeps the session in the HttpOnly cookies, echoes the
+`apiedge_csrf` cookie in `X-CSRF-Token` on unsafe requests, and renews the session once on `401`
+via `POST /auth/refresh`. After sign-in the console reads `GET /auth/me`: a pending password
+change shows only the change-password form; otherwise `console/src/access.ts` derives the visible
+navigation and actions from the user's permissions (UX only, the server enforces). SuperAdmins pick
+the tenant to work in; other users work in their own tenant. Console unit tests run with Node's
+built-in test runner on the TypeScript compiler output (`npm test`), so no test framework is added.

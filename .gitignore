@@ -14,6 +14,7 @@ htmlcov/
 
 # Console (Node)
 console/node_modules/
+console/.test-build/
 console/dist/
 # Third-party dependencies are downloaded by the one-click installer, never committed.
 # (src/apiedge/static/ — our own prebuilt console — IS committed.)

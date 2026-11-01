@@ -1,0 +1,87 @@
+// Copyright 2026 Alingan Patra
+// SPDX-License-Identifier: Apache-2.0
+// Shapes returned by the admin API (see docs/admin-guide/access-control.md).
+
+export interface Me {
+  id: number;
+  username: string;
+  email: string | null;
+  tenant_id: number | null;
+  is_superadmin: boolean;
+  must_change_password: boolean;
+  mfa_enabled: boolean;
+  permissions: string[];
+  product_permissions: { product_id: number; permissions: string[] }[];
+}
+
+export interface Tenant {
+  id: number;
+  slug: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface User {
+  id: number;
+  tenant_id: number | null;
+  username: string;
+  email: string | null;
+  is_active: boolean;
+  is_locked: boolean;
+  mfa_enabled: boolean;
+  must_change_password: boolean;
+  created_at: string;
+  last_login_at: string | null;
+}
+
+export interface Permission {
+  name: string;
+  description: string;
+  platform_only: boolean;
+}
+
+export interface Role {
+  id: number;
+  tenant_id: number | null;
+  name: string;
+  description: string;
+  is_builtin: boolean;
+  permissions: string[];
+}
+
+export interface Assignment {
+  id: number;
+  tenant_id: number;
+  user_id: number;
+  role_id: number;
+  role_name: string;
+  product_id: number | null;
+  created_at: string;
+}
+
+export interface AuditEvent {
+  id: number;
+  tenant_id: number | null;
+  actor_user_id: number | null;
+  actor_username: string | null;
+  action: string;
+  resource_type: string | null;
+  resource_id: string | null;
+  outcome: string;
+  client_ip: string | null;
+  request_id: string | null;
+  details: string | null;
+  created_at: string;
+}
+
+export interface Setting {
+  name: string;
+  value: string;
+  group: string;
+}
+
+export interface MfaSetup {
+  secret: string;
+  otpauth_uri: string;
+}

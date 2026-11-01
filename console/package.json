@@ -6,12 +6,15 @@
   "license": "Apache-2.0",
   "author": "Alingan Patra",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node scripts/run-tests.mjs"
   },
   "dependencies": {
     "react": "18.3.1",
