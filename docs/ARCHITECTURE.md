@@ -10,8 +10,8 @@ APIEdge is a single Python application (FastAPI on Uvicorn). One process serves:
 | Surface | Path | Delivered in |
 |---|---|---|
 | Liveness / readiness probes | `GET /healthz`, `GET /readyz` | T-001 |
-| Admin API (OpenAPI 3) | `/api/v1/...`, schema at `/api/v1/openapi.json` | T-003: auth, tenants, users, roles, audit |
-| Web console (static SPA) | `/` | T-004 admin panel (sign-in, MFA, tenants, users, roles, audit, settings); later tasks add screens |
+| Admin API (OpenAPI 3) | `/api/v1/...`, schema at `/api/v1/openapi.json` | T-003: auth, tenants, users, roles, audit; T-005: products |
+| Web console (static SPA) | `/` | T-004 admin panel (sign-in, MFA, tenants, users, roles, audit, settings); T-005 products; later tasks add screens |
 | Gateway data plane | API base paths | T-007 *(planned)* |
 
 ```
@@ -30,7 +30,7 @@ API consumers ──────► /<api base>  gateway ──► policy pipeli
 | `apiedge.db` | Declarative `Base` (with constraint naming convention), engine/session factories, Alembic migrations in `db/migrations` |
 | `apiedge.security` | Argon2id passwords (T-001); HTTP hardening middleware, secret masking, AES-256-GCM secrets box, SSRF guard (T-002); auth and RBAC (T-003) |
 | `apiedge.logs` | Structured JSON logging with secret masking and request ids (T-002) |
-| `apiedge.admin` | Admin API routers (`auth_routes`, `tenants`, `users`, `roles`) and RBAC dependencies (`deps`) (T-003) |
+| `apiedge.admin` | Admin API routers (`auth_routes`, `tenants`, `users`, `roles`, `products`) and RBAC dependencies (`deps`) (T-003) |
 | `apiedge.db.tenancy` | Tenant-bound sessions: automatic `tenant_id` criteria and cross-tenant write guard (T-003) |
 | `apiedge.security.auth`, `rbac`, `audit` | Tokens, refresh rotation, throttling, lockout, TOTP; permission catalog and evaluation; audit writer (T-003) |
 | `apiedge.gateway`, `policies`, `inspector`, `analytics` | Placeholders for later tasks |
@@ -42,10 +42,12 @@ API consumers ──────► /<api base>  gateway ──► policy pipeli
   `init` and `create-admin`). Migrations use `render_as_batch` so they also work on SQLite.
 * Default database: SQLite file `apiedge.db` in the data directory (WAL mode, foreign keys on).
   PostgreSQL: set `APIEDGE_DATABASE_URL=postgresql+psycopg://...` and install the `postgres` extra.
-* Schema (migrations 0001-0002): `tenants`; `users` (one tenant each, or platform SuperAdmin with
+* Schema (migrations 0001-0003): `tenants`; `users` (one tenant each, or platform SuperAdmin with
   `tenant_id` NULL; lockout, MFA and `token_version` columns); `permissions` (catalog);
   `roles` (built-in global or per tenant) and `role_permissions`; `role_assignments` (tenant or
-  product scope); `refresh_tokens` (SHA-256 only); `audit_log`.
+  product scope, `product_id` references `products`); `refresh_tokens` (SHA-256 only); `audit_log`;
+  `products` (name unique per tenant, lifecycle) and `product_owners` (T-005,
+  [ADR 0005](adr/0005-products.md)).
 * Tenancy ([ADR 0004](adr/0004-auth-tenancy-rbac.md)): every tenant-owned row carries `tenant_id`.
   The RBAC dependency binds the request's session to the tenant in the path, and
   `apiedge.db.tenancy` then filters every ORM query and refuses cross-tenant writes.

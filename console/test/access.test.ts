@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { can, grantable, navFor, pageFromHash } from "../src/access";
+import { can, canAnyProduct, canProduct, grantable, navFor, pageFromHash } from "../src/access";
 import type { Me } from "../src/types";
 
 function me(overrides: Partial<Me> = {}): Me {
@@ -29,14 +29,14 @@ test("a Viewer sees read screens but not system settings", () => {
   assert.deepEqual(navFor(viewer).map((n) => n.page), ["tenants", "users", "roles", "audit", "account"]);
 });
 
-test("an APIDeveloper does not see users, roles or audit", () => {
+test("an APIDeveloper sees products but not users, roles or audit", () => {
   const dev = me({ permissions: ["product:read", "api:create", "api:read"] });
-  assert.deepEqual(navFor(dev).map((n) => n.page), ["account"]);
+  assert.deepEqual(navFor(dev).map((n) => n.page), ["products", "account"]);
 });
 
 test("a SuperAdmin sees everything, including system settings", () => {
   const root = me({ is_superadmin: true, tenant_id: null });
-  assert.deepEqual(navFor(root).map((n) => n.page), ["tenants", "users", "roles", "audit", "settings", "account"]);
+  assert.deepEqual(navFor(root).map((n) => n.page), ["tenants", "products", "users", "roles", "audit", "settings", "account"]);
   assert.ok(can(root, "tenant:create"));
 });
 
@@ -57,4 +57,20 @@ test("the hash cannot open a page the user may not see", () => {
 test("grantable() offers only permissions the user holds", () => {
   const limited = me({ permissions: ["user:read", "role:create"] });
   assert.deepEqual([...grantable(limited, ["user:read", "user:delete", "role:create"])], ["user:read", "role:create"]);
+});
+
+test("a product-scoped grant shows Products and only allows that product", () => {
+  const owner = me({ product_permissions: [{ product_id: 3, permissions: ["product:read", "product:update"] }] });
+  assert.deepEqual(navFor(owner).map((n) => n.page), ["products", "account"]);
+  assert.equal(canProduct(owner, "product:update", 3), true);
+  assert.equal(canProduct(owner, "product:update", 4), false);
+  assert.equal(canProduct(owner, "product:delete", 3), false);
+  assert.equal(canAnyProduct(owner, "product:create"), false);
+  assert.equal(can(owner, "product:read"), false);
+});
+
+test("tenant-wide product permissions apply to every product", () => {
+  const admin = me({ permissions: ["product:read", "product:delete"] });
+  assert.equal(canProduct(admin, "product:delete", 99), true);
+  assert.equal(canAnyProduct(admin, "product:read"), true);
 });

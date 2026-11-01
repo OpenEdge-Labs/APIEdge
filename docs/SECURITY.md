@@ -26,6 +26,7 @@ Report vulnerabilities privately to the maintainer (Alingan Patra); do not open 
 | Session invalidation on password change/reset, role grant/revoke, deactivation (`token_version` + refresh revocation); forced password change on first sign-in and after reset | `auth.py` (`invalidate_sessions`), `admin/deps.py` | `test_auth_api.py::test_password_change_required_*`, `test_rbac_api.py::test_role_change_ends_sessions` |
 | RBAC: deny-by-default `resource:action` permission dependency on every admin route; platform permissions only for SuperAdmins; anti-escalation (grant only what you hold, manage only less-or-equally privileged users) | `src/apiedge/security/rbac.py`, `src/apiedge/admin/deps.py`, `admin/users.py`, `admin/roles.py` | `tests/unit/test_rbac.py`, `tests/integration/test_rbac_api.py` |
 | Multi-tenancy: tenant-bound sessions add `tenant_id` criteria to every ORM query and refuse cross-tenant writes; foreign tenants answer 404 | `src/apiedge/db/tenancy.py`, `admin/deps.py` (`require`) | `tests/integration/test_tenancy.py`, `test_rbac_api.py::test_*cross_tenant*`, `::test_bola_*` |
+| Product-level authorization: product routes check the permission for the product (tenant-wide or product-scoped grant); unreadable products answer 404 (T-005) | `src/apiedge/admin/products.py`, `admin/deps.py` (`require_any`) | `tests/integration/test_products_api.py` |
 | Audit log of sign-ins (success/failure), lockouts, refresh-token reuse and every privileged change; masked details; tenant-scoped reading | `src/apiedge/security/audit.py`, `admin/tenants.py` | `test_rbac_api.py::test_audit_log_is_tenant_scoped`, `::test_tenant_admin_user_and_role_lifecycle` |
 | Console (T-004): strict CSP without `unsafe-inline` (bundle has no inline scripts or styles), double-submit CSRF header on every unsafe request, session only in HttpOnly cookies (no token in JS storage), React output encoding, permission-aware navigation as UX only (the server enforces); system settings view never returns secrets | `console/src/api.ts`, `console/src/access.ts`, `src/apiedge/admin/system.py` | `tests/integration/test_console.py`, `console/test/*.test.ts` |
 | No server/version disclosure (`server_header=False`, minimal `/healthz`) | `cli.py`, `app.py` | `tests/integration/test_app.py` |
@@ -50,7 +51,7 @@ Report vulnerabilities privately to the maintainer (Alingan Patra); do not open 
 
 | ID | Risk | APIEdge control | Status |
 |---|---|---|---|
-| API1 | Broken Object Level Authorization | Tenant filter in the data-access layer plus explicit ownership checks; BOLA tests (T-003) | Done (admin API) |
+| API1 | Broken Object Level Authorization | Tenant filter in the data-access layer plus explicit ownership checks; BOLA tests (T-003); product-level checks and product BOLA tests (T-005) | Done (admin API) |
 | API2 | Broken Authentication | Argon2id, throttling, lockout, MFA, short-lived JWT + rotating refresh cookie (T-003) | Done |
 | API3 | Broken Object Property Level Authorization | Explicit Pydantic response models (no ORM passthrough), 422 without echoed input (T-002) | Partial |
 | API4 | Unrestricted Resource Consumption | Admin API body-size limit (T-002); gateway rate limits, quotas, timeouts (T-007/T-008) | Partial |

@@ -90,8 +90,9 @@ Permissions are `resource:action` (for example `user:create`, `api:publish`, `in
 | `POST /tenants/{id}/users/{uid}/roles` `{"role_id", "product_id"?}` | `role:assign` |
 | `DELETE /tenants/{id}/users/{uid}/roles/{assignment_id}` | `role:assign` |
 
-A role grant applies to the whole tenant, or only to one product when `product_id` is set
-(products arrive with T-005). You can only put permissions you hold into a custom role, and only
+A role grant applies to the whole tenant, or only to one product when `product_id` is set (a
+product of the same tenant, otherwise 404; see [Products](../user-guide/products.md)). Deleting a
+product revokes the grants scoped to it. You can only put permissions you hold into a custom role, and only
 grant roles whose permissions you hold.
 
 ## System settings

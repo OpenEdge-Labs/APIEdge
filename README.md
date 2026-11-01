@@ -27,7 +27,7 @@ apiedge migrate             # apply database migrations
 apiedge create-admin        # create a SuperAdmin
 ```
 
-The console's admin panel (sign-in with MFA, tenants, users, roles and permissions, audit log, system settings) is described in [docs/admin-guide/access-control.md](docs/admin-guide/access-control.md).
+The console's admin panel (sign-in with MFA, tenants, users, roles and permissions, audit log, system settings) is described in [docs/admin-guide/access-control.md](docs/admin-guide/access-control.md); product management in [docs/user-guide/products.md](docs/user-guide/products.md).
 
 Health probes: `GET /healthz` (liveness) and `GET /readyz` (database reachable).
 
@@ -57,6 +57,7 @@ Dependencies are pinned with hashes in `requirements/*.lock`. To change them, ed
 - [Installation Guide](docs/installation.md)
 - [Configuration (Administrator Guide)](docs/admin-guide/configuration.md)
 - [Access control: sign-in, tenants, users, roles, audit](docs/admin-guide/access-control.md)
+- [Products (User Guide)](docs/user-guide/products.md)
 - [Security and OWASP mapping](docs/SECURITY.md)
 - [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/adr/)
 - [Third-party licenses](THIRD_PARTY_LICENSES.md)

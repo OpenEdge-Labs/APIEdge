@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -157,14 +158,67 @@ class RoleAssignment(TenantOwned, Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
-    # Product scope; the foreign key to products is added with the products table (T-005).
-    product_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Product scope (T-005): deleting the product removes its product-scoped grants.
+    product_id: Mapped[int | None] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
 
     user: Mapped[User] = relationship(back_populates="assignments")
     role: Mapped[Role] = relationship(lazy="joined")
+
+
+PRODUCT_LIFECYCLE = ("draft", "published", "deprecated", "retired")
+
+
+class Product(TenantOwned, Base):
+    """A bundle of APIs with owners and a lifecycle (T-005)."""
+
+    __tablename__ = "products"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="uq_products_tenant_id_name"),
+        CheckConstraint(
+            "lifecycle IN ('draft', 'published', 'deprecated', 'retired')", name="lifecycle"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    lifecycle: Mapped[str] = mapped_column(String(16), nullable=False, default="draft")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    owner_rows: Mapped[list[ProductOwnerLink]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, lazy="selectin"
+    )
+
+
+class ProductOwnerLink(TenantOwned, Base):
+    """A user of the product's tenant who owns the product (informational, not a grant)."""
+
+    __tablename__ = "product_owners"
+
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+
+    user: Mapped[User] = relationship(lazy="joined")
 
 
 class RefreshToken(Base):

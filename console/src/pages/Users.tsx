@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { api } from "../api";
 import { can } from "../access";
 import { PASSWORD_HINT } from "../auth";
-import type { Assignment, Me, Role, User } from "../types";
+import type { Assignment, Me, Product, Role, User } from "../types";
 import { Card, ErrorBox, Field, Notice, fmtDate, useAction, useLoad } from "../ui";
 
 export function UsersPage({ me, tenantId }: { me: Me; tenantId: number }) {
@@ -161,11 +161,20 @@ function Grants({ me, tenantId, user, roles }: { me: Me; tenantId: number; user:
   const grants = useLoad(() => api<Assignment[]>(path), [path]);
   const action = useAction();
   const [roleId, setRoleId] = useState("");
+  const [productId, setProductId] = useState("");
   const canAssign = can(me, "role:assign");
+  // Products for product-scoped grants (T-005), when the caller may list them all.
+  const products = useLoad(
+    () => (can(me, "product:read") ? api<Product[]>(`/tenants/${tenantId}/products`) : Promise.resolve([] as Product[])),
+    [tenantId],
+  );
+  const productName = (id: number) => products.data?.find((p) => p.id === id)?.name ?? `product ${id}`;
   const grant = async (e: FormEvent) => {
     e.preventDefault();
-    if (await action.run(() => api(path, { method: "POST", body: { role_id: Number(roleId) } }))) {
+    const body = { role_id: Number(roleId), ...(productId ? { product_id: Number(productId) } : {}) };
+    if (await action.run(() => api(path, { method: "POST", body }))) {
       setRoleId("");
+      setProductId("");
       grants.reload();
     }
   };
@@ -180,7 +189,7 @@ function Grants({ me, tenantId, user, roles }: { me: Me; tenantId: number; user:
         {(grants.data ?? []).map((a) => (
           <li key={a.id}>
             {a.role_name}
-            {a.product_id !== null && <span className="muted"> (product {a.product_id})</span>}
+            {a.product_id !== null && <span className="muted"> (only {productName(a.product_id)})</span>}
             {canAssign && (
               <button className="link" disabled={action.busy} onClick={() => void revoke(a)}>Revoke</button>
             )}
@@ -199,6 +208,17 @@ function Grants({ me, tenantId, user, roles }: { me: Me; tenantId: number; user:
               ))}
             </select>
           </label>
+          {(products.data ?? []).length > 0 && (
+            <label className="field">
+              <span>Scope</span>
+              <select value={productId} onChange={(e) => setProductId(e.target.value)}>
+                <option value="">Whole tenant</option>
+                {(products.data ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>Only product {p.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <button type="submit" disabled={action.busy || !roleId}>Grant</button>
         </form>
       )}

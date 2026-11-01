@@ -32,7 +32,7 @@ from apiedge.admin.schemas import (
     UserOut,
     UserPatch,
 )
-from apiedge.db.models import Role, RoleAssignment, User, utcnow
+from apiedge.db.models import Product, Role, RoleAssignment, User, utcnow
 from apiedge.security import auth
 from apiedge.security.audit import audit
 from apiedge.security.passwords import hash_password, password_problems
@@ -253,6 +253,10 @@ def grant_role(
     role = _get_role(caller, body.role_id)
     _check_can_grant(caller, role)
     _check_can_manage(caller, user)
+    if body.product_id is not None:
+        product = caller.session.get(Product, body.product_id)
+        if product is None or product.tenant_id != caller.tenant_id:
+            raise not_found("Product not found")
     assignment = RoleAssignment(
         tenant_id=caller.tenant_id, user_id=user.id, role_id=role.id, product_id=body.product_id
     )

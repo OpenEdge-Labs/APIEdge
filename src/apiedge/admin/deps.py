@@ -9,6 +9,9 @@ Every admin route depends on exactly one of
 * :func:`require` - a tenant permission for the ``{tenant_id}`` in the path. It answers 404 for
   tenants the caller does not belong to (no existence disclosure), 403 for a missing
   permission, and binds the session to the tenant so every query is tenant-filtered.
+* :func:`require_any` - like :func:`require`, but a product-scoped grant of the permission is
+  enough to pass; the route must then check the permission for the product it touches
+  (``Principal.has(permission, tenant_id, product_id)``), as ``admin.products`` does.
 """
 
 from __future__ import annotations
@@ -158,7 +161,7 @@ def require_platform(permission: str) -> Callable[..., Caller]:
     return dep
 
 
-def require(permission: str) -> Callable[..., TenantCaller]:
+def require(permission: str, *, product_scoped: bool = False) -> Callable[..., TenantCaller]:
     """Tenant-scoped permission check for routes under ``/tenants/{tenant_id}``."""
     if permission not in PERMISSIONS:
         raise ValueError(f"unknown permission {permission!r}")
@@ -172,7 +175,12 @@ def require(permission: str) -> Callable[..., TenantCaller]:
         tenant = caller.session.get(Tenant, tenant_id)
         if tenant is None:
             raise not_found("Tenant not found")
-        if not caller.principal.has(permission, tenant_id):
+        allowed = (
+            caller.principal.has_any(permission, tenant_id)
+            if product_scoped
+            else caller.principal.has(permission, tenant_id)
+        )
+        if not allowed:
             raise _deny(caller, permission, tenant_id)
         bind_tenant(caller.session, tenant_id)
         return TenantCaller(
@@ -184,3 +192,13 @@ def require(permission: str) -> Callable[..., TenantCaller]:
         )
 
     return dep
+
+
+def require_any(permission: str) -> Callable[..., TenantCaller]:
+    """Tenant access plus ``permission`` tenant-wide or for at least one product."""
+    return require(permission, product_scoped=True)
+
+
+def deny(caller: Caller, permission: str, tenant_id: int | None) -> HTTPException:
+    """403 for a missing permission (logged without user-influenced values beyond the name)."""
+    return _deny(caller, permission, tenant_id)

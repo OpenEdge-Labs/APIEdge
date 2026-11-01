@@ -167,3 +167,40 @@ shows the secret and `otpauth://` URI as text instead of a QR code to avoid a QR
 
 **Follow-ups.** Browser E2E (Playwright) for console flows when the CI budget allows; QR code for
 MFA enrolment; editable runtime settings if a task asks for `settings:update`.
+
+### 2026-11-01 - T-005 Product management
+
+**Summary.** Products per tenant with name, description, owners (users of the tenant) and a
+lifecycle (draft, published, deprecated, retired; retired is final and read-only; only draft and
+retired products can be deleted). Admin API `/api/v1/tenants/{id}/products` (list with lifecycle
+filter, create, get, update, lifecycle change, delete) authorized by `product:*` permissions held
+tenant-wide or through a product-scoped grant (`require_any` plus a per-product check; unreadable
+products answer 404). Role grants with `product_id` must name a product of the tenant; deleting a
+product revokes its scoped grants. Audit events `product.create|update|lifecycle|delete`. Console
+Products screen and a product scope selector for role grants. Migration 0003 adds `products`,
+`product_owners` and the `role_assignments.product_id` foreign key. ADR 0005.
+
+**Files.** `src/apiedge/admin/{products,deps,schemas,users,__init__}.py`,
+`src/apiedge/security/rbac.py`, `src/apiedge/db/models.py`,
+`src/apiedge/db/migrations/versions/0003_products.py`, `console/src/{App.tsx,access.ts,types.ts,
+products.ts,styles.css}`, `console/src/pages/{Products,Users}.tsx`,
+`console/test/{access,products}.test.ts`, `src/apiedge/static/*`,
+`tests/integration/test_products_api.py`, `tests/unit/test_rbac.py`, `docs/user-guide/products.md`,
+`docs/adr/0005-products.md`, `docs/{ARCHITECTURE,SECURITY}.md`,
+`docs/admin-guide/access-control.md`, `README.md`, `CHANGELOG.md`.
+
+**Tests.** 227 pytest pass (13 new: CRUD, lifecycle rules, validation and conflicts, RBAC denial
+for Viewer/APIDeveloper/no-role users, product-scoped ProductOwner, product BOLA, cross-tenant
+404s, grant needs a product of the tenant, scoped grants removed with the product, audit events,
+RBAC helper unit test); 18 console tests; tsc, npm audit (0 vulnerabilities), ruff, ruff format,
+mypy --strict, bandit clean. Live run: a 0002 database with an orphan product-scoped grant was
+upgraded by `apiedge run` (orphan removed, foreign key present); sign-in with cookies and CSRF
+header, product create with owner, publish, list, audit; a request without the CSRF header got 403.
+
+**Decisions.** Owners are contacts, not grants (access only through roles). Product names are
+unique per tenant (no slug). Lifecycle changes have their own route and permission
+(`product:publish`). A caller without the permission for any product gets 403 for every id (no
+disclosure); with it for some products, other products answer 404.
+
+**Follow-ups.** T-006 APIs inside products reuse the product checks; block deleting products that
+still contain APIs once APIs exist.

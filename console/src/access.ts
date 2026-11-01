@@ -4,7 +4,7 @@
 // permission on its own.
 import type { Me } from "./types";
 
-export type Page = "tenants" | "users" | "roles" | "audit" | "settings" | "account";
+export type Page = "tenants" | "products" | "users" | "roles" | "audit" | "settings" | "account";
 
 export interface NavItem {
   page: Page;
@@ -20,6 +20,12 @@ const NAV: (NavItem & { allowed: (me: Me) => boolean })[] = [
     tenantScoped: false,
     allowed: (me) => me.is_superadmin || can(me, "tenant:read"),
   },
+  {
+    page: "products",
+    label: "Products",
+    tenantScoped: true,
+    allowed: (me) => canAnyProduct(me, "product:read"),
+  },
   { page: "users", label: "Users", tenantScoped: true, allowed: (me) => can(me, "user:read") },
   { page: "roles", label: "Roles & permissions", tenantScoped: true, allowed: (me) => can(me, "role:read") },
   { page: "audit", label: "Audit log", tenantScoped: false, allowed: (me) => can(me, "audit:read") },
@@ -30,6 +36,19 @@ const NAV: (NavItem & { allowed: (me: Me) => boolean })[] = [
 /** True when the user holds `permission` tenant-wide (SuperAdmins hold everything). */
 export function can(me: Me, permission: string): boolean {
   return me.is_superadmin || me.permissions.includes(permission);
+}
+
+/** True when `permission` is held tenant-wide or through a grant scoped to `productId`. */
+export function canProduct(me: Me, permission: string, productId: number): boolean {
+  return (
+    can(me, permission) ||
+    me.product_permissions.some((g) => g.product_id === productId && g.permissions.includes(permission))
+  );
+}
+
+/** True when `permission` is held tenant-wide or for at least one product. */
+export function canAnyProduct(me: Me, permission: string): boolean {
+  return can(me, permission) || me.product_permissions.some((g) => g.permissions.includes(permission));
 }
 
 export function navFor(me: Me): NavItem[] {

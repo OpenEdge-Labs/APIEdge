@@ -60,6 +60,19 @@ export interface Assignment {
   created_at: string;
 }
 
+export type Lifecycle = "draft" | "published" | "deprecated" | "retired";
+
+export interface Product {
+  id: number;
+  tenant_id: number;
+  name: string;
+  description: string;
+  lifecycle: Lifecycle;
+  owners: { user_id: number; username: string }[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AuditEvent {
   id: number;
   tenant_id: number | null;

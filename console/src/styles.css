@@ -30,8 +30,8 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
 
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; min-width: 180px; flex: 1; }
 .field span { font-weight: 600; font-size: 13px; }
-input, select { font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; }
-input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+input, select, textarea { font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; }
+input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .check { display: inline-flex; align-items: center; gap: 6px; margin: 4px 12px 4px 0; }
 .check input { margin: 0; }
 fieldset.checks { border: 1px solid var(--border); border-radius: 6px; margin: 0 0 12px; padding: 8px 12px; }
@@ -83,3 +83,11 @@ code.secret { word-break: break-all; user-select: all; }
   .topbar { flex-wrap: wrap; }
   .content { padding: 12px; }
 }
+/* Products (T-005) */
+textarea { width: 100%; resize: vertical; }
+.field.wide { min-width: 100%; }
+.field.inline { flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0; flex: none; min-width: 0; }
+.lifecycle { display: inline-block; font-size: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 0 8px; }
+.lifecycle.published { color: var(--ok); border-color: var(--ok); }
+.lifecycle.deprecated { color: var(--bad); border-color: var(--bad); }
+.lifecycle.retired { color: var(--muted); text-decoration: line-through; }

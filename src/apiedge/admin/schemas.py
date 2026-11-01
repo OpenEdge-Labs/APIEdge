@@ -196,6 +196,56 @@ class AssignmentOut(Out):
     created_at: datetime
 
 
+# --- products (T-005)
+
+ProductLifecycle = Literal["draft", "published", "deprecated", "retired"]
+Description = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
+
+
+def _unique_owners(v: list[str] | None) -> list[str] | None:
+    return None if v is None else sorted(set(v))
+
+
+class ProductIn(In):
+    name: Name
+    description: Description = ""
+    owners: list[Username] | None = Field(
+        default=None,
+        max_length=20,
+        description="Usernames in the tenant. Omitted: the caller, if they belong to the tenant.",
+    )
+
+    _owners = field_validator("owners")(_unique_owners)
+
+
+class ProductPatch(In):
+    name: Name | None = None
+    description: Description | None = None
+    owners: list[Username] | None = Field(default=None, max_length=20)
+
+    _owners = field_validator("owners")(_unique_owners)
+
+
+class LifecycleIn(In):
+    lifecycle: ProductLifecycle
+
+
+class OwnerOut(Out):
+    user_id: int
+    username: str
+
+
+class ProductOut(Out):
+    id: int
+    tenant_id: int
+    name: str
+    description: str
+    lifecycle: ProductLifecycle
+    owners: list[OwnerOut]
+    created_at: datetime
+    updated_at: datetime
+
+
 # --- audit
 
 

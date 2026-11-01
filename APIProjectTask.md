@@ -87,7 +87,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 
 ## Phase 2: Products and APIs
 
-- [ ] **T-005** (P1) Product management
+- [~] **T-005** (P1) Product management
   - Add CRUD for Products (name, description, owners, lifecycle) through the admin API and console.
   - Depends on: T-004
 

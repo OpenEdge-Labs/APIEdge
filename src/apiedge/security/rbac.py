@@ -146,6 +146,28 @@ class Principal:
             for g in self.grants
         )
 
+    def has_any(self, permission: str, tenant_id: int) -> bool:
+        """True if ``permission`` is held tenant-wide or for at least one product."""
+        if permission not in PERMISSIONS or permission in PLATFORM_PERMISSIONS:
+            return self.is_superadmin and permission in PERMISSIONS
+        if self.is_superadmin:
+            return True
+        if self.tenant_id != tenant_id:
+            return False
+        return any(permission in g.permissions and g.tenant_id == tenant_id for g in self.grants)
+
+    def product_ids_with(self, permission: str, tenant_id: int) -> frozenset[int] | None:
+        """Products where ``permission`` is held; ``None`` means every product (tenant-wide)."""
+        if self.has(permission, tenant_id):
+            return None
+        if self.tenant_id != tenant_id:
+            return frozenset()
+        return frozenset(
+            g.product_id
+            for g in self.grants
+            if g.product_id is not None and g.tenant_id == tenant_id and permission in g.permissions
+        )
+
     def tenant_permissions(self, tenant_id: int) -> frozenset[str]:
         """Permissions held tenant-wide (product-scoped grants excluded)."""
         if self.is_superadmin:
