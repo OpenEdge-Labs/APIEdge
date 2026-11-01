@@ -17,6 +17,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 - **G-6 Git:** after each completed task, commit and push to `origin main` (GitHub: APIEdge).
 - **G-7 One-click installer:** third-party dependencies are **not** committed to git. A one-click installer for each OS (`install.bat` for Windows, `install.command` for macOS, `install.sh` for Linux) downloads them from the internet and installs and starts APIEdge. Details are in `docs/PROJECT_GUIDE.md`.
 - **G-8 Enterprise feature parity:** APIEdge must provide the capabilities of IBM API Connect / DataPower and the other leading gateways (Kong, Apigee, Azure APIM, AWS API Gateway, MuleSoft, WSO2, Tyk, Gravitee), tracked in `docs/FEATURE_MATRIX.md`. All of it is our own original implementation.
+- **G-9 Single task list:** `APIProjectTask.md` is the only place where tasks, their status, delivery notes, blockers, questions and proposals are tracked. Do not create other task lists, TODO files or issue trackers. `docs/PROGRESS.md` is a delivery log only.
 
 ## Task format
 
@@ -224,6 +225,25 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 - [ ] **T-030** (P3) AI gateway
   - Add an LLM provider proxy, token-based rate limits and quotas, a prompt guard with PII redaction, a semantic cache, and model routing and fallback.
   - Depends on: T-025
+
+## Phase 8: Public release
+
+- [ ] **T-031** (P1) Make the GitHub repository public
+  - Do this last, once every other task in this file is `[x]`.
+  - Pre-publication checks:
+    - scan the full git history for secrets (gitleaks or similar) and fix anything found;
+    - confirm no internal or personal data is in the repo;
+    - confirm LICENSE (Apache-2.0), NOTICE and THIRD_PARTY_LICENSES are complete;
+    - the README is complete, with screenshots;
+    - CI is green on all three OSs.
+  - Add public-project files: `SECURITY.md` (vulnerability disclosure policy), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and issue and pull-request templates.
+  - Then set the repository to **public** (`gh repo edit --visibility public`).
+  - After it is public:
+    - enable CodeQL result upload to GitHub code scanning, Dependabot alerts and updates, and secret scanning with push protection;
+    - protect `main` (pull requests and passing checks required);
+    - set the repository description, topics and website;
+    - publish the first GitHub Release.
+  - Depends on: every other task (T-001 to T-030)
 
 ---
 
