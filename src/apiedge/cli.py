@@ -92,11 +92,13 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         return EXIT_OK
 
+    from apiedge.analytics.metrics import MetricsCollector
     from apiedge.gateway.app import create_gateway_app
     from apiedge.gateway.bus import build_bus
 
     redis_url = settings.redis_url.get_secret_value() if settings.redis_url else None
     bus = build_bus(redis_url)  # shared: admin changes reload the gateway in-process
+    metrics = MetricsCollector()  # shared: /metrics on the console port shows gateway counters
     print(f"APIEdge gateway: http://{settings.gateway_host}:{settings.gateway_port}/<tenant>/<api>")
     common: dict[str, Any] = {
         "log_level": settings.log_level,
@@ -105,9 +107,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     }
     _serve_all(
         [
-            uvicorn.Config(create_app(settings, bus), host=host, port=port, **common),
+            uvicorn.Config(create_app(settings, bus, metrics), host=host, port=port, **common),
             uvicorn.Config(
-                create_gateway_app(settings, bus),
+                create_gateway_app(settings, bus, metrics=metrics),
                 host=settings.gateway_host,
                 port=settings.gateway_port,
                 **common,

@@ -137,12 +137,13 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   - Write the Inspector Guide.
   - Depends on: T-008
 
-- [ ] **T-013** (P1) Analytics interface for admins
+- [~] **T-013** (P1) Analytics interface for admins
   - Collect per-request metrics and aggregate them into time buckets.
   - Add dashboards for traffic, p50/p95/p99 latency, error rate and status codes, with top APIs and consumers and time-range and API/consumer filters.
   - Add CSV export and a Prometheus `/metrics` endpoint.
   - Write the Analytics Guide.
   - Depends on: T-007
+  > Vendor decision: the error rate counts 4xx and 5xx responses (both are also shown separately). Until consumers exist (T-014) all traffic is attributed to the anonymous consumer. `/metrics` is served on the console port and is off unless `APIEDGE_METRICS_TOKEN` is set (bearer token), because the metrics cover every tenant.
 
 ## Phase 5: Consumers
 

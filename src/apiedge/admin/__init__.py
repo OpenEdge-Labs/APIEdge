@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from apiedge.admin import apis, auth_routes, products, roles, system, tenants, users
+from apiedge.admin import analytics, apis, auth_routes, products, roles, system, tenants, users
 
 
 def build_router() -> APIRouter:
@@ -17,6 +17,7 @@ def build_router() -> APIRouter:
     api.include_router(roles.router)
     api.include_router(products.router)
     api.include_router(apis.router)
+    api.include_router(analytics.router)
     api.include_router(system.router)
     return api
 

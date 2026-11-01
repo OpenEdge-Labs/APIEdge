@@ -93,6 +93,14 @@ class Settings(BaseSettings):
     # processes through the periodic reload.
     redis_url: SecretStr | None = None
 
+    # --- Analytics (T-013, ADR 0008).
+    # How often the gateway writes its per-minute aggregates to the database (seconds).
+    analytics_flush_interval_seconds: int = Field(default=10, ge=1, le=300)
+    # Aggregates older than this are deleted (checked at most hourly).
+    analytics_retention_days: int = Field(default=30, ge=1, le=3650)
+    # Bearer token for the Prometheus endpoint GET /metrics; unset = the endpoint is off (404).
+    metrics_token: SecretStr | None = None
+
     @field_validator("data_dir")
     @classmethod
     def _expand(cls, v: Path) -> Path:
@@ -134,6 +142,15 @@ class Settings(BaseSettings):
     def _check_cidrs(cls, v: list[str]) -> list[str]:
         for cidr in v:
             ipaddress.ip_network(cidr, strict=False)  # raises ValueError if invalid
+        return v
+
+    @field_validator("metrics_token")
+    @classmethod
+    def _check_metrics_token(cls, v: SecretStr | None) -> SecretStr | None:
+        if v is None or not v.get_secret_value():
+            return None
+        if len(v.get_secret_value()) < 16:
+            raise ValueError("the metrics token must be at least 16 characters long")
         return v
 
     @property

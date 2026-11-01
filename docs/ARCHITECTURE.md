@@ -10,7 +10,8 @@ APIEdge is a single Python application (FastAPI on Uvicorn). One process serves:
 | Surface | Path | Delivered in |
 |---|---|---|
 | Liveness / readiness probes | `GET /healthz`, `GET /readyz` | T-001 |
-| Admin API (OpenAPI 3) | `/api/v1/...`, schema at `/api/v1/openapi.json` | T-003: auth, tenants, users, roles, audit; T-005: products; T-006: APIs in products |
+| Admin API (OpenAPI 3) | `/api/v1/...`, schema at `/api/v1/openapi.json` | T-003: auth, tenants, users, roles, audit; T-005: products; T-006: APIs in products; T-013: analytics |
+| Prometheus metrics (off unless `APIEDGE_METRICS_TOKEN` is set) | `GET /metrics` | T-013 |
 | Web console (static SPA) | `/` | T-004 admin panel (sign-in, MFA, tenants, users, roles, audit, settings); T-005 products; T-006 API form editor; later tasks add screens |
 | Gateway data plane (own port, `APIEDGE_GATEWAY_PORT`, default 8081) | `/<tenant slug><base path>/...`, probes `/-/healthz`, `/-/readyz` | T-007 |
 
@@ -34,7 +35,8 @@ API consumers ──────► :8081/<tenant>/<api base>  gateway ──►
 | `apiedge.db.tenancy` | Tenant-bound sessions: automatic `tenant_id` criteria and cross-tenant write guard (T-003) |
 | `apiedge.security.auth`, `rbac`, `audit` | Tokens, refresh rotation, throttling, lockout, TOTP; permission catalog and evaluation; audit writer (T-003) |
 | `apiedge.gateway` | Data plane (T-007, [ADR 0007](adr/0007-gateway-runtime.md)): `app` (proxy ASGI app, retries, headers, errors), `snapshot` (routing snapshot, lifecycle states, weighted balancer), `transport` (SSRF-guarded connection pool, TLS), `bus` (config change events: in-process, Redis) |
-| `policies`, `inspector`, `analytics` | Placeholders for later tasks |
+| `apiedge.analytics` | T-013, [ADR 0008](adr/0008-analytics.md): `metrics` (per-request collector, minute aggregates with latency histograms, flush, Prometheus text), `query` (sums, percentiles, series, export rows) |
+| `policies`, `inspector` | Placeholders for later tasks |
 | `console/` | React + Vite + TypeScript source; `npm run build` writes to `src/apiedge/static` |
 
 ## 3. Data
@@ -49,7 +51,9 @@ API consumers ──────► :8081/<tenant>/<api base>  gateway ──►
   product scope, `product_id` references `products`); `refresh_tokens` (SHA-256 only); `audit_log`;
   `products` (name unique per tenant, lifecycle) and `product_owners` (T-005,
   [ADR 0005](adr/0005-products.md)); `apis` (base path unique per tenant, version, timeout,
-  lifecycle), `api_upstreams` and `api_routes` (T-006, [ADR 0006](adr/0006-apis.md)).
+  lifecycle), `api_upstreams` and `api_routes` (T-006, [ADR 0006](adr/0006-apis.md));
+  `analytics_buckets` (insert-only per-minute aggregates with latency histogram columns, T-013,
+  [ADR 0008](adr/0008-analytics.md)).
 * Tenancy ([ADR 0004](adr/0004-auth-tenancy-rbac.md)): every tenant-owned row carries `tenant_id`.
   The RBAC dependency binds the request's session to the tenant in the path, and
   `apiedge.db.tenancy` then filters every ORM query and refuses cross-tenant writes.
@@ -123,3 +127,16 @@ admin commit (tenant/product/API rows) -> after_commit hook -> ConfigBus (in-pro
 
 `apiedge run` serves the console/admin app and the gateway app in one event loop and shares one
 `ConfigBus` between them.
+
+## Analytics (T-013)
+
+See [ADR 0008](adr/0008-analytics.md) and the [Analytics Guide](user-guide/analytics.md).
+
+```
+gateway proxy -> _Meter (status, latency to last byte, bytes, route, method) -> MetricsCollector
+  -> per-minute aggregates + 13-bucket latency histogram  --(every 10 s, worker thread)-->
+     analytics_buckets (insert-only; retention purge hourly)
+  -> cumulative per tenant/API counters -> GET /metrics (bearer token, same process)
+console Analytics page -> GET /tenants/{id}/analytics/summary | export.csv (analytics:view,
+  tenant-bound session, product scope) -> SQL SUM per group -> percentiles from merged histograms
+```

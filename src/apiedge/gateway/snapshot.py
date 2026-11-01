@@ -49,6 +49,7 @@ def compile_route_path(path: str) -> re.Pattern[str]:
 class RouteRule:
     methods: frozenset[str]
     pattern: re.Pattern[str]
+    path: str = ""  # as configured, e.g. /orders/{id} (analytics dimension)
 
 
 @dataclass(frozen=True)
@@ -89,6 +90,8 @@ class RuntimeApi:
     upstreams: tuple[Upstream, ...]
     routes: tuple[RouteRule, ...]
     balancer: WeightedBalancer = field(repr=False)
+    tenant_id: int = 0
+    product_id: int = 0
 
     def remainder(self, path: str) -> str | None:
         """The path below the base path, or None if ``path`` is not under it."""
@@ -98,15 +101,15 @@ class RuntimeApi:
             return path[len(self.base_path) :]
         return None
 
-    def match(self, method: str, path: str) -> tuple[bool, frozenset[str]]:
-        """(method allowed, methods allowed on this path). Empty set: no route matches."""
+    def match(self, method: str, path: str) -> tuple[RouteRule | None, frozenset[str]]:
+        """(matching rule or None, methods allowed on this path). Empty set: no route matches."""
         allowed: set[str] = set()
         for rule in self.routes:
             if rule.pattern.fullmatch(path):
                 if method in rule.methods:
-                    return True, rule.methods
+                    return rule, rule.methods
                 allowed |= rule.methods
-        return False, frozenset(allowed)
+        return None, frozenset(allowed)
 
 
 @dataclass(frozen=True)
@@ -138,7 +141,8 @@ def build_runtime_api(api: Api, tenant_slug: str, product_lifecycle: str) -> Run
         return None
     upstreams = tuple(Upstream(u.url.rstrip("/"), u.weight) for u in api.upstreams)
     routes = tuple(
-        RouteRule(frozenset(r.methods.split(",")), compile_route_path(r.path)) for r in api.routes
+        RouteRule(frozenset(r.methods.split(",")), compile_route_path(r.path), r.path)
+        for r in api.routes
     )
     if state != RETIRED and not (upstreams and routes):
         return None
@@ -151,6 +155,8 @@ def build_runtime_api(api: Api, tenant_slug: str, product_lifecycle: str) -> Run
         upstreams=upstreams,
         routes=routes,
         balancer=WeightedBalancer([u.weight for u in upstreams]),
+        tenant_id=api.tenant_id,
+        product_id=api.product_id,
     )
 
 

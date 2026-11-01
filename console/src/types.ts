@@ -128,3 +128,37 @@ export interface MfaSetup {
   secret: string;
   otpauth_uri: string;
 }
+
+// Analytics (T-013)
+export interface AnalyticsStats {
+  requests: number;
+  errors: number;
+  error_rate: number;
+  latency_p50_ms: number | null;
+  latency_p95_ms: number | null;
+  latency_p99_ms: number | null;
+}
+
+export interface AnalyticsTotals extends AnalyticsStats {
+  client_errors: number;
+  server_errors: number;
+  latency_avg_ms: number | null;
+  latency_max_ms: number | null;
+  bytes_in: number;
+  bytes_out: number;
+}
+
+export interface AnalyticsPoint extends AnalyticsStats {
+  t: number;
+}
+
+export interface AnalyticsSummary {
+  start: string;
+  end: string;
+  step_seconds: number;
+  totals: AnalyticsTotals;
+  series: AnalyticsPoint[];
+  status_codes: { status: number; requests: number }[];
+  top_apis: (AnalyticsStats & { api_id: number; product_id: number; name: string | null })[];
+  top_consumers: (AnalyticsStats & { consumer: string })[];
+}

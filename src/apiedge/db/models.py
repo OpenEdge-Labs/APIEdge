@@ -12,10 +12,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -342,3 +345,46 @@ class AuditEvent(TenantOwned, Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), index=True, nullable=False, default=utcnow
     )
+
+
+class AnalyticsBucket(TenantOwned, Base):
+    """Aggregated gateway traffic for one minute and one dimension combination (T-013).
+
+    Rows are insert-only: every flush of a gateway process adds its own rows and queries sum
+    them. ``product_id`` / ``api_id`` have no foreign keys so history outlives deleted APIs;
+    the tenant foreign key removes a deleted tenant's analytics. ``h0``-``h12`` count requests
+    per latency bucket (bounds in ``apiedge.analytics.metrics.LATENCY_BOUNDS_MS``).
+    """
+
+    __tablename__ = "analytics_buckets"
+    __table_args__ = (Index("ix_analytics_buckets_tenant_time", "tenant_id", "bucket_start"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    bucket_start: Mapped[int] = mapped_column(BigInteger, index=True, nullable=False)  # epoch s
+    product_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    api_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    route: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    method: Mapped[str] = mapped_column(String(10), nullable=False)
+    consumer: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    status_code: Mapped[int] = mapped_column(Integer, nullable=False)
+    requests: Mapped[int] = mapped_column(Integer, nullable=False)
+    latency_sum_ms: Mapped[float] = mapped_column(Float, nullable=False)
+    latency_max_ms: Mapped[float] = mapped_column(Float, nullable=False)
+    bytes_in: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    bytes_out: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    h0: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    h1: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    h2: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    h3: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    h4: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    h5: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    h6: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    h7: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    h8: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    h9: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    h10: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    h11: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    h12: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -9,6 +9,7 @@ import { navFor, pageFromHash, type Page } from "./access";
 import { ChangePassword, Login } from "./auth";
 import type { Me, Tenant } from "./types";
 import { AccountPage } from "./pages/Account";
+import { AnalyticsPage } from "./pages/Analytics";
 import { AuditPage } from "./pages/Audit";
 import { ProductsPage } from "./pages/Products";
 import { RolesPage } from "./pages/Roles";
@@ -153,6 +154,8 @@ function PageView(props: { page: Page; me: Me; tenantId: number | null; onMeChan
       return <TenantsPage me={me} onChanged={props.onTenantsChanged} />;
     case "products":
       return tenantId === null ? null : <ProductsPage key={tenantId} me={me} tenantId={tenantId} />;
+    case "analytics":
+      return tenantId === null ? null : <AnalyticsPage key={tenantId} tenantId={tenantId} />;
     case "users":
       return tenantId === null ? null : <UsersPage key={tenantId} me={me} tenantId={tenantId} />;
     case "roles":

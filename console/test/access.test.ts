@@ -36,7 +36,7 @@ test("an APIDeveloper sees products but not users, roles or audit", () => {
 
 test("a SuperAdmin sees everything, including system settings", () => {
   const root = me({ is_superadmin: true, tenant_id: null });
-  assert.deepEqual(navFor(root).map((n) => n.page), ["tenants", "products", "users", "roles", "audit", "settings", "account"]);
+  assert.deepEqual(navFor(root).map((n) => n.page), ["tenants", "products", "analytics", "users", "roles", "audit", "settings", "account"]);
   assert.ok(can(root, "tenant:create"));
 });
 

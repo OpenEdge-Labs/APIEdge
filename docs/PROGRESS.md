@@ -324,3 +324,53 @@ is affected).
 **CI fix.** CI run 41315621532 failed only on ubuntu (all Pythons): the unit test compared the
 string form of an IPv4-mapped IPv6 address, which differs between Python patch releases
 (`::ffff:127.0.0.1` vs `::ffff:7f00:1`). The test now compares `ipaddress` objects.
+
+### 2026-11-01 - T-007 follow-up: patch-level markers in the dependency locks
+
+`scripts/update-locks.py` now splits each supported Python minor at patch-level boundaries found
+in dependency markers (`python_full_version`), so `async-timeout` is locked for
+`python_full_version < "3.11.3"` as `redis` requires (was `python_version < "3.11"`, leaving
+`redis.asyncio` broken on 3.11.0-3.11.2). Locks regenerated and verified for every target
+(including the new 3.11.0 point); 3 new unit tests in `tests/unit/test_update_locks.py`.
+
+### 2026-11-01 - T-013 Analytics interface for admins
+
+**Summary.** The gateway measures every request that resolves to an API (status, latency to the
+last byte, body bytes, configured route, method, consumer) into in-memory per-minute aggregates
+with a 13-bucket latency histogram, flushed every 10 s (and at shutdown) as insert-only rows of
+`analytics_buckets` (migration 0005) with retention purge. Admin API
+`GET /tenants/{id}/analytics/summary` (totals, p50/p95/p99, error rate, series, status codes,
+top APIs and consumers; time range up to 31 days; API, product and consumer filters) and
+`GET .../export.csv` (audited, formula-escaped). `analytics:view` tenant-wide or per product.
+Prometheus `GET /metrics` (off unless `APIEDGE_METRICS_TOKEN`). Console Analytics page: range
+picker, KPI tiles, SVG traffic/error/p95 chart, drill-down tables, CSV export. Analytics Guide.
+
+**Files.** `src/apiedge/analytics/{metrics,query}.py`, `src/apiedge/admin/{analytics,__init__,system}.py`,
+`src/apiedge/gateway/{app,snapshot}.py`, `src/apiedge/{app,cli,config}.py`,
+`src/apiedge/db/models.py`, `src/apiedge/db/migrations/versions/0005_analytics.py`,
+`console/src/{analytics.ts,api.ts,access.ts,App.tsx,types.ts,styles.css,pages/Analytics.tsx}`,
+`console/test/{analytics,access}.test.ts`, `src/apiedge/static/*`,
+`tests/integration/test_analytics.py`, `tests/unit/test_analytics_units.py`,
+`docs/adr/0008-analytics.md`, `docs/user-guide/analytics.md`, `docs/{ARCHITECTURE,SECURITY}.md`,
+`docs/admin-guide/configuration.md`, `.env.example`, `README.md`, `CHANGELOG.md`.
+
+**Tests.** 340 pytest pass (21 new: 5 integration - traffic through a real gateway and upstreams
+summarized with exact counts, status codes, top APIs, filters and stored routes; RBAC 401/403,
+cross-tenant 404, tenant B sees only its own traffic, product-scoped Viewer sees only its
+product (foreign product/API filter yields nothing, export limited); CSV export headers, rows and
+audit event; range validation 422; `/metrics` 404 without token, 401 wrong/missing token, 200
+exposition, not in OpenAPI; 16 unit - histogram bounds, percentile estimation, minute
+aggregation, flush with failure restore, deleted-tenant rows dropped, retention purge,
+Prometheus text and label escaping, step choice and folding, CSV formula escaping, token
+setting); 26 console tests (3 new); ruff, ruff format, mypy --strict, bandit, CodeQL gate, tsc,
+npm audit (0), pip-audit runtime lock (0). Live run: `apiedge run` (console 18080, gateway
+18081) proxying to its own `/healthz`; 4x200 + 1x405 appeared in the summary after one flush
+(p50 3.1 ms), CSV export 200, `/metrics` 200 with token and 401 without.
+
+**Decisions.** No new dependency (own Prometheus text writer, SVG chart). Error rate counts 4xx
+and 5xx; both are also shown separately. Consumer is empty ("anonymous") until T-014. Time
+buckets are aligned to the epoch. `/metrics` lives on the console port and covers the gateway in
+the same process.
+
+**Follow-ups.** T-014 fills the consumer dimension; T-026 per-process metrics endpoints for
+separate gateway processes; T-028 exporters; optional roll-up of old minute rows.

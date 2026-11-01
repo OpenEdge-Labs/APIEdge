@@ -9,6 +9,10 @@ timeouts and 502/503/504 answers only for idempotent methods. Hop-by-hop headers
 forwarded, ``X-Forwarded-*`` is set, request bodies are size-limited, and the gateway's own
 errors are fixed JSON documents that never contain upstream or exception details.
 
+Every request that resolves to an API is measured (T-013): status, latency until the last
+response byte, body sizes, route and method go to the shared ``MetricsCollector``, which a
+background task flushes to the analytics tables.
+
 The data plane is a separate ASGI app on its own port (``APIEDGE_GATEWAY_PORT``): it does not
 use the console's cookie, CSRF or CSP middleware, and console paths cannot shadow API paths.
 """
@@ -19,6 +23,7 @@ import asyncio
 import contextlib
 import logging
 import re
+import time
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -31,6 +36,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
+from apiedge.analytics.metrics import MetricsCollector, RequestRecord
 from apiedge.config import Settings, get_settings
 from apiedge.db.base import make_engine, make_session_factory
 from apiedge.gateway.bus import ConfigBus, build_bus
@@ -77,9 +83,11 @@ class GatewayRuntime:
         settings: Settings,
         bus: ConfigBus,
         resolver: AsyncResolver | None = None,
+        metrics: MetricsCollector | None = None,
     ) -> None:
         self.settings = settings
         self.bus = bus
+        self.metrics = metrics or MetricsCollector()
         self.snapshot = Snapshot()
         self.version = 0
         self._resolver = resolver
@@ -104,6 +112,18 @@ class GatewayRuntime:
             changed.clear()
             await self.reload()
 
+    async def flush_metrics(self) -> int:
+        """Write pending analytics aggregates (database I/O in a worker thread)."""
+        rows: int = await anyio.to_thread.run_sync(
+            self.metrics.flush, self._factory, self.settings.analytics_retention_days
+        )
+        return rows
+
+    async def _flusher(self) -> None:
+        while True:
+            await asyncio.sleep(self.settings.analytics_flush_interval_seconds)
+            await self.flush_metrics()
+
     @asynccontextmanager
     async def running(self) -> AsyncIterator[None]:
         loop = asyncio.get_running_loop()
@@ -121,6 +141,7 @@ class GatewayRuntime:
         tasks = [
             asyncio.create_task(self._reloader(changed)),
             asyncio.create_task(self.bus.run_listener()),
+            asyncio.create_task(self._flusher()),
         ]
         try:
             yield
@@ -129,6 +150,7 @@ class GatewayRuntime:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+            await self.flush_metrics()  # keep the last seconds of traffic
             await self.client.aclose()
             self._engine.dispose()
 
@@ -184,6 +206,41 @@ def _response_headers(
     return out
 
 
+class _Meter:
+    """Measures one request to an API and records it once answered."""
+
+    def __init__(self, metrics: MetricsCollector, api: RuntimeApi, method: str) -> None:
+        self.metrics = metrics
+        self.api = api
+        self.method = method
+        self.route = ""
+        self.bytes_in = 0
+        self.at = time.time()
+        self.started = time.perf_counter()
+
+    def finish(self, status: int, bytes_out: int) -> None:
+        api = self.api
+        self.metrics.record(
+            RequestRecord(
+                tenant_id=api.tenant_id,
+                tenant_slug=api.tenant_slug,
+                product_id=api.product_id,
+                api_id=api.api_id,
+                route=self.route,
+                method=self.method,
+                status=status,
+                latency_ms=(time.perf_counter() - self.started) * 1000,
+                bytes_in=self.bytes_in,
+                bytes_out=bytes_out,
+                at=self.at,
+            )
+        )
+
+    def done(self, response: Response) -> Response:
+        self.finish(response.status_code, len(response.body))
+        return response
+
+
 class BodyTooLargeError(Exception):
     pass
 
@@ -215,30 +272,36 @@ async def proxy(request: Request) -> Response:
     rest = "/" + "/".join(segments[2:])
     found = runtime.snapshot.resolve(slug, rest)
     if found is None:
+        runtime.metrics.record_unmatched()
         return _error(404, "not_found", "No API matches this path.", request_id)
     api, remainder = found
-    if api.state == RETIRED:
-        return _error(410, "api_retired", "This API has been retired.", request_id)
-
     method = request.method.upper()
-    ok, allowed = api.match(method, remainder)
-    if not ok:
+    meter = _Meter(runtime.metrics, api, method)
+    if api.state == RETIRED:
+        return meter.done(_error(410, "api_retired", "This API has been retired.", request_id))
+
+    rule, allowed = api.match(method, remainder)
+    if rule is None:
         if not allowed:
-            return _error(404, "not_found", "No API matches this path.", request_id)
+            return meter.done(_error(404, "not_found", "No API matches this path.", request_id))
         resp = _error(405, "method_not_allowed", "Method not allowed.", request_id)
         resp.headers["allow"] = ", ".join(sorted(allowed))
-        return resp
+        return meter.done(resp)
+    meter.route = rule.path
 
     try:
         body = await _read_body(request, runtime.settings.gateway_max_request_body_bytes)
     except BodyTooLargeError:
-        return _error(413, "payload_too_large", "Request body is too large.", request_id)
+        return meter.done(
+            _error(413, "payload_too_large", "Request body is too large.", request_id)
+        )
+    meter.bytes_in = len(body)
 
     prefix = f"/{slug}{api.base_path}"
     headers = _forward_headers(request, request_id, prefix)
     target = quote(remainder, safe=_PATH_SAFE)
     query = request.scope.get("query_string", b"").decode("latin-1")
-    return await _send(runtime, api, method, target, query, headers, body, request_id)
+    return await _send(runtime, api, method, target, query, headers, body, request_id, meter)
 
 
 async def _send(
@@ -250,6 +313,7 @@ async def _send(
     headers: list[tuple[bytes, bytes]],
     body: bytes,
     request_id: str,
+    meter: _Meter,
 ) -> Response:
     assert runtime.client is not None  # noqa: S101  # nosec B101 - set during lifespan
     idempotent = method in IDEMPOTENT
@@ -293,20 +357,23 @@ async def _send(
         if upstream.status_code in RETRY_STATUSES and idempotent and not last:
             await upstream.aclose()
             continue
-        return _stream(upstream, request_id, api)
+        return _stream(upstream, request_id, api, meter)
     status, code, message = failure
-    return _error(status, code, message, request_id)
+    return meter.done(_error(status, code, message, request_id))
 
 
-def _stream(upstream: httpx.Response, request_id: str, api: RuntimeApi) -> Response:
+def _stream(upstream: httpx.Response, request_id: str, api: RuntimeApi, meter: _Meter) -> Response:
     async def body() -> AsyncIterator[bytes]:
+        sent = 0
         try:
             async for chunk in upstream.aiter_raw():
+                sent += len(chunk)
                 yield chunk
         except httpx.HTTPError:
             log.warning("upstream response interrupted (api %s)", api.api_id)
         finally:
             await upstream.aclose()
+            meter.finish(upstream.status_code, sent)
 
     response = StreamingResponse(body(), status_code=upstream.status_code)
     response.raw_headers = _response_headers(upstream, request_id, api)
@@ -328,11 +395,12 @@ def create_gateway_app(
     settings: Settings | None = None,
     bus: ConfigBus | None = None,
     resolver: AsyncResolver | None = None,
+    metrics: MetricsCollector | None = None,
 ) -> Starlette:
     """The gateway ASGI app. Share ``bus`` with :func:`apiedge.app.create_app` in one process."""
     settings = settings or get_settings()
     redis_url = settings.redis_url.get_secret_value() if settings.redis_url else None
-    runtime = GatewayRuntime(settings, bus or build_bus(redis_url), resolver)
+    runtime = GatewayRuntime(settings, bus or build_bus(redis_url), resolver, metrics)
 
     @asynccontextmanager
     async def lifespan(_app: Starlette) -> AsyncIterator[None]:

@@ -29,6 +29,9 @@ directory (see `.env.example`). Command-line options `--data-dir` and `--databas
 | `APIEDGE_GATEWAY_CA_BUNDLE` | public CAs | PEM file of CAs trusted for HTTPS upstreams (internal CAs). Certificates are always verified |
 | `APIEDGE_GATEWAY_RELOAD_INTERVAL_SECONDS` | `30` | Periodic configuration reload as a safety net (`0` = only on change events) |
 | `APIEDGE_REDIS_URL` | unset | Optional Redis (`redis://[:password@]host:6379/0`, `rediss://` for TLS) carrying configuration change events between processes and hosts. Without it, changes reach the gateway in the same process at once and other processes via the periodic reload |
+| `APIEDGE_ANALYTICS_FLUSH_INTERVAL_SECONDS` | `10` | How often the gateway writes its per-minute analytics aggregates to the database (1-300) |
+| `APIEDGE_ANALYTICS_RETENTION_DAYS` | `30` | Analytics older than this are deleted (checked hourly; 1-3650) |
+| `APIEDGE_METRICS_TOKEN` | unset | Enables the Prometheus endpoint `GET /metrics` on the console port, protected by this bearer token (at least 16 characters). Unset: the endpoint answers 404. See the [Analytics Guide](../user-guide/analytics.md) |
 | `APIEDGE_ACCESS_TOKEN_TTL_SECONDS` | `900` | Lifetime of console access tokens (60-3600) |
 | `APIEDGE_REFRESH_TOKEN_TTL_HOURS` | `12` | Absolute lifetime of a sign-in session (refresh token family) |
 | `APIEDGE_LOGIN_MAX_FAILURES` | `5` | Failed sign-ins (password or MFA code) before the account locks |

@@ -14,6 +14,7 @@ Every response passes the T-002 hardening stack (``apiedge.security.middleware``
 
 from __future__ import annotations
 
+import hmac
 import logging
 import secrets
 from collections.abc import AsyncIterator
@@ -21,12 +22,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from apiedge import __version__
 from apiedge.admin import build_router
+from apiedge.analytics.metrics import MetricsCollector
 from apiedge.config import Settings, get_settings
 from apiedge.db.base import make_engine, make_session_factory
 from apiedge.gateway.bus import ConfigBus, build_bus, install_change_notifier
@@ -63,8 +65,13 @@ def jwt_signing_key(settings: Settings, box: SecretBox | None) -> bytes:
     return secrets.token_bytes(32)
 
 
-def create_app(settings: Settings | None = None, bus: ConfigBus | None = None) -> FastAPI:
-    """The console and admin API app. ``bus`` carries config change events to the gateway."""
+def create_app(
+    settings: Settings | None = None,
+    bus: ConfigBus | None = None,
+    metrics: MetricsCollector | None = None,
+) -> FastAPI:
+    """The console and admin API app. ``bus`` carries config change events to the gateway;
+    ``metrics`` is the gateway's collector, exposed at ``/metrics`` (same process only)."""
     settings = settings or get_settings()
     if bus is None:
         redis_url = settings.redis_url.get_secret_value() if settings.redis_url else None
@@ -89,6 +96,7 @@ def create_app(settings: Settings | None = None, bus: ConfigBus | None = None) -
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
     app.state.config_bus = bus
+    app.state.metrics = metrics or MetricsCollector()
     # Gateway hot reload (T-007): committed API/product/tenant changes publish an event.
     install_change_notifier(app.state.session_factory, bus)
     app.state.secret_box = load_secret_box(settings)
@@ -112,6 +120,28 @@ def create_app(settings: Settings | None = None, bus: ConfigBus | None = None) -
             log.warning("readiness check failed: database unreachable", exc_info=True)
             return JSONResponse({"status": "unavailable"}, status_code=503)
         return JSONResponse({"status": "ok"})
+
+    @app.get("/metrics", include_in_schema=False)
+    def prometheus_metrics(request: Request) -> Response:
+        """Prometheus scrape endpoint (T-013): off unless APIEDGE_METRICS_TOKEN is set."""
+        token = settings.metrics_token
+        if token is None:
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        scheme, _, supplied = request.headers.get("authorization", "").partition(" ")
+        expected = token.get_secret_value().encode("utf-8")
+        if scheme.lower() != "bearer" or not hmac.compare_digest(
+            supplied.strip().encode("utf-8"), expected
+        ):
+            return JSONResponse(
+                {"detail": "not_authenticated"},
+                status_code=401,
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return PlainTextResponse(
+            request.app.state.metrics.prometheus_text(),
+            media_type="text/plain; version=0.0.4; charset=utf-8",
+            headers={"cache-control": "no-store"},
+        )
 
     if (STATIC_DIR / "index.html").is_file():
         app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="console")

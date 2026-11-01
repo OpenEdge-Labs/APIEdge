@@ -90,9 +90,9 @@ export function setFetcher(fn: Fetcher): void {
 
 let refreshing: Promise<boolean> | null = null;
 
-async function send(path: string, opts: RequestOptions): Promise<Response> {
+async function send(path: string, opts: RequestOptions, accept = "application/json"): Promise<Response> {
   const method = (opts.method ?? "GET").toUpperCase();
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: accept };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
   if (!SAFE.has(method)) {
     const csrf = readCookie(CSRF_COOKIE);
@@ -120,10 +120,22 @@ async function tryRefresh(): Promise<boolean> {
 
 /** Calls the admin API; renews the session once on 401 and throws {@link ApiError} on failure. */
 export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  let res = await send(path, opts);
+  const res = await request(path, opts);
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
+/** Downloads a file (e.g. a CSV export) from the admin API with the same session handling. */
+export async function apiFile(path: string, accept: string): Promise<Blob> {
+  const res = await request(path, {}, accept);
+  return res.blob();
+}
+
+async function request(path: string, opts: RequestOptions, accept?: string): Promise<Response> {
+  let res = await send(path, opts, accept);
   if (res.status === 401 && !opts.noRefresh) {
     if (await tryRefresh()) {
-      res = await send(path, opts);
+      res = await send(path, opts, accept);
     }
     if (res.status === 401) onSessionEnded();
   }
@@ -136,8 +148,7 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
     }
     throw new ApiError(res.status, detail);
   }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  return res;
 }
 
 export function errorText(err: unknown): string {
