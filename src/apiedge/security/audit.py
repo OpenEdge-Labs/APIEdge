@@ -17,13 +17,6 @@ from apiedge.security.masking import mask_value
 log = logging.getLogger("apiedge.audit")
 
 
-def _one_line(value: str | None) -> str | None:
-    """Strip line breaks from user-influenced values before logging (log injection)."""
-    if value is None:
-        return None
-    return value.replace("\r", "").replace("\n", "")
-
-
 def audit(
     session: Session,
     action: str,
@@ -52,13 +45,6 @@ def audit(
             details=json.dumps(mask_value(details), default=str) if details else None,
         )
     )
-    log.info(
-        "audit",
-        extra={
-            "action": action,
-            "outcome": outcome,
-            "tenant_id": tenant_id,
-            "actor": _one_line(actor_username),
-            "resource": _one_line(f"{resource_type}:{resource_id}") if resource_type else None,
-        },
-    )
+    # Only code-defined values reach the log. User-influenced fields (names, ids, details) are
+    # stored in the audit table only; the formatter adds the request id for correlation.
+    log.info("audit %s %s", action, outcome)
