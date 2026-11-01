@@ -364,7 +364,8 @@ def test_cors_policy(env: Env, upstreams: dict[str, Upstream]) -> None:
     with gateway(env) as gw:
         # Preflight: answered before the API key check, although OPTIONS is not a route method.
         r = gw.options("/acme/orders/1", headers=pre)
-        assert r.status_code == 204
+        assert r.status_code == 204 and r.content == b""
+        assert "content-length" not in r.headers
         assert r.headers["access-control-allow-origin"] == "https://app.example"
         assert r.headers["access-control-allow-credentials"] == "true"
         assert "POST" in r.headers["access-control-allow-methods"]

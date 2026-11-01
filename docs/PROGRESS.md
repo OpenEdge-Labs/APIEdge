@@ -374,3 +374,61 @@ the same process.
 
 **Follow-ups.** T-014 fills the consumer dimension; T-026 per-process metrics endpoints for
 separate gateway processes; T-028 exporters; optional roll-up of old minute rows.
+
+### 2026-11-02 - T-008 Built-in policies
+
+**Summary.** Ordered policy chains per API (optionally per route), stored as validated JSON on
+the API and run by the gateway as an onion pipeline with a per-policy decision trace (policy
+id, phase, outcome, detail, duration) handed to trace listeners for the packet inspector
+(T-012). Eight built-in policies: API key (product keys, shown once, SHA-256 at rest, expiry,
+revocation with immediate gateway reload), JWT (own verifier on pycryptodome: HS/RS/PS/ES
+allow-list, no `none`, no HS/asymmetric mix, `crit` refused, RSA >= 2048, `exp`/`nbf`/`iss`/
+`aud` with leeway; PEM key or https JWKS fetched through the SSRF-guarded client, 64 KiB cap,
+throttled refresh), rate limit / quota (fixed windows per consumer, address or API; Redis with
+in-process fallback; `RateLimit-*`, 429 + `Retry-After`), transform (headers with placeholders,
+query, JSON fields; gateway-managed headers protected), CORS (preflights answered before the
+chain, 403 for refused ones), IP allow/deny (CIDR; `X-Forwarded-For` only from
+`APIEDGE_GATEWAY_TRUSTED_PROXIES`), cache (GET/HEAD, `Cache-Control`/`Set-Cookie`/`Vary`
+aware, authenticated requests bypass unless enabled and then keyed per identity, byte-capped
+LRU) and mock. Unusable configuration fails closed (503). Analytics consumers are now
+`key:<name>` / `jwt:<subject>`. Admin API: chain GET/PUT (`policy:read` / `policy:update`,
+secrets encrypted and write-only, JWKS SSRF check, route checks, audit `api.policies.update`),
+API keys list/create/revoke (new `apikey:read` / `apikey:manage`, audit `apikey.create` /
+`apikey.revoke`). Console: form-based **Policies** editor (add, reorder, enable, route scope,
+per-type forms) and **API keys** panel (key shown once with copy).
+
+**Files.** `src/apiedge/policies/{__init__,base,builtin,config,jwt,stores}.py`,
+`src/apiedge/admin/{policies,__init__}.py`, `src/apiedge/gateway/{app,snapshot,bus}.py`,
+`src/apiedge/{app,config}.py`, `src/apiedge/security/{crypto,rbac}.py`,
+`src/apiedge/db/models.py`, `src/apiedge/db/migrations/versions/0006_policies.py`,
+`console/src/{policies.ts,styles.css,pages/Policies.tsx,pages/ApiKeys.tsx,pages/Apis.tsx}`,
+`console/test/policies.test.ts`, `src/apiedge/static/*`,
+`tests/unit/test_policies_units.py`, `tests/integration/test_policies_{api,gateway}.py`,
+`tests/integration/test_gateway.py`, `docs/adr/0009-policies.md`,
+`docs/user-guide/{policies,gateway,analytics}.md`, `docs/{ARCHITECTURE,SECURITY}.md`,
+`docs/admin-guide/configuration.md`, `.env.example`, `README.md`, `CHANGELOG.md`,
+`pyproject.toml`.
+
+**Tests.** 420 pytest pass (80 new: 53 unit - JWT valid/invalid tokens, claims, PEM RSA/PSS/
+ECDSA, algorithm confusion, weak RSA keys, JWKS parsing/caching/rotation/size limit/failures,
+20 invalid configurations, fail-closed pipeline, reverse response order, limiter windows and
+eviction, Redis limiter with fallback, cache LRU/expiry, client address behind trusted proxies;
+12 gateway integration - every policy with negative cases incl. revoked/expired/cross-product/
+cross-tenant keys, forged tokens, SSRF-blocked JWKS (DNS rebinding to metadata), spoofed
+`X-Forwarded-For`, authenticated-response caching, refused preflights, route scoping, trace,
+analytics consumer, tampered ciphertext; 15 admin API - CRUD, write-only secrets, server-side
+checks, 422 validation, RBAC 403 for Viewer, 404 cross-tenant and BOLA, retired 409, keys shown
+once and stored hashed, audit events, key admin through the admin API reaching the gateway via
+hot reload incl. revocation); 36 console tests (5 new); ruff, ruff format, mypy --strict,
+bandit, CodeQL gate, tsc, npm audit (0). No new dependencies, so no lock or license changes.
+The app was exercised through the integration tests (admin app plus gateway app with real
+upstream servers); no separate manual run.
+
+**Decisions.** See ADR 0009 and the task note: chains as a JSON column; API keys per product
+until T-014; own JWT verifier (no `cryptography`); fixed windows; trusted proxies as a gateway
+setting; per-process cache; preflights handled before the chain.
+
+**Follow-ups.** T-009 edits the same chain document visually; T-012 subscribes to the trace;
+T-014 moves keys under consumer applications and adds plan quotas; a shared (Redis) response
+cache later. One pre-existing analytics integration test failed once in a full local run and
+passed on every rerun (likely a minute-boundary timing flake; to be watched).

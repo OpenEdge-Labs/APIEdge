@@ -415,11 +415,13 @@ def _finish(
         if resp.error is not None and body == json.dumps(resp.error).encode():
             body = json.dumps({**resp.error, "request_id": request_id}).encode()
         headers = [(k, v) for k, v in headers if k != "content-length"]
+        raw = [(k.encode("latin-1"), v.encode("latin-1")) for k, v in headers]
+        if resp.status in (204, 304):
+            body = b""  # no body and no Content-Length (RFC 9110 8.6)
+        else:
+            raw.append((b"content-length", str(len(body)).encode()))
         out = Response(content=body, status_code=resp.status)
-        out.raw_headers = [
-            *((k.encode("latin-1"), v.encode("latin-1")) for k, v in headers),
-            (b"content-length", str(len(body)).encode()),
-        ]
+        out.raw_headers = raw
         meter.finish(resp.status, len(body))
         return out
 
