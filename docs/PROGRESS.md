@@ -320,3 +320,7 @@ optional); `httpcore` pinned explicitly because the gateway uses it directly.
 breaker, more algorithms, retry policies and TLS profiles. The lock marks `async-timeout` for
 `python_version < "3.11"` while redis needs it below 3.11.3 (only `redis.asyncio` on 3.11.0-3.11.2
 is affected).
+
+**CI fix.** CI run 41315621532 failed only on ubuntu (all Pythons): the unit test compared the
+string form of an IPv4-mapped IPv6 address, which differs between Python patch releases
+(`::ffff:127.0.0.1` vs `::ffff:7f00:1`). The test now compares `ipaddress` objects.

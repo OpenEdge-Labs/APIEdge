@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 from collections.abc import AsyncIterator, Sequence
 from pathlib import Path
 from typing import Any
@@ -204,7 +205,9 @@ async def test_connect_time_resolution() -> None:
         return {"ok": ["127.0.0.1"], "bad": ["127.0.0.1", "192.168.1.1"]}.get(host, [])
 
     assert await resolve_checked_async("ok", 80, policy, resolver) == ("127.0.0.1",)
-    assert await resolve_checked_async("[::ffff:127.0.0.1]", 80, policy) == ("::ffff:7f00:1",)
+    mapped = await resolve_checked_async("[::ffff:127.0.0.1]", 80, policy)
+    # str() of an IPv4-mapped address differs between Python patch releases.
+    assert [ipaddress.ip_address(a) for a in mapped] == [ipaddress.ip_address("::ffff:127.0.0.1")]
     for host in ("bad", "none", "", "2130706433", "169.254.169.254"):
         with pytest.raises(SsrfError):
             await resolve_checked_async(host, 80, policy, resolver)
