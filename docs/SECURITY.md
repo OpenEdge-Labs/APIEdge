@@ -80,13 +80,27 @@ Report vulnerabilities privately to the maintainer (Alingan Patra); do not open 
 | pip-audit | `ci.yml` (`quality`) | any known vulnerability in `runtime.lock` (strict); `dev.lock` with documented exceptions |
 | npm audit | `ci.yml` (`console`) | high or critical |
 | License gate | `ci.yml` (`quality`) | GPL, AGPL, SSPL |
-| CodeQL (Python, JS/TS, `security-extended`) | `.github/workflows/codeql.yml` | any error or warning result without an inline `codeql[<rule id>] <reason>` justification on the flagged line (SARIF kept as an artifact; the private repo has no code-scanning upload) |
+| CodeQL (Python, JS/TS, `security-extended`) | `.github/workflows/codeql.yml` (gate: `scripts/codeql-gate.py`) | any error or warning result that is not accepted (see below), or any mismatch between inline markers and the table below (SARIF kept as an artifact; the private repo has no code-scanning upload) |
 
-Accepted CodeQL findings (each justified inline and reviewed):
+### Accepted findings
 
-| Location | Rule | Reason |
-|---|---|---|
-| `src/apiedge/cli.py` (`create-admin`) | `py/clear-text-logging-sensitive-data` | A generated first-admin password is printed once to the operator's terminal by design (T-019); it is never logged, and a change is forced at first login |
+Fixing a finding is always preferred. A CodeQL finding is accepted only when it has **both**:
+
+1. an inline justification comment on the flagged line, `codeql[<rule id>] <reason>` (the syntax
+   GitHub code scanning uses), and
+2. a row in the table below with the same file and rule, a justification and the review date.
+
+`scripts/codeql-gate.py` runs in the CodeQL workflow (against the SARIF results) and in the CI
+`quality` job (marker/table consistency only). It fails when an inline marker has no row, when a
+row has no inline marker, when a row is incomplete, or when a finding is not covered by both.
+
+| File | Rule | Justification | Date |
+|---|---|---|---|
+| `src/apiedge/cli.py` | `py/clear-text-logging-sensitive-data` | `create-admin --generate-password` prints the generated first-admin password once to the operator's terminal by design (T-019, needed for unattended installs). It is never written to a log (the installer runs this step with logging off), and a password change is forced at first login. | 2026-11-01 |
+
+Not an accepted finding, recorded for transparency: the password policy constant was renamed from
+`MIN_PASSWORD_LENGTH` to `POLICY_MIN_LENGTH` because CodeQL's name heuristic treated the length
+constant as a password and flagged the policy error message; the message is now static text.
 
 ## 6. Security configuration
 

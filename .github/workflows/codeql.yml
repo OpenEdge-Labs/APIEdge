@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # CodeQL static analysis (T-002). The repository is private and has no GitHub code-scanning
-# upload, so results are kept as a SARIF artifact and a gate step fails the build on any
-# error- or warning-level finding (see docs/SECURITY.md, "CI security gates").
+# upload, so results are kept as a SARIF artifact and scripts/codeql-gate.py fails the build on
+# any error- or warning-level finding that is not accepted (docs/SECURITY.md, "Accepted findings").
 name: CodeQL
 
 on:
@@ -56,29 +56,7 @@ jobs:
           path: sarif-results
           retention-days: 30
       - name: Fail on findings
-        # A finding is accepted only with an inline `codeql[<rule id>] <reason>` comment on the
-        # flagged line (the same syntax GitHub code scanning uses); accepted ones are listed.
-        run: |
-          python3 - <<'EOF'
-          import json, pathlib, sys
-          found = 0
-          for f in pathlib.Path("sarif-results").glob("*.sarif"):
-              for run in json.loads(f.read_text())["runs"]:
-                  for r in run.get("results", []):
-                      if r.get("level", "warning") not in ("error", "warning"):
-                          continue
-                      loc = r["locations"][0]["physicalLocation"]
-                      uri = loc["artifactLocation"]["uri"]
-                      line = loc.get("region", {}).get("startLine", 1)
-                      src = pathlib.Path(uri)
-                      text = src.read_text().splitlines()[line - 1] if src.is_file() else ""
-                      where = f"{uri}:{line} {r['ruleId']}: {r['message']['text']}"
-                      if f"codeql[{r['ruleId']}]" in text:
-                          print(f"accepted (inline justification): {where}")
-                          continue
-                      found += 1
-                      print(f"::error file={uri},line={line}::{r['ruleId']}: {r['message']['text']}")
-                      print(f"FINDING {where}")
-          print(f"CodeQL findings (error/warning, not accepted): {found}")
-          sys.exit(1 if found else 0)
-          EOF
+        # A finding is accepted only with BOTH an inline codeql[<rule id>] justification on the
+        # flagged line AND a matching row in the "Accepted findings" table of docs/SECURITY.md.
+        # The gate also fails on a marker without a row or a row without a marker.
+        run: python3 scripts/codeql-gate.py --sarif-dir sarif-results

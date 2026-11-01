@@ -87,3 +87,18 @@ private. B413 suppressed (pycryptodome shares pyCrypto's namespace).
 **Follow-ups.** T-003 must use the `apiedge_session`/`apiedge_refresh` cookie names for CSRF to
 apply; T-007/T-010/T-012 must call `check_url` and connect to the vetted addresses; a secrets
 re-encryption command ships with the first feature that stores secrets.
+
+### 2026-11-01 - T-002 completion: CodeQL acceptance gate
+
+**Summary.** A CodeQL finding is now accepted only with both an inline `codeql[<rule id>] <reason>`
+marker on the flagged line and a matching row (File, Rule, Justification, Date) in the "Accepted
+findings" table of `docs/SECURITY.md`. `scripts/codeql-gate.py` enforces this in the CodeQL
+workflow (against the SARIF) and in the CI `quality` job (marker/table consistency); it fails on a
+marker without a row, a row without a marker, an incomplete row, or an uncovered finding.
+Accepted findings: one (`src/apiedge/cli.py`, `py/clear-text-logging-sensitive-data`, one-time
+display of the generated first-admin password, T-019).
+
+**Files.** `scripts/codeql-gate.py`, `tests/unit/test_codeql_gate.py`,
+`.github/workflows/{codeql,ci}.yml`, `docs/SECURITY.md`, `CHANGELOG.md`, `APIProjectTask.md`.
+
+**Tests.** 129 pytest pass (9 new); ruff, ruff format, mypy --strict, bandit clean.

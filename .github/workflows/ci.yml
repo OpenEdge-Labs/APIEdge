@@ -30,6 +30,8 @@ jobs:
       - run: .venv/bin/ruff format --check .
       - run: .venv/bin/mypy
       - run: .venv/bin/bandit -c pyproject.toml -r src scripts
+      - name: CodeQL accepted findings (inline marker and docs/SECURITY.md row both required)
+        run: python scripts/codeql-gate.py
       - name: pip-audit runtime lock (strict, no exceptions)
         run: .venv/bin/pip-audit --strict --disable-pip --require-hashes -r requirements/runtime.lock
       - name: pip-audit dev lock (documented dev-only exceptions)
