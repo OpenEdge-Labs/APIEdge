@@ -9,7 +9,7 @@ description = "APIEdge: on-premise, multi-tenant API Gateway with a no-code / lo
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-authors = [{ name = "Alingan Patra" }]
+authors = [{ name = "OpenEdge Labs" }]
 requires-python = ">=3.10,<3.13"
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -43,7 +43,7 @@ dependencies = [
 postgres = ["psycopg[binary]>=3.2,<4"]
 
 [project.urls]
-Homepage = "https://github.com/alinganpatra20004/APIEdge"
+Homepage = "https://github.com/OpenEdge-Labs/APIEdge"
 
 [project.scripts]
 apiedge = "apiedge.cli:main"

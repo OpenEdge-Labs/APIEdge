@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """Products admin API (T-005): CRUD, lifecycle, RBAC denial, product scope, BOLA, cross-tenant."""
 

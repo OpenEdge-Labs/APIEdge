@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """Analytics building blocks (T-013): histogram buckets, percentile estimation, the collector's
 minute aggregation and failure handling, the Prometheus exposition, steps and CSV escaping."""

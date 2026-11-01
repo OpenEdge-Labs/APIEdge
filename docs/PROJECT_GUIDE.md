@@ -4,9 +4,9 @@ This guide defines the product scope, architecture, technology stack and enginee
 Work is planned and tracked in **`APIProjectTask.md`**.
 
 - **Product:** APIEdge, an on-premise, multi-tenant API Gateway
-- **Author:** Alingan Patra
+- **Owner:** OpenEdge Labs
 - **License:** Apache-2.0
-- **Repository:** https://github.com/alinganpatra20004/APIEdge
+- **Repository:** https://github.com/OpenEdge-Labs/APIEdge
 
 ## Product vision
 

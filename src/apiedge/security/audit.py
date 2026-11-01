@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """Audit log writer (T-003, OWASP A09). Details are masked before they are stored."""
 

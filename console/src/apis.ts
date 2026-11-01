@@ -1,4 +1,4 @@
-// Copyright 2026 Alingan Patra
+// Copyright 2026 OpenEdge Labs
 // SPDX-License-Identifier: Apache-2.0
 // Form model and checks for the no-code API editor (T-006). They mirror the server's rules so
 // mistakes show up before saving; the server validates everything again (including the SSRF guard

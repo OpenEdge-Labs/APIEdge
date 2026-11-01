@@ -1,4 +1,4 @@
-// Copyright 2026 Alingan Patra
+// Copyright 2026 OpenEdge Labs
 // SPDX-License-Identifier: Apache-2.0
 // Product management (T-005): list, create, edit, lifecycle and delete; the APIs of a product
 // open in the API panel (T-006). Buttons follow the

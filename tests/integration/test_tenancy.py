@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """Tenant filter in the data-access layer, and RBAC catalog vs. migration drift (T-003)."""
 

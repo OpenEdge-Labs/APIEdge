@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 # APIEdge one-click installer for Linux:  ./install.sh [--yes] [--smoke-test] [--uninstall] [--help]
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)

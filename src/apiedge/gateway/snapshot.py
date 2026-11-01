@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """The gateway's routing snapshot (T-007, ADR 0007).
 

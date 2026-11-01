@@ -8,7 +8,7 @@ prebuilt and included.
 ## 1. Get APIEdge
 
 ```
-git clone https://github.com/alinganpatra20004/APIEdge.git
+git clone https://github.com/OpenEdge-Labs/APIEdge.git
 ```
 (or download and unzip the source archive from GitHub)
 

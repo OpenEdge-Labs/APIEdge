@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "APIEdge web console (built into src/apiedge/static)",
   "license": "Apache-2.0",
-  "author": "Alingan Patra",
+  "author": "OpenEdge Labs",
   "type": "module",
   "engines": {
     "node": ">=20"

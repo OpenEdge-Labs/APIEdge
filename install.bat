@@ -1,5 +1,5 @@
 @echo off
-REM Copyright 2026 Alingan Patra
+REM Copyright 2026 OpenEdge Labs
 REM SPDX-License-Identifier: Apache-2.0
 REM APIEdge one-click installer for Windows. Double-click it, or run:
 REM   install.bat [--yes] [--smoke-test] [--uninstall] [--help]

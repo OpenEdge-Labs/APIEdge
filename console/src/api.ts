@@ -1,4 +1,4 @@
-// Copyright 2026 Alingan Patra
+// Copyright 2026 OpenEdge Labs
 // SPDX-License-Identifier: Apache-2.0
 // Thin client for the admin API (/api/v1). The browser session lives in HttpOnly cookies; unsafe
 // requests echo the readable apiedge_csrf cookie in X-CSRF-Token (double-submit, T-002).

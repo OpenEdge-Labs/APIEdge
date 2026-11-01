@@ -9,7 +9,7 @@
 You need **Python 3.10, 3.11 or 3.12**. The installer downloads everything else from PyPI and checks each file against pinned sha256 hashes. No Node.js is needed.
 
 ```
-git clone https://github.com/alinganpatra20004/APIEdge.git
+git clone https://github.com/OpenEdge-Labs/APIEdge.git
 cd APIEdge
 ```
 
@@ -67,4 +67,4 @@ Dependencies are pinned with hashes in `requirements/*.lock`. To change them, ed
 
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE). Copyright © 2026 Alingan Patra.
+Licensed under the [Apache License 2.0](LICENSE). Copyright © 2026 OpenEdge Labs.

@@ -1,4 +1,4 @@
-// Copyright 2026 Alingan Patra
+// Copyright 2026 OpenEdge Labs
 // SPDX-License-Identifier: Apache-2.0
 // Analytics dashboard (T-013): traffic, latency percentiles, error rate, status codes, top APIs
 // and consumers for a time range, with drill-down filters and CSV export. The server limits the

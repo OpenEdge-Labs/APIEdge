@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """Gateway runtime (T-007): routing, path parameters and wildcards, lifecycle gating, tenant
 separation, hot reload through the admin API, timeouts, retries, weighted load balancing,

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 # APIEdge one-click installer for macOS. Double-click it in Finder, or run:
 #   ./install.command [--yes] [--smoke-test] [--uninstall] [--help]

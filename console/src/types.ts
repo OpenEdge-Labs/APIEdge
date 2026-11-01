@@ -1,4 +1,4 @@
-// Copyright 2026 Alingan Patra
+// Copyright 2026 OpenEdge Labs
 // SPDX-License-Identifier: Apache-2.0
 // Shapes returned by the admin API (see docs/admin-guide/access-control.md).
 

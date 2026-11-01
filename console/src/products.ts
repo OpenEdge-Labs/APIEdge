@@ -1,4 +1,4 @@
-// Copyright 2026 Alingan Patra
+// Copyright 2026 OpenEdge Labs
 // SPDX-License-Identifier: Apache-2.0
 // Product rules shared by the console screens (T-005). The server enforces them on its own.
 import type { Lifecycle } from "./types";

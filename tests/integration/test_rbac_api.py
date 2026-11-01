@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """RBAC denial, BOLA and cross-tenant denial for the admin API (T-003)."""
 

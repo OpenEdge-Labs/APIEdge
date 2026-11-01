@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 # APIEdge installer bootstrap for Windows: finds Python 3.10-3.12, then runs scripts/install.py.
 $ErrorActionPreference = 'Stop'

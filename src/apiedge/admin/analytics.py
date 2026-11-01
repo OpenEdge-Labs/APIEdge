@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """``/api/v1/tenants/{tenant_id}/analytics``: gateway traffic analytics (T-013, ADR 0008).
 

@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """Admin API (``/api/v1``). Every route declares its RBAC dependency (see ``admin.deps``)."""
 

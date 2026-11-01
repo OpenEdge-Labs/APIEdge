@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """Gateway building blocks (T-007): route patterns, balancer, lifecycle states, change events
 (in-process and Redis) and the connect-time SSRF resolution."""

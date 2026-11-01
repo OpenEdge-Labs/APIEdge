@@ -1,4 +1,4 @@
-// Copyright 2026 Alingan Patra
+// Copyright 2026 OpenEdge Labs
 // SPDX-License-Identifier: Apache-2.0
 // Console unit tests without extra dependencies: compile the tests (and the modules they import)
 // with the project's TypeScript, then run them with Node's built-in test runner.

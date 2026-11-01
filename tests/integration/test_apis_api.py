@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """APIs in products (T-006): CRUD, validation, SSRF guard, lifecycle, RBAC denial, product scope,
 BOLA, cross-tenant isolation and the product-delete guard."""

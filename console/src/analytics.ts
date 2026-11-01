@@ -1,4 +1,4 @@
-// Copyright 2026 Alingan Patra
+// Copyright 2026 OpenEdge Labs
 // SPDX-License-Identifier: Apache-2.0
 // Pure helpers for the Analytics page (T-013): time ranges, query strings, formatting and the
 // chart geometry. Kept free of React so they can be unit-tested.

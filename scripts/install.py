@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """APIEdge one-click installer (shared by install.bat, install.command and install.sh).
 

@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """APIs inside products: ``/api/v1/tenants/{tenant_id}/products/{product_id}/apis`` (T-006).
 

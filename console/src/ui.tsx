@@ -1,4 +1,4 @@
-// Copyright 2026 Alingan Patra
+// Copyright 2026 OpenEdge Labs
 // SPDX-License-Identifier: Apache-2.0
 // Small shared UI pieces. Styling is class-based only (the CSP forbids inline styles).
 import { useCallback, useEffect, useState, type ReactNode } from "react";

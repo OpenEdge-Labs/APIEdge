@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 # Uses the tools already installed (hash-locked) in your venv, so pre-commit needs no
 # extra downloads. Setup:  python scripts/install.py --local --dev --no-start

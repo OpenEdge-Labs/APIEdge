@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """APIEdge: an on-premise, multi-tenant API Gateway with a no-code / low-code console."""
 

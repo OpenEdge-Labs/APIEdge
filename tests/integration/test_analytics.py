@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """Analytics (T-013): gateway traffic is measured, flushed to the analytics tables and read back
 through the admin API (summary and CSV export) with RBAC, product scoping and tenant isolation;

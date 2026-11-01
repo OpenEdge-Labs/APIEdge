@@ -5,7 +5,7 @@ APIEdge targets the **OWASP Top 10 (2021)**, the **OWASP API Security Top 10 (20
 updated with every task. Status: **Done** (implemented and tested), **Partial** (foundation in
 place, more to come in the named task) or **Planned**.
 
-Report vulnerabilities privately to the maintainer (Alingan Patra); do not open public issues.
+Report vulnerabilities privately to the OpenEdge Labs maintainers; do not open public issues.
 
 ## 1. Controls in place
 

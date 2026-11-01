@@ -1,4 +1,4 @@
-# Copyright 2026 Alingan Patra
+# Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
 """RBAC catalog and permission evaluation (T-003, OWASP A01 / API1 / API5).
 

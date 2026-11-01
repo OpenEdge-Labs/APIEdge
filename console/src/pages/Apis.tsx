@@ -1,4 +1,4 @@
-// Copyright 2026 Alingan Patra
+// Copyright 2026 OpenEdge Labs
 // SPDX-License-Identifier: Apache-2.0
 // APIs of one product (T-006): list, the no-code form editor (base path, version, upstreams,
 // routes), lifecycle and delete. Buttons follow the caller's permissions for this product; the
