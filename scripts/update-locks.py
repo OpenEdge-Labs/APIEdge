@@ -111,8 +111,55 @@ PLATFORMS = (
         ("macosx_11_0_arm64",),
     ),
 )
+# A target's Python is a "point": the lower bound of a Python version range. Normally one
+# point per minor ("3.11"); a dependency marker on python_full_version (e.g. redis:
+# ``async-timeout; python_full_version < "3.11.3"``) splits that minor into extra points
+# ("3.11", "3.11.3") so the lock can carry the patch-level marker. See configure_pythons().
 Target = tuple[Platform, str]
-TARGETS: tuple[Target, ...] = tuple((p, py) for p in PLATFORMS for py in PYTHONS)
+PY_POINTS: tuple[str, ...] = PYTHONS
+TARGETS: tuple[Target, ...] = tuple((p, py) for p in PLATFORMS for py in PY_POINTS)
+_FULL_VERSION_RE = re.compile(r"python_full_version\s*(<=|>=|==|!=|<|>|~=)\s*[\"']([0-9.]+)[\"']")
+
+
+def minor_of(point: str) -> str:
+    return ".".join(point.split(".")[:2])
+
+
+def full_version_boundaries(markers: Iterable[str]) -> set[str]:
+    """Patch-level range boundaries (e.g. "3.11.3") used by python_full_version markers."""
+    out = set()
+    for text in markers:
+        for op, raw in _FULL_VERSION_RE.findall(text):
+            v = Version(raw)
+            nxt = f"{v.major}.{v.minor}.{v.micro + 1}"
+            here = f"{v.major}.{v.minor}.{v.micro}"
+            for b in {"<": [here], ">=": [here], "<=": [nxt], ">": [nxt]}.get(op, [here, nxt]):
+                if Version(b).micro > 0 and minor_of(b) in PYTHONS:
+                    out.add(b)
+    return out
+
+
+def configure_pythons(boundaries: Iterable[str]) -> None:
+    """Split each supported minor at the given patch-level boundaries; rebuild TARGETS."""
+    global PY_POINTS, TARGETS
+    bounds = set(boundaries)
+    points: list[str] = []
+    for minor in PYTHONS:
+        points.append(minor)
+        points += sorted((b for b in bounds if minor_of(b) == minor), key=Version)
+    PY_POINTS = tuple(points)
+    TARGETS = tuple((p, py) for p in PLATFORMS for py in PY_POINTS)
+
+
+def full_version(point: str) -> str:
+    """Representative interpreter version for a point's range [point, next point)."""
+    i = PY_POINTS.index(point)
+    lo = Version(point)
+    hi = Version(PY_POINTS[i + 1]) if i + 1 < len(PY_POINTS) else None
+    typical = Version(FULL_VERSION[minor_of(point)])
+    if lo <= typical and (hi is None or typical < hi):
+        return str(typical)
+    return f"{lo.major}.{lo.minor}.{lo.micro}"
 
 
 def canonical(name: str) -> str:
@@ -122,11 +169,11 @@ def canonical(name: str) -> str:
 def marker_env(target: Target, extra: str = "") -> dict[str, str]:
     plat, py = target
     return {
-        "python_version": py,
-        "python_full_version": FULL_VERSION[py],
+        "python_version": minor_of(py),
+        "python_full_version": full_version(py),
         "implementation_name": "cpython",
         "platform_python_implementation": "CPython",
-        "implementation_version": FULL_VERSION[py],
+        "implementation_version": full_version(py),
         "sys_platform": plat.sys_platform,
         "platform_system": plat.platform_system,
         "platform_machine": plat.machine,
@@ -254,17 +301,39 @@ def _platform_clause(plats: list[Platform]) -> str | None:
     return " or ".join(parts)
 
 
+def _bound(point: str, op: str) -> str:
+    if point == minor_of(point):  # a minor boundary: the readable python_version form
+        return f'python_version {op} "{point}"'
+    return f'python_full_version {op} "{point}"'
+
+
 def _python_clause(pys: frozenset[str]) -> str | None:
-    if len(pys) == len(PYTHONS):
+    if len(pys) == len(PY_POINTS):
         return None
-    ordered = [p for p in PYTHONS if p in pys]
-    idx = [PYTHONS.index(p) for p in ordered]
-    if idx == list(range(len(idx))):  # a prefix: 3.10[, 3.11]
-        nxt = PYTHONS[len(idx)]
-        return f'python_version < "{nxt}"'
-    if idx == list(range(len(PYTHONS) - len(idx), len(PYTHONS))):  # a suffix
-        return f'python_version >= "{ordered[0]}"'
-    return " or ".join(f'python_version == "{p}"' for p in ordered)
+    idx = sorted(PY_POINTS.index(p) for p in pys)
+    runs: list[list[int]] = []
+    for i in idx:
+        if runs and runs[-1][-1] == i - 1:
+            runs[-1].append(i)
+        else:
+            runs.append([i])
+    clauses = []
+    for run in runs:
+        lo = PY_POINTS[run[0]]
+        hi = PY_POINTS[run[-1] + 1] if run[-1] + 1 < len(PY_POINTS) else None
+        inner = run[0] > 0 and hi is not None
+        if inner and lo in PYTHONS and hi in PYTHONS and PYTHONS.index(hi) == PYTHONS.index(lo) + 1:
+            clauses.append(f'python_version == "{lo}"')  # exactly one whole minor
+            continue
+        parts = []
+        if run[0] > 0:
+            parts.append(_bound(lo, ">="))
+        if hi is not None:
+            parts.append(_bound(hi, "<"))
+        clauses.append(" and ".join(parts))
+    if len(clauses) == 1:
+        return clauses[0]
+    return " or ".join(f"({c})" if " and " in c else c for c in clauses)
 
 
 # ---------------------------------------------------------------- PyPI data
@@ -277,7 +346,7 @@ def pypi(name: str, version: str) -> dict[str, Any]:
 
 
 def has_wheel(files: list[dict[str, Any]], plat: Platform, py: str) -> bool:
-    cp = "cp" + py.replace(".", "")
+    cp = "cp" + minor_of(py).replace(".", "")
     for f in files:
         fn = str(f["filename"])
         if not fn.endswith(".whl"):
@@ -304,7 +373,7 @@ def check_pin(name: str, version: str, targets: set[Target]) -> list[str]:
     if rp:
         spec = SpecifierSet(rp)
         for py in sorted({py for _, py in targets}):
-            if Version(FULL_VERSION[py]) not in spec:
+            if Version(full_version(py)) not in spec:
                 problems.append(f"{name}=={version} requires Python {rp}, needed on {py}")
     for plat, py in sorted(targets, key=lambda t: (t[0].label, t[1])):
         if not has_wheel(data["urls"], plat, py):
@@ -370,7 +439,7 @@ def verify(python: Path, workdir: Path, pin_sets: list[list[Pin]]) -> list[str]:
                         + " ".join(f"--hash=sha256:{h}" for h in pin.hashes)
                     )
         req.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        cp = "cp" + py.replace(".", "")
+        cp = "cp" + minor_of(py).replace(".", "")
         cmd = [
             str(python),
             "-m",
@@ -385,7 +454,7 @@ def verify(python: Path, workdir: Path, pin_sets: list[list[Pin]]) -> list[str]:
             "--implementation",
             "cp",
             "--python-version",
-            py,
+            full_version(py),
             "--abi",
             cp,
             "--abi",
@@ -439,6 +508,14 @@ def main() -> int:
 
         all_dists = resolve(py, [runtime_in, dev_in], work)
         build_dists = resolve(py, [build_in], work)
+        configure_pythons(
+            full_version_boundaries(
+                str(r.marker)
+                for d in (*all_dists.values(), *build_dists.values())
+                for r in d.requires
+                if r.marker is not None
+            )
+        )
         runtime_need = {t: needed_for(t, roots([runtime_in]), all_dists) for t in TARGETS}
         all_need = {t: needed_for(t, roots([runtime_in, dev_in]), all_dists) for t in TARGETS}
         build_need = {t: needed_for(t, roots([build_in]), build_dists) for t in TARGETS}

@@ -12,6 +12,7 @@ All notable changes to APIEdge are documented here. Format: [Keep a Changelog](h
 - T-003: the password policy now also rejects passwords that contain the username or are common, and caps length at 128.
 
 ### Fixed
+- T-007: the lock generator now carries patch-level `python_full_version` markers from dependency metadata; `async-timeout` is installed for `python_full_version < "3.11.3"` (as `redis` requires) instead of only below 3.11, so `redis.asyncio` works on Python 3.11.0-3.11.2.
 - T-001/T-019: lock files now carry per-target PEP 508 environment markers and are verified on every platform x Python 3.10-3.12 target (fixes developer installs on Python 3.11 and 3.12).
 
 ### Added

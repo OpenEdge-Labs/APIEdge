@@ -95,3 +95,44 @@ def test_committed_locks_have_markers_for_backports() -> None:
     text = (ROOT / "requirements" / "dev.lock").read_text(encoding="utf-8")
     line = next(ln for ln in text.splitlines() if ln.startswith("backports-asyncio-runner=="))
     assert 'python_version < "3.11"' in line
+
+
+def test_full_version_boundaries_from_markers() -> None:
+    markers = ['python_full_version < "3.11.3"', 'python_version < "3.11"', "extra == 'x'"]
+    assert ul.full_version_boundaries(markers) == {"3.11.3"}
+    assert ul.full_version_boundaries(['python_full_version <= "3.12.1"']) == {"3.12.2"}
+    # boundaries at a minor start or outside the supported minors are not split points
+    assert ul.full_version_boundaries(['python_full_version >= "3.11.0"']) == set()
+    assert ul.full_version_boundaries(['python_full_version < "3.9.2"']) == set()
+
+
+def test_python_full_version_marker_is_carried() -> None:
+    """redis needs async-timeout for python_full_version < "3.11.3", not just < "3.11"."""
+    try:
+        ul.configure_pythons({"3.11.3"})
+        assert ul.PY_POINTS == ("3.10", "3.11", "3.11.3", "3.12")
+        dists = {
+            "redis": ul.Dist(
+                "redis", "1", [Requirement('async-timeout; python_full_version < "3.11.3"')]
+            ),
+            "async-timeout": ul.Dist("async-timeout", "1", []),
+        }
+        roots = [Requirement("redis")]
+        sel = _targets(lambda t: "async-timeout" in ul.needed_for(t, roots, dists))
+        marker = ul.render_marker(sel)
+        assert marker == 'python_full_version < "3.11.3"'
+        assert _selects_exactly(marker, sel)
+        # whole-minor selections keep the readable python_version form
+        assert ul.render_marker(_targets(lambda t: t[1] == "3.10")) == 'python_version < "3.11"'
+        assert Marker(marker).evaluate({"python_full_version": "3.11.2", "python_version": "3.11"})
+        assert not Marker(marker).evaluate(
+            {"python_full_version": "3.11.3", "python_version": "3.11"}
+        )
+    finally:
+        ul.configure_pythons(set())
+
+
+def test_committed_locks_carry_full_version_marker_for_async_timeout() -> None:
+    text = (ROOT / "requirements" / "runtime.lock").read_text(encoding="utf-8")
+    line = next(ln for ln in text.splitlines() if ln.startswith("async-timeout=="))
+    assert 'python_full_version < "3.11.3"' in line
