@@ -109,10 +109,12 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 
 ## Phase 3: No-code / Low-code
 
-- [~] **T-008** (P2) Built-in policies
+- [x] **T-008** (P2) Built-in policies
   - Add API key auth (keys stored hashed), JWT validation, rate limit/quota, header/body transform, CORS, IP allow/deny, cache and mock response policies, each configurable in the console.
   - Depends on: T-007
   > Vendor decision: taken before T-016 (P1) because the P1 tasks T-012, T-023 and T-025 depend on it and the gateway had no authentication or rate limiting yet.
+  > Vendor decision: policy chains are stored per API as validated JSON (ordered, optionally per route, stable policy ids); API keys belong to a product until consumers arrive in T-014 (new permissions `apikey:read` / `apikey:manage`); JWT verification uses pycryptodome (no new dependency); rate limits use fixed windows (Redis when configured, per-process fallback); trusted proxies for `X-Forwarded-For` are a gateway setting (`APIEDGE_GATEWAY_TRUSTED_PROXIES`); the response cache is per gateway process; CORS preflights are answered before the rest of the chain (ADR 0009).
+  > Delivered: eight built-in policies (API key, JWT, rate limit / quota, header/body transform, CORS, IP allow/deny, cache, mock) run by the gateway as an ordered pipeline that fails closed and records a per-policy decision trace for the packet inspector; analytics shows `key:<name>` / `jwt:<subject>` consumers. Console: **Products > APIs > Policies** (form-based editor: add, reorder, enable, limit to routes) and **API keys** (create, shown once, revoke). Admin API `GET/PUT .../apis/{id}/policies` (`policy:read` / `policy:update`) and `.../products/{id}/api-keys` (`apikey:read` / `apikey:manage`), audited. Try: add an API key policy to a published API, create a key, then `curl -H "x-api-key: <key>" http://127.0.0.1:8081/<tenant>/<base path>/...`. Guide: `docs/user-guide/policies.md`, ADR 0009. CI 41362042193 and CodeQL 41362042239 green.
 
 - [ ] **T-009** (P2) Visual policy flow builder
   - Add a drag-and-drop editor (React Flow) for composing a route's policy chain.
