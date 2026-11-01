@@ -1,10 +1,12 @@
 // Copyright 2026 Alingan Patra
 // SPDX-License-Identifier: Apache-2.0
-// Product management (T-005): list, create, edit, lifecycle and delete. Buttons follow the
+// Product management (T-005): list, create, edit, lifecycle and delete; the APIs of a product
+// open in the API panel (T-006). Buttons follow the
 // caller's tenant-wide and product-scoped permissions; the server checks every call itself.
 import { useState, type FormEvent } from "react";
 import { api } from "../api";
 import { can, canProduct } from "../access";
+import { ApisPanel } from "./Apis";
 import { TRANSITIONS, deletable, parseOwners } from "../products";
 import type { Lifecycle, Me, Product, User } from "../types";
 import { Card, ErrorBox, Field, Notice, fmtDate, useAction, useLoad } from "../ui";
@@ -28,6 +30,7 @@ export function ProductsPage({ me, tenantId }: { me: Me; tenantId: number }) {
   );
   const action = useAction();
   const [editing, setEditing] = useState<Product | null>(null);
+  const [apisOf, setApisOf] = useState<Product | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const move = async (p: Product, to: Lifecycle) => {
@@ -39,10 +42,11 @@ export function ProductsPage({ me, tenantId }: { me: Me; tenantId: number }) {
     }
   };
   const remove = async (p: Product) => {
-    if (!window.confirm(`Delete product "${p.name}"? Role grants scoped to it are revoked.`)) return;
+    if (!window.confirm(`Delete product "${p.name}"? Role grants scoped to it are revoked. Products that still contain APIs cannot be deleted.`)) return;
     setNotice(null);
     if (await action.run(() => api(`${base}/${p.id}`, { method: "DELETE" }))) {
       if (editing?.id === p.id) setEditing(null);
+      if (apisOf?.id === p.id) setApisOf(null);
       products.reload();
     }
   };
@@ -86,6 +90,9 @@ export function ProductsPage({ me, tenantId }: { me: Me; tenantId: number }) {
                 <td>{p.owners.map((o) => o.username).join(", ") || <span className="muted">-</span>}</td>
                 <td>{fmtDate(p.updated_at)}</td>
                 <td className="actions">
+                  {canProduct(me, "api:read", p.id) && (
+                    <button onClick={() => setApisOf(p)} aria-pressed={apisOf?.id === p.id}>APIs</button>
+                  )}
                   {p.lifecycle !== "retired" && canProduct(me, "product:update", p.id) && (
                     <button onClick={() => setEditing(p)}>Edit</button>
                   )}
@@ -107,6 +114,15 @@ export function ProductsPage({ me, tenantId }: { me: Me; tenantId: number }) {
           </tbody>
         </table>
       </Card>
+      {apisOf && (
+        <ApisPanel
+          key={apisOf.id}
+          me={me}
+          tenantId={tenantId}
+          product={(products.data ?? []).find((p) => p.id === apisOf.id) ?? apisOf}
+          onClose={() => setApisOf(null)}
+        />
+      )}
       {editing && (
         <ProductForm
           key={editing.id}
@@ -119,7 +135,7 @@ export function ProductsPage({ me, tenantId }: { me: Me; tenantId: number }) {
           }}
         />
       )}
-      {can(me, "product:create") && !editing && (
+      {can(me, "product:create") && !editing && !apisOf && (
         <ProductForm
           key="new"
           base={base}

@@ -20,3 +20,18 @@ def test_upgrade_downgrade_roundtrip(tmp_path: Path) -> None:
     run_migrations(url)
     assert "users" in inspect(engine).get_table_names()
     engine.dispose()
+
+
+def test_models_match_migrations(tmp_path: Path) -> None:
+    """The ORM models and the migrated schema do not drift apart."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    from apiedge.db.base import Base
+
+    url = f"sqlite:///{(tmp_path / 'm.db').as_posix()}"
+    run_migrations(url)
+    engine = make_engine(url)
+    with engine.connect() as conn:
+        assert compare_metadata(MigrationContext.configure(conn), Base.metadata) == []
+    engine.dispose()

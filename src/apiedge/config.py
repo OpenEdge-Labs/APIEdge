@@ -19,6 +19,8 @@ from platformdirs import user_data_path
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from apiedge.security.ssrf import SsrfPolicy
+
 APP_NAME = "APIEdge"
 
 
@@ -130,6 +132,14 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.env == "production"
+
+    def ssrf_policy(self) -> SsrfPolicy:
+        """The SSRF guard policy for upstream URLs (admin API checks, gateway connects)."""
+        return SsrfPolicy.from_strings(
+            allow_private=self.ssrf_allow_private,
+            allow_cidrs=self.ssrf_allow_cidrs,
+            deny_cidrs=self.ssrf_deny_cidrs,
+        )
 
 
 @lru_cache(maxsize=1)

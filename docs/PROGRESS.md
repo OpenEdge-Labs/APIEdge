@@ -216,3 +216,45 @@ visible instead of 1). Fixed by marking the factory itself; recorded in `docs/SE
 (Fixed defects). The local intermittent failure seen earlier in this task (1 in 7 full runs) has
 the same cause. The same run's mypy error in `tests/integration/test_products_api.py` was fixed by
 typing the helper's return value.
+
+### 2026-11-01 - T-006 API management inside Products
+
+**Summary.** APIs inside products: name, version, base path (unique per tenant; server paths
+reserved), description, upstream timeout, weighted upstreams (each URL checked by the SSRF guard
+under the configured policy when saved) and routes (methods plus a path with `{name}` parameters
+and a final `/*`; overlapping routes refused), with the product lifecycle states. Admin API
+`/api/v1/tenants/{id}/products/{pid}/apis` (list, create, get, update, lifecycle change, delete)
+authorized by `api:*` held tenant-wide or through a product-scoped grant; products whose APIs the
+caller cannot read and APIs outside the product in the path answer 404. Publishing needs an
+upstream and a route; retired APIs and the APIs of a retired product are read-only (the latter can
+still be deprecated and retired). Products that still contain APIs cannot be deleted (T-005
+carry-over). Audit events `api.create|update|lifecycle|delete`. Console: an APIs panel per product
+with the no-code form editor (upstream and route rows, method checkboxes, client-side checks
+mirroring the server). Migration 0004, ADR 0006, guide `docs/user-guide/apis.md`.
+
+**Files.** `src/apiedge/admin/{apis,products,schemas,__init__}.py`, `src/apiedge/config.py`,
+`src/apiedge/db/models.py`, `src/apiedge/db/migrations/versions/0004_apis.py`,
+`console/src/{apis.ts,types.ts,styles.css}`, `console/src/pages/{Apis,Products}.tsx`,
+`console/test/{apis.test.ts,node-test.d.ts}`, `src/apiedge/static/*`,
+`tests/integration/{test_apis_api,test_migrations}.py`, `docs/user-guide/{apis,products}.md`,
+`docs/adr/0006-apis.md`, `docs/{ARCHITECTURE,SECURITY}.md`, `README.md`, `CHANGELOG.md`.
+
+**Tests.** 266 pytest pass (38 new: CRUD, lifecycle and audit; publish preconditions; 16
+validation cases; conflicts incl. tenant-wide base path and other tenants; 9 SSRF cases on create
+and update; SSRF policy taken from settings; Viewer/APIDeveloper/no-role RBAC denial; 401;
+product-scoped APIDeveloper with BOLA; cross-tenant 404s; product delete blocked while it has APIs;
+retired product wind-down; plus a models-versus-migrations drift test); 23 console tests (5 new);
+ruff, ruff format, mypy --strict, bandit, CodeQL gate, tsc, npm audit (0 vulnerabilities) clean.
+Live run: `apiedge run` on a fresh data dir; created a tenant, product and an API with a DNS-named
+upstream (`https://example.com/api`, resolved and accepted), `http://localhost:8080` refused (400),
+publish, product delete refused while it held the API (409), audit events present, 401 without a
+session.
+
+**Decisions.** One document per API (upstreams and routes replaced on PATCH) to fit the form
+editor. Base paths unique per tenant (gateway routing to be fixed by T-007). The SSRF refusal uses
+a fixed message so no exception text reaches responses. Product and API lifecycles are independent,
+except that a retired product freezes its APIs apart from winding them down.
+
+**Follow-ups.** T-007 re-checks upstream addresses at connect time and serves only published or
+deprecated APIs of non-retired products; T-011 imports OpenAPI into this model; load-balancing
+algorithms and health checks in T-025.

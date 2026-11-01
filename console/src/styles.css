@@ -91,3 +91,10 @@ textarea { width: 100%; resize: vertical; }
 .lifecycle.published { color: var(--ok); border-color: var(--ok); }
 .lifecycle.deprecated { color: var(--bad); border-color: var(--bad); }
 .lifecycle.retired { color: var(--muted); text-decoration: line-through; }
+
+/* API form editor (T-006) */
+fieldset.plain { border: none; margin: 0; padding: 0; min-width: 0; }
+table.editor { margin-bottom: 8px; }
+table.editor input { width: 100%; box-sizing: border-box; }
+table.editor td.narrow { width: 90px; }
+ul.error { padding-left: 18px; }

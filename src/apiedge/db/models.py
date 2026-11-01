@@ -221,6 +221,88 @@ class ProductOwnerLink(TenantOwned, Base):
     user: Mapped[User] = relationship(lazy="joined")
 
 
+class Api(TenantOwned, Base):
+    """An API inside a product: base path, version, upstreams, routes and a lifecycle (T-006)."""
+
+    __tablename__ = "apis"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "base_path", name="uq_apis_tenant_id_base_path"),
+        UniqueConstraint("product_id", "name", "version", name="uq_apis_product_id_name_version"),
+        CheckConstraint(
+            "lifecycle IN ('draft', 'published', 'deprecated', 'retired')", name="lifecycle"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    # CASCADE only serves tenant deletion: the admin API refuses to delete a product with APIs.
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    version: Mapped[str] = mapped_column(String(32), nullable=False)
+    base_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    timeout_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=30000)
+    lifecycle: Mapped[str] = mapped_column(String(16), nullable=False, default="draft")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    upstreams: Mapped[list[ApiUpstream]] = relationship(
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+        order_by="ApiUpstream.position",
+    )
+    routes: Mapped[list[ApiRoute]] = relationship(
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+        order_by="ApiRoute.position",
+    )
+
+
+class ApiUpstream(TenantOwned, Base):
+    """A backend target of an API. The URL passed the SSRF guard when it was saved."""
+
+    __tablename__ = "api_upstreams"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    api_id: Mapped[int] = mapped_column(
+        ForeignKey("apis.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    weight: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class ApiRoute(TenantOwned, Base):
+    """An operation of an API: HTTP methods plus a path relative to the API's base path."""
+
+    __tablename__ = "api_routes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    api_id: Mapped[int] = mapped_column(
+        ForeignKey("apis.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    methods: Mapped[str] = mapped_column(String(64), nullable=False)  # "GET,POST"
+    path: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
 class RefreshToken(Base):
     """Opaque rotating refresh token (only its SHA-256 is stored). One family per login."""
 

@@ -17,7 +17,7 @@ answers 403. Every query runs on a tenant-bound session (``apiedge.db.tenancy``)
 
 Lifecycle: ``draft -> published -> deprecated -> retired`` (a deprecated product may be
 published again, a draft may be retired directly, retired is final). Retired products are
-read-only. Only draft and retired products can be deleted.
+read-only. Only draft and retired products without APIs can be deleted.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ from apiedge.admin.schemas import (
     ProductOut,
     ProductPatch,
 )
-from apiedge.db.models import Product, ProductOwnerLink, RoleAssignment, User
+from apiedge.db.models import Api, Product, ProductOwnerLink, RoleAssignment, User
 from apiedge.security.audit import audit
 
 router = APIRouter(prefix="/tenants/{tenant_id}/products", tags=["products"])
@@ -219,6 +219,11 @@ def delete_product(
     if product.lifecycle not in DELETABLE:
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="only draft or retired products can be deleted"
+        )
+    has_apis = caller.session.scalar(select(Api.id).where(Api.product_id == product.id).limit(1))
+    if has_apis is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="the product still contains APIs; delete them first"
         )
     grants = list(
         caller.session.scalars(

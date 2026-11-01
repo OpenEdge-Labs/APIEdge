@@ -1,6 +1,6 @@
 # Products
 
-A **product** bundles the APIs a team offers (APIs arrive with T-006, plans with T-014). Each
+A **product** bundles the APIs a team offers ([APIs](apis.md); plans arrive with T-014). Each
 product belongs to one tenant and is invisible to every other tenant.
 
 | Field | Rules |
@@ -20,8 +20,9 @@ draft --> published --> deprecated --> retired
 ```
 
 * Retired is final: a retired product cannot be edited or moved again.
-* Only draft and retired products can be deleted. Deleting a product also revokes every role grant
-  scoped to it.
+* Only draft and retired products that contain no APIs can be deleted (delete or retire and delete
+  the APIs first). Deleting a product also revokes every role grant scoped to it.
+* The APIs of a retired product are read-only, but can still be deprecated and retired.
 * From T-007 the gateway enforces the lifecycle of APIs inside products.
 
 ## In the console
@@ -52,6 +53,6 @@ or through a grant scoped to the product.
 
 Responses: 404 for a product of another tenant or one you cannot read; 403 when you can read it but
 may not perform the action (or hold the permission for no product at all); 409 for a duplicate
-name, a disallowed lifecycle move, editing a retired product or deleting a published or deprecated
-one; 400 for unknown owners. Every change is written to the audit log (`product.create`,
+name, a disallowed lifecycle move, editing a retired product, deleting a published or deprecated
+one, or deleting one that still contains APIs; 400 for unknown owners. Every change is written to the audit log (`product.create`,
 `product.update`, `product.lifecycle`, `product.delete`).

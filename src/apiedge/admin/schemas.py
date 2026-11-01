@@ -246,6 +246,144 @@ class ProductOut(Out):
     updated_at: datetime
 
 
+# --- APIs (T-006)
+
+HttpMethod = Literal["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+HTTP_METHODS: tuple[str, ...] = ("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS")
+Version = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")]
+_SEGMENT = r"[A-Za-z0-9_.~-]+"
+_PARAM = r"\{[A-Za-z_][A-Za-z0-9_]{0,63}\}"
+BasePath = Annotated[str, StringConstraints(max_length=255, pattern=rf"^(/{_SEGMENT})+$")]
+RoutePath = Annotated[
+    str,
+    StringConstraints(
+        max_length=500, pattern=rf"^/(\*|({_SEGMENT}|{_PARAM})(/({_SEGMENT}|{_PARAM}))*(/\*)?)?$"
+    ),
+]
+# Paths the APIEdge server answers itself; an API may not shadow them.
+RESERVED_PREFIXES: tuple[str, ...] = (
+    "/api/v1",
+    "/healthz",
+    "/readyz",
+    "/docs",
+    "/redoc",
+    "/openapi.json",
+    "/assets",
+)
+
+
+def _no_dot_segments(path: str) -> None:
+    if any(seg in (".", "..") for seg in path.split("/")):
+        raise ValueError("'.' and '..' segments are not allowed")
+
+
+def _check_base_path(v: str | None) -> str | None:
+    if v is None:
+        return None
+    _no_dot_segments(v)
+    low = v.lower()
+    for prefix in RESERVED_PREFIXES:
+        if low == prefix or low.startswith(prefix + "/"):
+            raise ValueError(f"base path overlaps the reserved path {prefix}")
+    return v
+
+
+def route_key(path: str) -> str:
+    """The path with parameter names erased: ``/a/{id}`` and ``/a/{x}`` match the same requests."""
+    return "/".join("{}" if s.startswith("{") else s for s in path.split("/"))
+
+
+class UpstreamIn(In):
+    url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2048)]
+    weight: int = Field(default=1, ge=1, le=100)
+
+
+class RouteIn(In):
+    methods: list[HttpMethod] = Field(min_length=1, max_length=len(HTTP_METHODS))
+    path: RoutePath
+    description: Description = ""
+
+    @field_validator("methods")
+    @classmethod
+    def _methods(cls, v: list[str]) -> list[str]:
+        return [m for m in HTTP_METHODS if m in set(v)]
+
+    @field_validator("path")
+    @classmethod
+    def _path(cls, v: str) -> str:
+        _no_dot_segments(v)
+        params = [s for s in v.split("/") if s.startswith("{")]
+        if len(params) != len(set(params)):
+            raise ValueError("path parameter names must be unique")
+        return v
+
+
+def _check_routes(v: list[RouteIn] | None) -> list[RouteIn] | None:
+    if v is None:
+        return None
+    seen: dict[tuple[str, str], str] = {}
+    for r in v:
+        for m in r.methods:
+            key = (m, route_key(r.path))
+            if key in seen:
+                raise ValueError(f"{m} {r.path} overlaps {m} {seen[key]}")
+            seen[key] = r.path
+    return v
+
+
+class ApiIn(In):
+    name: Name
+    version: Version = "v1"
+    base_path: BasePath
+    description: Description = ""
+    timeout_ms: int = Field(default=30000, ge=100, le=300000)
+    upstreams: list[UpstreamIn] = Field(default_factory=list, max_length=20)
+    routes: list[RouteIn] = Field(default_factory=list, max_length=200)
+
+    _base = field_validator("base_path")(_check_base_path)
+    _routes = field_validator("routes")(_check_routes)
+
+
+class ApiPatch(In):
+    name: Name | None = None
+    version: Version | None = None
+    base_path: BasePath | None = None
+    description: Description | None = None
+    timeout_ms: int | None = Field(default=None, ge=100, le=300000)
+    upstreams: list[UpstreamIn] | None = Field(default=None, max_length=20)
+    routes: list[RouteIn] | None = Field(default=None, max_length=200)
+
+    _base = field_validator("base_path")(_check_base_path)
+    _routes = field_validator("routes")(_check_routes)
+
+
+class UpstreamOut(Out):
+    url: str
+    weight: int
+
+
+class RouteOut(Out):
+    methods: list[str]
+    path: str
+    description: str
+
+
+class ApiOut(Out):
+    id: int
+    tenant_id: int
+    product_id: int
+    name: str
+    version: str
+    base_path: str
+    description: str
+    timeout_ms: int
+    lifecycle: ProductLifecycle
+    upstreams: list[UpstreamOut]
+    routes: list[RouteOut]
+    created_at: datetime
+    updated_at: datetime
+
+
 # --- audit
 
 

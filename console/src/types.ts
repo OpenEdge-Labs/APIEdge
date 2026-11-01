@@ -73,6 +73,35 @@ export interface Product {
   updated_at: string;
 }
 
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
+
+export interface Upstream {
+  url: string;
+  weight: number;
+}
+
+export interface Route {
+  methods: HttpMethod[];
+  path: string;
+  description: string;
+}
+
+export interface Api {
+  id: number;
+  tenant_id: number;
+  product_id: number;
+  name: string;
+  version: string;
+  base_path: string;
+  description: string;
+  timeout_ms: number;
+  lifecycle: Lifecycle;
+  upstreams: Upstream[];
+  routes: Route[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AuditEvent {
   id: number;
   tenant_id: number | null;
