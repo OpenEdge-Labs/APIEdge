@@ -60,6 +60,19 @@ class Settings(BaseSettings):
     ssrf_allow_cidrs: Annotated[list[str], NoDecode] = Field(default_factory=list)
     ssrf_deny_cidrs: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
+    # --- Console authentication (T-003).
+    access_token_ttl_seconds: int = Field(default=900, ge=60, le=3600)
+    refresh_token_ttl_hours: int = Field(default=12, ge=1, le=24 * 30)
+    login_max_failures: int = Field(default=5, ge=1, le=100)
+    login_lockout_minutes: int = Field(default=15, ge=1, le=24 * 60)
+    login_rate_limit_per_minute: int = Field(default=20, ge=1, le=10_000)
+    # HS256 signing key for access tokens. Default: derived from the secrets master key; without
+    # one, a random per-process key (sessions end when APIEdge restarts).
+    jwt_secret: SecretStr | None = None
+    # Always mark auth cookies Secure (set this behind a TLS-terminating proxy); they are
+    # Secure automatically when the request itself is HTTPS.
+    cookie_secure: bool = False
+
     @field_validator("data_dir")
     @classmethod
     def _expand(cls, v: Path) -> Path:

@@ -65,6 +65,8 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | pydantic_core | 2.50.2 | MIT | runtime | https://github.com/pydantic/pydantic |
 | pydantic-settings | 2.15.0 | MIT | runtime | https://github.com/pydantic/pydantic-settings |
 | Pygments | 2.21.0 | BSD-2-Clause | development / install tooling | https://pygments.org |
+| PyJWT | 2.15.1 | MIT | runtime | https://github.com/jpadilla/pyjwt |
+| PyOTP | 2.10.0 | MIT | runtime | https://github.com/pyauth/pyotp |
 | pyparsing | 3.3.3 | MIT | development / install tooling | https://github.com/pyparsing/pyparsing/ |
 | pytest | 9.2.0 | MIT | development / install tooling | https://docs.pytest.org/en/latest/ |
 | pytest-asyncio | 1.4.1 | Apache-2.0 | development / install tooling | https://github.com/pytest-dev/pytest-asyncio |

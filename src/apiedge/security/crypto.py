@@ -20,6 +20,7 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import hmac
 import os
 import secrets
 from collections.abc import Sequence
@@ -90,6 +91,12 @@ class SecretBox:
     @property
     def primary_key_id(self) -> str:
         return self._primary_id
+
+    def derive_key(self, purpose: str) -> bytes:
+        """A 32-byte subkey of the primary key for ``purpose`` (HMAC-SHA256 key separation)."""
+        return hmac.new(
+            self._keys[self._primary_id], b"apiedge-subkey:" + purpose.encode("utf-8"), "sha256"
+        ).digest()
 
     def encrypt(self, plaintext: str | bytes, aad: str = "") -> str:
         data = plaintext.encode("utf-8") if isinstance(plaintext, str) else plaintext

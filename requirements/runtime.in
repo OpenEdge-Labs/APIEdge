@@ -14,3 +14,6 @@ argon2-cffi-bindings==25.1.0
 # AES-256-GCM secrets encryption at rest (T-002, ADR 0003). Not `cryptography`: its releases
 # with current security fixes (49+) have no macOS x86_64 wheel.
 pycryptodome==4.1.0
+# Console auth (T-003): JWT access tokens (HS256) and TOTP MFA.
+pyjwt==2.15.1
+pyotp==2.10.0

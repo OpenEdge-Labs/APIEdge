@@ -15,6 +15,7 @@ Every response passes the T-002 hardening stack (``apiedge.security.middleware``
 from __future__ import annotations
 
 import logging
+import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -25,8 +26,10 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from apiedge import __version__
+from apiedge.admin import build_router
 from apiedge.config import Settings, get_settings
 from apiedge.db.base import make_engine, make_session_factory
+from apiedge.security.auth import LoginThrottle, TokenSigner
 from apiedge.security.crypto import KeyConfigError, SecretBox, build_secret_box
 from apiedge.security.middleware import install_security
 
@@ -47,6 +50,16 @@ def load_secret_box(settings: Settings) -> SecretBox | None:
     except KeyConfigError as exc:
         log.warning("secrets encryption unavailable: %s", exc)
         return None
+
+
+def jwt_signing_key(settings: Settings, box: SecretBox | None) -> bytes:
+    """Access-token key: APIEDGE_JWT_SECRET, else derived from the master key, else ephemeral."""
+    if settings.jwt_secret is not None:
+        return settings.jwt_secret.get_secret_value().encode("utf-8")
+    if box is not None:
+        return box.derive_key("jwt-access-v1")
+    log.warning("no secrets master key: console sessions will not survive a restart")
+    return secrets.token_bytes(32)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -71,7 +84,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
     app.state.secret_box = load_secret_box(settings)
+    app.state.token_signer = TokenSigner(
+        jwt_signing_key(settings, app.state.secret_box), settings.access_token_ttl_seconds
+    )
+    app.state.login_throttle = LoginThrottle(settings.login_rate_limit_per_minute)
     install_security(app, settings, docs_path=None if settings.is_production else DOCS_URL)
+    app.include_router(build_router())
 
     @app.get("/healthz", tags=["health"], summary="Liveness probe")
     async def healthz() -> dict[str, str]:

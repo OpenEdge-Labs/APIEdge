@@ -1,6 +1,6 @@
 # APIEdge Architecture
 
-> Status: T-001 foundation. Sections marked *(planned)* describe the target design from
+> Status: T-001 to T-003 (foundation, security baseline, auth/tenancy/RBAC). Sections marked *(planned)* describe the target design from
 > `docs/PROJECT_GUIDE.md` and are filled in as tasks land.
 
 ## 1. Overview
@@ -10,7 +10,7 @@ APIEdge is a single Python application (FastAPI on Uvicorn). One process serves:
 | Surface | Path | Delivered in |
 |---|---|---|
 | Liveness / readiness probes | `GET /healthz`, `GET /readyz` | T-001 |
-| Admin API (OpenAPI 3) | `/api/v1/...`, schema at `/api/v1/openapi.json` | T-001 skeleton, T-003+ routes |
+| Admin API (OpenAPI 3) | `/api/v1/...`, schema at `/api/v1/openapi.json` | T-003: auth, tenants, users, roles, audit |
 | Web console (static SPA) | `/` | T-001 shell, T-004+ screens |
 | Gateway data plane | API base paths | T-007 *(planned)* |
 
@@ -30,7 +30,10 @@ API consumers ──────► /<api base>  gateway ──► policy pipeli
 | `apiedge.db` | Declarative `Base` (with constraint naming convention), engine/session factories, Alembic migrations in `db/migrations` |
 | `apiedge.security` | Argon2id passwords (T-001); HTTP hardening middleware, secret masking, AES-256-GCM secrets box, SSRF guard (T-002); auth and RBAC (T-003) |
 | `apiedge.logs` | Structured JSON logging with secret masking and request ids (T-002) |
-| `apiedge.admin`, `gateway`, `policies`, `inspector`, `analytics` | Placeholders for later tasks |
+| `apiedge.admin` | Admin API routers (`auth_routes`, `tenants`, `users`, `roles`) and RBAC dependencies (`deps`) (T-003) |
+| `apiedge.db.tenancy` | Tenant-bound sessions: automatic `tenant_id` criteria and cross-tenant write guard (T-003) |
+| `apiedge.security.auth`, `rbac`, `audit` | Tokens, refresh rotation, throttling, lockout, TOTP; permission catalog and evaluation; audit writer (T-003) |
+| `apiedge.gateway`, `policies`, `inspector`, `analytics` | Placeholders for later tasks |
 | `console/` | React + Vite + TypeScript source; `npm run build` writes to `src/apiedge/static` |
 
 ## 3. Data
@@ -39,8 +42,13 @@ API consumers ──────► /<api base>  gateway ──► policy pipeli
   `init` and `create-admin`). Migrations use `render_as_batch` so they also work on SQLite.
 * Default database: SQLite file `apiedge.db` in the data directory (WAL mode, foreign keys on).
   PostgreSQL: set `APIEDGE_DATABASE_URL=postgresql+psycopg://...` and install the `postgres` extra.
-* T-001 schema: `users` (bootstrap SuperAdmin; `must_change_password` set on creation).
-  Tenancy (`tenant_id` on every tenant-owned row, tenant-filtered data access) arrives in T-003.
+* Schema (migrations 0001-0002): `tenants`; `users` (one tenant each, or platform SuperAdmin with
+  `tenant_id` NULL; lockout, MFA and `token_version` columns); `permissions` (catalog);
+  `roles` (built-in global or per tenant) and `role_permissions`; `role_assignments` (tenant or
+  product scope); `refresh_tokens` (SHA-256 only); `audit_log`.
+* Tenancy ([ADR 0004](adr/0004-auth-tenancy-rbac.md)): every tenant-owned row carries `tenant_id`.
+  The RBAC dependency binds the request's session to the tenant in the path, and
+  `apiedge.db.tenancy` then filters every ORM query and refuses cross-tenant writes.
 
 ## 4. Configuration and data directories
 
@@ -70,6 +78,14 @@ barrier), CORS allow-list, body-size limit, CSRF (double-submit cookie plus Orig
 adds structured JSON logging with masking, the AES-256-GCM secrets box (master key from
 `APIEDGE_SECRET_KEY` or `<data dir>/secret.key`, exposed as `app.state.secret_box`) and the SSRF guard
 (`apiedge.security.ssrf.check_url`) that every outbound call site must use.
+
+T-003 (ADR 0004) adds authentication and authorization. Request flow for a tenant route:
+
+```
+Bearer header / apiedge_session cookie -> TokenSigner.verify -> load user (active, token_version,
+tenant active) -> Principal (grants) -> require("resource:action"): tenant membership (404) and
+permission (403) -> bind_tenant(session) -> handler -> audit() -> commit
+```
 
 ## 7. Cross-platform
 

@@ -47,7 +47,12 @@ def make_engine(url: str) -> Engine:
 
 
 def make_session_factory(engine: Engine) -> sessionmaker[Session]:
-    return sessionmaker(bind=engine, expire_on_commit=False)
+    """Session factory with the tenant filter installed (see ``apiedge.db.tenancy``)."""
+    from apiedge.db.tenancy import install_tenant_filter
+
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    install_tenant_filter(factory)
+    return factory
 
 
 def alembic_config(url: str) -> Config:

@@ -66,7 +66,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   > Vendor decision: `pycryptodome` 4.1.0 rather than `cryptography`, because `cryptography` 49+ has no macOS x86_64 wheel and 48.0.1 has three open advisories that the strict runtime pip-audit gate rejects. T-023 (mTLS/X.509) will revisit this.
   > Vendor decision: the repository is private with no code-scanning upload, so CodeQL runs with `upload: never`, keeps the SARIF as an artifact, and fails the build on any error- or warning-level result.
 
-- [ ] **T-003** (P1) Authentication, multi-tenancy and RBAC core
+- [~] **T-003** (P1) Authentication, multi-tenancy and RBAC core
   - Add tenants, users, roles, permissions and role assignments (scoped to a tenant or a product), with built-in roles seeded.
   - Use Argon2id hashing, a password policy, login throttling and lockout, JWT access tokens plus rotating refresh cookies, and TOTP MFA.
   - Add tenant-filtered data access and an RBAC FastAPI dependency.

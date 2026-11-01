@@ -102,3 +102,33 @@ display of the generated first-admin password, T-019).
 `.github/workflows/{codeql,ci}.yml`, `docs/SECURITY.md`, `CHANGELOG.md`, `APIProjectTask.md`.
 
 **Tests.** 129 pytest pass (9 new); ruff, ruff format, mypy --strict, bandit clean.
+
+### 2026-11-01 - T-003 Authentication, multi-tenancy and RBAC core
+
+**Summary.** Admin API `/api/v1` with sign-in (Argon2id, password policy, per-IP throttling,
+lockout, TOTP MFA with replay guard), 15-minute HS256 access JWTs (Bearer or HttpOnly cookie),
+rotating opaque refresh cookies with reuse detection, forced password change, session
+invalidation on password/role/status change; tenants, tenant users, built-in and custom roles,
+`resource:action` catalog, tenant- and product-scoped role grants with anti-escalation; tenant
+filter in the database layer (`apiedge.db.tenancy`); audit log (tenant and platform views).
+Migration 0002 adds the tables and seeds the catalog. ADR 0004.
+
+**Files.** `src/apiedge/admin/{__init__,deps,schemas,auth_routes,tenants,users,roles}.py`,
+`src/apiedge/security/{auth,rbac,audit}.py`, `src/apiedge/security/{crypto,passwords}.py`,
+`src/apiedge/db/{models,tenancy,base}.py`, `src/apiedge/db/migrations/versions/0002_auth_tenancy_rbac.py`,
+`src/apiedge/{app,config,cli}.py`, `tests/integration/{conftest,test_auth_api,test_rbac_api,test_tenancy}.py`,
+`tests/unit/{test_rbac,test_auth_core}.py`, `requirements/runtime.{in,lock}`, `pyproject.toml`,
+`THIRD_PARTY_LICENSES.md`, `docs/{SECURITY,ARCHITECTURE}.md`, `docs/adr/0004-auth-tenancy-rbac.md`,
+`docs/admin-guide/{access-control,configuration}.md`, `.env.example`, `README.md`, `CHANGELOG.md`.
+
+**Tests.** 209 pytest pass (80 new: RBAC denial, BOLA, cross-tenant, escalation, lockout,
+throttling, refresh reuse, MFA, tenant filter, catalog drift, migration round trip); ruff, ruff
+format, mypy --strict, bandit clean; pip-audit runtime.lock clean; license gate 0 forbidden.
+Live run: create-admin, sign-in, `password_change_required` gate, password change, tenant create.
+
+**Decisions.** One tenant per user (usernames global); SuperAdmin is a platform flag and the
+SuperAdmin role is not assignable; tenant suspension is SuperAdmin-only; foreign tenants answer
+404; refresh tokens only in the cookie; in-process login throttle until T-026.
+
+**Follow-ups.** T-004 console screens use these APIs; T-005 adds the products FK on
+`role_assignments.product_id` and product routes use `Principal.has(..., product_id)`.

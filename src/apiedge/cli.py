@@ -155,7 +155,7 @@ def cmd_create_admin(args: argparse.Namespace) -> int:
                 )
                 return EXIT_USAGE
 
-            if password_problems(password):
+            if password_problems(password, args.username):
                 # Static text: nothing derived from the password reaches the terminal.
                 print(f"error: {POLICY_TEXT}", file=sys.stderr)
                 return EXIT_ERROR

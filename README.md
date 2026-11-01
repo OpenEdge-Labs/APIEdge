@@ -55,6 +55,8 @@ Dependencies are pinned with hashes in `requirements/*.lock`. To change them, ed
 
 - [Installation Guide](docs/installation.md)
 - [Configuration (Administrator Guide)](docs/admin-guide/configuration.md)
+- [Access control: sign-in, tenants, users, roles, audit](docs/admin-guide/access-control.md)
+- [Security and OWASP mapping](docs/SECURITY.md)
 - [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/adr/)
 - [Third-party licenses](THIRD_PARTY_LICENSES.md)
 
