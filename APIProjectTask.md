@@ -87,9 +87,11 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 
 ## Phase 2: Products and APIs
 
-- [~] **T-005** (P1) Product management
+- [x] **T-005** (P1) Product management
   - Add CRUD for Products (name, description, owners, lifecycle) through the admin API and console.
   - Depends on: T-004
+  > Delivered: products per tenant with name, description, owners (users of the tenant) and a lifecycle (draft, published, deprecated, retired). Admin API `/api/v1/tenants/{id}/products`: list (with a lifecycle filter), create, get, update, `POST .../{pid}/lifecycle` and delete. Each route needs the matching `product:*` permission, held tenant-wide or through a role grant scoped to that product. A product you cannot read answers 404, and one you can read but not change answers 403. Retired products are final and read-only, and only draft or retired products can be deleted. Role grants with `product_id` must name a product of the same tenant, and deleting a product revokes the grants scoped to it. Audit events: `product.create`, `product.update`, `product.lifecycle`, `product.delete`. Console: a Products screen (filter, create, edit, lifecycle buttons, delete), plus a product scope on role grants in the Users screen. Migration 0003 (the products and product_owners tables, and the foreign key on `role_assignments.product_id`), ADR 0005, and the guide `docs/user-guide/products.md`. To try it: `apiedge run`, sign in, then open Products. Verified: 228 pytest pass (14 new, covering RBAC denial, product scope, BOLA, cross-tenant, lifecycle and audit), 18 console tests, and ruff, mypy --strict, bandit, tsc and npm audit are clean. CI run 41311185458 and CodeQL run 41311185568 are green. No CodeQL findings were accepted. Also fixed a tenant-isolation defect found by CI: the tenant filter could be skipped for a session factory created at a recycled memory address (see `docs/SECURITY.md`, Fixed defects).
+  > Vendor decision: owners are contacts and do not give access; access comes only from role grants. Product names are unique per tenant, and products have no slug. Lifecycle changes have their own route and permission (`product:publish`). Product-scoped grants created before migration 0003 could not refer to a real product, so the migration removes them.
 
 - [ ] **T-006** (P1) API management inside Products
   - Add CRUD for APIs in a Product: base path, version, upstreams (validated by the SSRF guard), routes, lifecycle.
