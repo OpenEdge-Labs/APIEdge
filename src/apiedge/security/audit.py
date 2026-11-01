@@ -17,6 +17,13 @@ from apiedge.security.masking import mask_value
 log = logging.getLogger("apiedge.audit")
 
 
+def _one_line(value: str | None) -> str | None:
+    """Strip line breaks from user-influenced values before logging (log injection)."""
+    if value is None:
+        return None
+    return value.replace("\r", "").replace("\n", "")
+
+
 def audit(
     session: Session,
     action: str,
@@ -51,7 +58,7 @@ def audit(
             "action": action,
             "outcome": outcome,
             "tenant_id": tenant_id,
-            "actor": actor_username,
-            "resource": f"{resource_type}:{resource_id}" if resource_type else None,
+            "actor": _one_line(actor_username),
+            "resource": _one_line(f"{resource_type}:{resource_id}") if resource_type else None,
         },
     )
