@@ -171,7 +171,8 @@ def cmd_create_admin(args: argparse.Namespace) -> int:
     if generated:
         print("")
         print("  Generated password (shown ONCE - store it safely):")
-        print(f"  {password}")
+        # Shown once to the operator by design (T-019); never logged.
+        print(f"  {password}")  # codeql[py/clear-text-logging-sensitive-data] T-019
         print("")
     return EXIT_OK
 

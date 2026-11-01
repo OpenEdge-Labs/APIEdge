@@ -80,7 +80,13 @@ Report vulnerabilities privately to the maintainer (Alingan Patra); do not open 
 | pip-audit | `ci.yml` (`quality`) | any known vulnerability in `runtime.lock` (strict); `dev.lock` with documented exceptions |
 | npm audit | `ci.yml` (`console`) | high or critical |
 | License gate | `ci.yml` (`quality`) | GPL, AGPL, SSPL |
-| CodeQL (Python, JS/TS, `security-extended`) | `.github/workflows/codeql.yml` | any error or warning result (SARIF kept as an artifact; the private repo has no code-scanning upload) |
+| CodeQL (Python, JS/TS, `security-extended`) | `.github/workflows/codeql.yml` | any error or warning result without an inline `codeql[<rule id>] <reason>` justification on the flagged line (SARIF kept as an artifact; the private repo has no code-scanning upload) |
+
+Accepted CodeQL findings (each justified inline and reviewed):
+
+| Location | Rule | Reason |
+|---|---|---|
+| `src/apiedge/cli.py` (`create-admin`) | `py/clear-text-logging-sensitive-data` | A generated first-admin password is printed once to the operator's terminal by design (T-019); it is never logged, and a change is forced at first login |
 
 ## 6. Security configuration
 

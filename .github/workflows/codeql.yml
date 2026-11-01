@@ -56,6 +56,8 @@ jobs:
           path: sarif-results
           retention-days: 30
       - name: Fail on findings
+        # A finding is accepted only with an inline `codeql[<rule id>] <reason>` comment on the
+        # flagged line (the same syntax GitHub code scanning uses); accepted ones are listed.
         run: |
           python3 - <<'EOF'
           import json, pathlib, sys
@@ -63,13 +65,20 @@ jobs:
           for f in pathlib.Path("sarif-results").glob("*.sarif"):
               for run in json.loads(f.read_text())["runs"]:
                   for r in run.get("results", []):
-                      level = r.get("level", "warning")
-                      if level in ("error", "warning"):
-                          found += 1
-                          loc = r["locations"][0]["physicalLocation"]
-                          print(f"::error file={loc['artifactLocation']['uri']},"
-                                f"line={loc.get('region', {}).get('startLine', 1)}::"
-                                f"{r['ruleId']}: {r['message']['text']}")
-          print(f"CodeQL findings (error/warning): {found}")
+                      if r.get("level", "warning") not in ("error", "warning"):
+                          continue
+                      loc = r["locations"][0]["physicalLocation"]
+                      uri = loc["artifactLocation"]["uri"]
+                      line = loc.get("region", {}).get("startLine", 1)
+                      src = pathlib.Path(uri)
+                      text = src.read_text().splitlines()[line - 1] if src.is_file() else ""
+                      where = f"{uri}:{line} {r['ruleId']}: {r['message']['text']}"
+                      if f"codeql[{r['ruleId']}]" in text:
+                          print(f"accepted (inline justification): {where}")
+                          continue
+                      found += 1
+                      print(f"::error file={uri},line={line}::{r['ruleId']}: {r['message']['text']}")
+                      print(f"FINDING {where}")
+          print(f"CodeQL findings (error/warning, not accepted): {found}")
           sys.exit(1 if found else 0)
           EOF
