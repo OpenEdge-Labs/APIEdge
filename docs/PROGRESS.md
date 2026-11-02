@@ -601,3 +601,9 @@ docs zip). Full suite 477 passed; ruff, ruff format, mypy --strict, bandit clean
 **Follow-ups.** VP-008 (secrets re-encryption command). Site search needs a web server when the
 bundled site is opened from `file://`. MkDocs has had no release since 2024 (build-time only;
 see ADR 0012).
+
+**Fix and CI.** The first release run failed because `build-release.py` deletes `./build` before
+building the wheel, which also removed the site built into `build/site`. The workflow now builds the
+site into `RUNNER_TEMP`, and `--docs-site` inside `./build` is refused up front (new test).
+CI 41472434372 passed; the macOS installer job was re-run once because no hosted runner picked it
+up. CodeQL 41472434325 and Release 41472434391, with the docs zip, also passed.
