@@ -482,3 +482,45 @@ requests that match no route are not captured.
 **Follow-ups.** Browser E2E for the page (Playwright arrives with the E2E task); capture of
 404/405 within an API if wanted; retention also from the admin process.
 
+
+## 2026-11-02 - Analytics test timing flake
+
+**Summary.** `test_csv_export_and_audit` failed on Windows CI (run 41362439356, commit aa6cff2)
+and `test_traffic_is_recorded_and_summarized` flaked locally. Cause: the default summary range
+ends at "now" truncated to the second and is end-exclusive on per-minute buckets, so a query made
+in the same first second of the minute the traffic landed in missed that bucket. The analytics
+tests now query an explicit window (now - 58 min to now + 2 min, still a 60-second step), so the
+result no longer depends on where the clock is within the minute. Assertions are unchanged.
+Commit 2c79f03.
+
+**Follow-up.** The same edge exists for a real dashboard request made in the first second of a
+minute (that minute's data appears one second later). Harmless, but rounding the default end up
+to the next second would remove it; not changed here.
+
+## 2026-11-02 - T-020 Feature parity matrix
+
+**Summary.** Wrote `docs/FEATURE_MATRIX.md`: 103 capabilities in 11 areas, each with the nine
+reference gateway families (offered / partial / not offered) and the APIEdge status with its
+task, plus a section for APIEdge-only platform hardening. Statuses were checked against the code
+(policy types in `policies/config.py`, retry rules and lifecycle enforcement in `gateway/`, the
+Redis config bus, JWT algorithms, TLS settings), not task titles. Result: 29 done, 11 partial,
+58 planned, 5 proposed. Notable "partial" findings: retries without backoff, weighted upstreams
+but no version-aware canary, TTL-only cache invalidation, upstream TLS verification without TLS
+termination on the gateway or console.
+
+**Gaps proposed** (Vendor Proposals): VP-003 custom domains and host-based routing with SNI
+certificates, VP-004 upstream authentication / credential injection, VP-005 custom policy
+plug-in SDK, VP-006 HTTP/2 to clients, VP-007 Kubernetes ingress / Gateway API and a Terraform
+provider.
+
+**Files.** `docs/FEATURE_MATRIX.md` (new), `APIProjectTask.md` (status, note, VP-003 to VP-007),
+`README.md` (link), `CHANGELOG.md`, `docs/PROGRESS.md`.
+
+**Tests.** Documentation-only task; ruff, mypy --strict, bandit and pytest were run on the tree
+to confirm nothing else changed. Summary counts were checked with a script against the table rows.
+
+**Decisions.** Reference marks are a coarse summary of public documentation as of late 2026,
+for prioritization only; capabilities are described in our own words.
+
+**Follow-ups.** Keep rows current: each task that changes a capability updates its row and the
+summary counts in the same commit.

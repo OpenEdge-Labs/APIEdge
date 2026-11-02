@@ -63,6 +63,7 @@ Dependencies are pinned with hashes in `requirements/*.lock`. To change them, ed
 - [Policies (User Guide)](docs/user-guide/policies.md)
 - [Analytics Guide](docs/user-guide/analytics.md)
 - [Packet Inspector Guide](docs/user-guide/inspector.md)
+- [Feature parity matrix](docs/FEATURE_MATRIX.md)
 - [Security and OWASP mapping](docs/SECURITY.md)
 - [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/adr/)
 - [Third-party licenses](THIRD_PARTY_LICENSES.md)

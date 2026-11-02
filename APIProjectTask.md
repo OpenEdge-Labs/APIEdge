@@ -183,11 +183,13 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 
 ## Phase 7: Enterprise feature parity (IBM API Connect / DataPower and leading gateways)
 
-- [ ] **T-020** (P1) Feature parity matrix
+- [~] **T-020** (P1) Feature parity matrix
   - Research the capabilities of IBM API Connect / DataPower, Kong, Apigee, Azure APIM, AWS API Gateway, MuleSoft, WSO2, Tyk and Gravitee.
   - Write `docs/FEATURE_MATRIX.md` (feature → which gateways have it → APIEdge task and status).
   - Propose tasks for any gaps not covered below in Vendor Proposals.
   - Depends on: T-001
+  > Delivered: `docs/FEATURE_MATRIX.md` lists 103 capabilities in 11 areas (lifecycle, console and access control, policies, security, protocols, traffic, consumers, operations, observability, testing, AI gateway). Each row shows which of the nine reference gateway families offer it (offered, partial, not offered) and the APIEdge status with its task: 29 done, 11 partial, 58 planned, 5 proposed. Statuses were checked against the code, not task titles. Gaps no task covers are proposed as VP-003 to VP-007. Linked from the README.
+  > Vendor decision: reference marks are a coarse summary of public product documentation as of late 2026 and are meant for prioritization, not procurement. Capabilities are described in our own words only. APIEdge-specific hardening (SSRF guard, encrypted captures, hash-locked dependencies) is listed in its own section without reference columns.
 
 - [ ] **T-021** (P1) Catalogs, environments and API lifecycle governance
   - Add catalogs/environments (dev, test, prod) with promotion, versions and revisions, approval workflows, API linting rules, change history and diff.
@@ -269,3 +271,8 @@ The development team writes suggested improvements here. Move one into a phase a
 
 - **VP-001** (P1, proposed 2026-10-31) Move the supported Python range to 3.11-3.13. Python 3.10 reached end of life in October 2026, and it blocks security fixes (for example filelock 4.2.1 needs Python 3.11 or newer). The customer would need to update `docs/PROJECT_GUIDE.md`, which currently says "Python 3.10-3.12".
 - **VP-002** (P2, proposed 2026-10-31) Add the PostgreSQL driver (`psycopg[binary]`) to the hash-locked runtime set, or to an optional `postgres.lock`, so the installer can set up PostgreSQL deployments without unpinned downloads.
+- **VP-003** (P2, proposed 2026-11-02, from T-020) Custom domains and host-based routing: let a tenant attach its own host names to APIs, with a TLS certificate per domain (SNI), instead of only `/<tenant slug><base path>` on the shared listener.
+- **VP-004** (P1, proposed 2026-11-02, from T-020) Upstream authentication: inject backend credentials (basic, static bearer, OAuth 2.0 client-credentials tokens fetched and cached by the gateway, signed requests) from encrypted secrets, so backend credentials never live in client requests or plain transform headers.
+- **VP-005** (P3, proposed 2026-11-02, from T-020) A documented plug-in SDK for packaged custom Python policies (installed by an administrator, versioned, listed in the flow builder), complementing the sandboxed script policy of T-010.
+- **VP-006** (P2, proposed 2026-11-02, from T-020) HTTP/2 between clients and the gateway (the current ASGI server speaks HTTP/1.1). Native gRPC in T-024 needs it.
+- **VP-007** (P3, proposed 2026-11-02, from T-020) Kubernetes ingress controller / Gateway API support and a Terraform provider for the admin API, beyond the Helm chart of T-016.
