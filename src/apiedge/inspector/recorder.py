@@ -124,7 +124,8 @@ class _Tap:
 
     def finish(self, bytes_out: int) -> None:
         ctx = self.ctx
-        total_ms = max(0.0, (time.time() - ctx.started_at) * 1000) if ctx.started_at else 0.0
+        started = ctx.started_perf
+        total_ms = max(0.0, (time.perf_counter() - started) * 1000) if started else 0.0
         response_body = b"".join(self.chunks)
         request_body = ctx.body_read
         split = urlsplit(ctx.url)
@@ -187,6 +188,7 @@ class CaptureRecorder:
         self.mask_fields = mask_fields
         self._by_api: dict[int, list[ActiveCapture]] = {}
         self._lock = threading.Lock()
+        self._write_lock = threading.Lock()  # one writer at a time (loop, shutdown, tests)
         self._pending: list[PendingExchange] = []
         self._pending_bytes = 0
         self.dropped = 0
@@ -257,6 +259,12 @@ class CaptureRecorder:
         return items
 
     def flush(self, factory: sessionmaker[Session], box: SecretBox | None) -> int:
+        """Write the queued exchanges. A concurrent call waits for the write in progress, so
+        on return everything enqueued before the call is committed."""
+        with self._write_lock:
+            return self._flush(factory, box)
+
+    def _flush(self, factory: sessionmaker[Session], box: SecretBox | None) -> int:
         items = self._drain()
         if not items:
             return 0

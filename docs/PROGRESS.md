@@ -467,7 +467,11 @@ user without inspector permissions, Viewer denials, cross-tenant 404s, AAD-bound
 product-scoped grants); 37 console tests (6 new); ruff, ruff format, mypy --strict, bandit, tsc.
 One full local run had a single failure that did not reproduce in two further full runs or
 three runs of the inspector, analytics and policy suites; the failing test name was not
-captured (possibly the known analytics minute-boundary flake). No new dependencies.
+captured. CI on the first commit then failed on Windows in `test_retention_and_delete`, which
+exposed two real issues, both fixed: a flush racing with the background writer could return
+before the other writer had committed (flushes are now serialized), and the total duration used
+the wall clock, whose resolution on Windows is about 15 ms (now `perf_counter`). After the fix
+the inspector suites passed 6 consecutive runs and the full suite passed. No new dependencies.
 Exercised through integration tests (ASGI test clients with real upstream servers); the console
 page was type-checked and built but not clicked through in a browser.
 

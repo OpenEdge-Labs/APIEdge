@@ -445,6 +445,7 @@ def _context(
         url=str(request.url),
         received_headers=received,
         started_at=time.time(),
+        started_perf=time.perf_counter(),
     )
 
 

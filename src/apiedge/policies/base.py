@@ -149,6 +149,7 @@ class RequestContext:
     url: str = ""  # the URL as received (scheme, host, gateway path, query)
     received_headers: list[tuple[str, str]] = field(default_factory=list)  # as received
     started_at: float = 0.0  # epoch seconds
+    started_perf: float = 0.0  # time.perf_counter() at arrival (durations)
     upstream_url: str = ""  # base URL of the upstream that answered (or was tried last)
     upstream_attempts: int = 0
     upstream_ms: float | None = None  # until the upstream's response headers arrived
