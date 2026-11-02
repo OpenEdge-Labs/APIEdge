@@ -37,6 +37,21 @@ from tests.integration.test_gateway import (  # noqa: F401 - fixtures
 TOKEN = "prometheus-scrape-token-0123456789"
 
 
+def _window() -> dict[str, str]:
+    """An explicit range that cannot miss the traffic just sent.
+
+    The default range ends at "now" truncated to the second and is end-exclusive on minute
+    buckets, so a query in the first second of the minute the traffic landed in would miss it.
+    Ending the window two minutes ahead (still a 60-second step) makes the tests independent of
+    where the clock is within the minute.
+    """
+    now = datetime.now(timezone.utc)
+    return {
+        "start": (now - timedelta(minutes=58)).isoformat(),
+        "end": (now + timedelta(minutes=2)).isoformat(),
+    }
+
+
 def _user(
     settings: Settings, name: str, tenant: int, role: str, product: int | None = None
 ) -> None:
@@ -91,7 +106,8 @@ def test_traffic_is_recorded_and_summarized(env: Env, upstreams: dict[str, Upstr
     orders, billing, _other = _traffic(env, upstreams)
     with TestClient(create_app(env.settings)) as client:
         h = _login(client, "alice")
-        r = client.get(f"/api/v1/tenants/{env.tenant_a}/analytics/summary", headers=h)
+        win = _window()
+        r = client.get(f"/api/v1/tenants/{env.tenant_a}/analytics/summary", params=win, headers=h)
         assert r.status_code == 200, r.text
         data = r.json()
         totals = data["totals"]
@@ -128,10 +144,12 @@ def test_traffic_is_recorded_and_summarized(env: Env, upstreams: dict[str, Upstr
 
         # filters
         base = f"/api/v1/tenants/{env.tenant_a}/analytics/summary"
-        only = client.get(f"{base}?api_id={billing}", headers=h).json()
+        only = client.get(base, params={**win, "api_id": billing}, headers=h).json()
         assert only["totals"]["requests"] == 1 and only["totals"]["server_errors"] == 1
-        assert client.get(f"{base}?consumer=nobody", headers=h).json()["totals"]["requests"] == 0
-        assert client.get(f"{base}?consumer=", headers=h).json()["totals"]["requests"] == 6
+        nobody = client.get(base, params={**win, "consumer": "nobody"}, headers=h).json()
+        assert nobody["totals"]["requests"] == 0
+        anonymous = client.get(base, params={**win, "consumer": ""}, headers=h).json()
+        assert anonymous["totals"]["requests"] == 6
         past = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
         r = client.get(base, params={"end": past}, headers=h)
         assert r.json()["totals"]["requests"] == 0
@@ -157,20 +175,25 @@ def test_rbac_product_scope_and_tenant_isolation(env: Env, upstreams: dict[str, 
 
         # tenant B sees only its own traffic
         bob = _login(client, "bob")
-        r = client.get(f"/api/v1/tenants/{env.tenant_b}/analytics/summary", headers=bob)
+        win = _window()
+        r = client.get(f"/api/v1/tenants/{env.tenant_b}/analytics/summary", params=win, headers=bob)
         assert r.json()["totals"]["requests"] == 1
 
         # Viewer (tenant-wide) and a product-scoped Viewer
-        assert client.get(url + "/summary", headers=_login(client, "victor")).status_code == 200
+        victor = _login(client, "victor")
+        assert client.get(url + "/summary", params=win, headers=victor).status_code == 200
         pat = _login(client, "pat")
-        data = client.get(url + "/summary", headers=pat).json()
+        data = client.get(url + "/summary", params=win, headers=pat).json()
         assert data["totals"]["requests"] == 1
         assert [a["api_id"] for a in data["top_apis"]] == [billing]
         orders_product = _product_of(env.settings, orders)
-        scoped = client.get(f"{url}/summary?product_id={orders_product}", headers=pat).json()
+        scoped = client.get(
+            f"{url}/summary", params={**win, "product_id": orders_product}, headers=pat
+        ).json()
         assert scoped["totals"]["requests"] == 0  # outside the grant: nothing disclosed
-        assert client.get(f"{url}/summary?api_id={orders}", headers=pat).json()["top_apis"] == []
-        text = client.get(url + "/export.csv", headers=pat).text
+        by_api = client.get(f"{url}/summary", params={**win, "api_id": orders}, headers=pat)
+        assert by_api.json()["top_apis"] == []
+        text = client.get(url + "/export.csv", params=win, headers=pat).text
         assert len(list(csv.reader(io.StringIO(text)))) == 2  # header + the billing row
 
 
@@ -178,8 +201,8 @@ def test_csv_export_and_audit(env: Env, upstreams: dict[str, Upstream]) -> None:
     orders, _billing, _other = _traffic(env, upstreams)
     with TestClient(create_app(env.settings)) as client:
         h = _login(client, "alice")
-        url = f"/api/v1/tenants/{env.tenant_a}/analytics/export.csv?api_id={orders}"
-        r = client.get(url, headers=h)
+        url = f"/api/v1/tenants/{env.tenant_a}/analytics/export.csv"
+        r = client.get(url, params={**_window(), "api_id": orders}, headers=h)
         assert r.status_code == 200, r.text
         assert r.headers["content-type"].startswith("text/csv")
         assert r.headers["content-disposition"].startswith("attachment;")
