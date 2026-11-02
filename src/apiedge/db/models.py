@@ -417,3 +417,73 @@ class AnalyticsBucket(TenantOwned, Base):
     h10: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     h11: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     h12: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class CaptureSession(TenantOwned, Base):
+    """An opt-in, time-boxed packet capture for one API (T-012, ADR 0010).
+
+    ``route`` / ``consumer`` narrow it to one route path or one consumer label. The gateway keeps
+    at most ``max_exchanges`` exchanges per session (oldest dropped first) and deletes them once
+    the retention period after the session's end has passed.
+    """
+
+    __tablename__ = "capture_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    api_id: Mapped[int] = mapped_column(
+        ForeignKey("apis.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    route: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    consumer: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    max_exchanges: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_body_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    mask_fields: Mapped[str] = mapped_column(Text, nullable=False, default="[]")  # JSON list
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_by_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    stopped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    captured: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class CapturedExchange(TenantOwned, Base):
+    """One captured request/response (T-012).
+
+    ``data`` is the full exchange as JSON, encrypted with the secrets box (the associated data
+    binds it to its tenant and session). The other columns are the filterable summary; they
+    hold no headers, query strings or bodies.
+    """
+
+    __tablename__ = "captured_exchanges"
+    __table_args__ = (Index("ix_captured_exchanges_tenant_session", "tenant_id", "session_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    session_id: Mapped[int] = mapped_column(
+        ForeignKey("capture_sessions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    product_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    api_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    request_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    method: Mapped[str] = mapped_column(String(10), nullable=False)
+    path: Mapped[str] = mapped_column(String(2048), nullable=False)
+    route: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    status: Mapped[int] = mapped_column(Integer, nullable=False)
+    consumer: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    duration_ms: Mapped[float] = mapped_column(Float, nullable=False)
+    upstream: Mapped[str] = mapped_column(String(2048), nullable=False, default="")
+    size: Mapped[int] = mapped_column(Integer, nullable=False)
+    data: Mapped[str] = mapped_column(Text, nullable=False)

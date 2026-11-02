@@ -34,6 +34,14 @@ directory (see `.env.example`). Command-line options `--data-dir` and `--databas
 | `APIEDGE_GATEWAY_RATE_LIMIT_MAX_KEYS` | `100000` | Rate-limit windows kept in memory per process. With `APIEDGE_REDIS_URL` the counters live in Redis and are shared by all gateway processes; while Redis is unreachable each process falls back to its own counters |
 | `APIEDGE_ANALYTICS_FLUSH_INTERVAL_SECONDS` | `10` | How often the gateway writes its per-minute analytics aggregates to the database (1-300) |
 | `APIEDGE_ANALYTICS_RETENTION_DAYS` | `30` | Analytics older than this are deleted (checked hourly; 1-3650) |
+| `APIEDGE_INSPECTOR_POLL_INTERVAL_SECONDS` | `1.0` | How often the gateway picks up capture sessions and writes captured exchanges (0.1-60) |
+| `APIEDGE_INSPECTOR_MAX_DURATION_MINUTES` | `60` | Longest capture a user may start (1-1440) |
+| `APIEDGE_INSPECTOR_MAX_EXCHANGES` | `1000` | Largest ring buffer (exchanges kept) per capture |
+| `APIEDGE_INSPECTOR_MAX_BODY_BYTES` | `65536` | Largest body size captured per request/response (0-1 MiB) |
+| `APIEDGE_INSPECTOR_MAX_ACTIVE_SESSIONS` | `10` | Active captures per tenant |
+| `APIEDGE_INSPECTOR_RETENTION_HOURS` | `24` | Captured exchanges are deleted this long after their capture ended |
+| `APIEDGE_INSPECTOR_QUEUE_MAX_BYTES` | `16777216` | Memory the gateway may hold for exchanges not yet written; beyond it exchanges are dropped |
+| `APIEDGE_INSPECTOR_MASK_FIELDS` | empty | Comma-separated field, header and parameter names masked in every capture, on top of the built-in list. See the [Packet Inspector Guide](../user-guide/inspector.md) |
 | `APIEDGE_METRICS_TOKEN` | unset | Enables the Prometheus endpoint `GET /metrics` on the console port, protected by this bearer token (at least 16 characters). Unset: the endpoint answers 404. See the [Analytics Guide](../user-guide/analytics.md) |
 | `APIEDGE_ACCESS_TOKEN_TTL_SECONDS` | `900` | Lifetime of console access tokens (60-3600) |
 | `APIEDGE_REFRESH_TOKEN_TTL_HOURS` | `12` | Absolute lifetime of a sign-in session (refresh token family) |

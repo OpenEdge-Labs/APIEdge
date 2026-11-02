@@ -4,7 +4,7 @@
 // permission on its own.
 import type { Me } from "./types";
 
-export type Page = "tenants" | "products" | "analytics" | "users" | "roles" | "audit" | "settings" | "account";
+export type Page = "tenants" | "products" | "analytics" | "inspector" | "users" | "roles" | "audit" | "settings" | "account";
 
 export interface NavItem {
   page: Page;
@@ -31,6 +31,12 @@ const NAV: (NavItem & { allowed: (me: Me) => boolean })[] = [
     label: "Analytics",
     tenantScoped: true,
     allowed: (me) => canAnyProduct(me, "analytics:view"),
+  },
+  {
+    page: "inspector",
+    label: "Packet inspector",
+    tenantScoped: true,
+    allowed: (me) => canAnyProduct(me, "inspector:view"),
   },
   { page: "users", label: "Users", tenantScoped: true, allowed: (me) => can(me, "user:read") },
   { page: "roles", label: "Roles & permissions", tenantScoped: true, allowed: (me) => can(me, "role:read") },

@@ -504,7 +504,7 @@ def test_mock_route_scoping_disabled_policies_and_trace(
     )
     traces: list[tuple[RequestContext, int]] = []
     app = create_gateway_app(env.settings, resolver=fake_resolver)
-    app.state.runtime.trace_listeners.append(lambda ctx, status: traces.append((ctx, status)))
+    app.state.runtime.trace_listeners.append(lambda ctx, resp: traces.append((ctx, resp.status)))
     with TestClient(app, client=CLIENT) as gw:
         r = gw.get("/acme/orders/mocked")
         assert r.status_code == 201 and r.json() == {"ok": True} and r.headers["x-mock"] == "1"

@@ -12,7 +12,9 @@ errors are fixed JSON documents that never contain upstream or exception details
 Between matching and forwarding the API's policy pipeline runs (T-008, ADR 0009): policies may
 change the request, answer it themselves (authentication failures, rate limits, mocks, cache
 hits) and change the response on its way back. Every policy decision is recorded in the
-request's trace, which is handed to the registered trace listeners (the packet inspector, T-012).
+request's trace, which is handed to the registered trace listeners together with the final
+response. A listener may return an :class:`ExchangeTap` that then sees the response body as it
+is sent; the packet inspector (T-012, ADR 0010) records captured exchanges this way.
 CORS preflights are answered by the route's CORS policy before the rest of the chain runs.
 
 Every request that resolves to an API is measured (T-013): status, latency until the last
@@ -35,7 +37,7 @@ import time
 import uuid
 from collections.abc import AsyncGenerator, AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, Protocol
 from urllib.parse import parse_qsl, quote, urlencode
 
 import anyio
@@ -51,6 +53,7 @@ from apiedge.db.base import make_engine, make_session_factory
 from apiedge.gateway.bus import ConfigBus, build_bus
 from apiedge.gateway.snapshot import DEPRECATED, RETIRED, RuntimeApi, Snapshot, load_snapshot
 from apiedge.gateway.transport import build_client
+from apiedge.inspector.recorder import CaptureRecorder
 from apiedge.policies.base import (
     BodyTooLargeError,
     GatewayResponse,
@@ -94,7 +97,17 @@ _REQUEST_DROP = HOP_BY_HOP | {
 _REQUEST_ID = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _PATH_SAFE = "/:@!$&'()*+,;=-._~"
 
-TraceListener = Callable[[RequestContext, int], None]
+
+class ExchangeTap(Protocol):
+    """Sees one response body as it is sent (returned by a trace listener)."""
+
+    def body_chunk(self, chunk: bytes) -> None: ...
+
+    def finish(self, bytes_out: int) -> None: ...
+
+
+# Called once per request that reached a route, with the final response (headers as sent).
+TraceListener = Callable[[RequestContext, GatewayResponse], "ExchangeTap | None"]
 IPNetwork = ipaddress.IPv4Network | ipaddress.IPv6Network
 
 
@@ -177,7 +190,14 @@ class GatewayRuntime:
             cache=ResponseCache(settings.gateway_cache_max_bytes),
             jwks=JwksCache(lambda: self.client),
         )
-        self.trace_listeners: list[TraceListener] = []
+        self.inspector = CaptureRecorder(
+            settings.inspector_queue_max_bytes, tuple(settings.inspector_mask_fields)
+        )
+        self.trace_listeners: list[TraceListener] = [self.inspector.listener]
+
+    @property
+    def session_factory(self) -> Any:
+        return self._factory
 
     async def reload(self) -> None:
         try:
@@ -210,12 +230,34 @@ class GatewayRuntime:
             await asyncio.sleep(self.settings.analytics_flush_interval_seconds)
             await self.flush_metrics()
 
-    def emit_trace(self, ctx: RequestContext, status: int) -> None:
+    async def inspector_tick(self) -> None:
+        """Pick up capture sessions and write captured exchanges (database I/O in a thread)."""
+        await anyio.to_thread.run_sync(
+            self.inspector.tick,
+            self._factory,
+            self.secret_box,
+            self.settings.inspector_retention_hours,
+        )
+
+    async def _inspector_loop(self) -> None:
+        while True:
+            try:
+                await self.inspector_tick()
+            except Exception:
+                log.exception("packet inspector update failed")
+            await asyncio.sleep(self.settings.inspector_poll_interval_seconds)
+
+    def emit_trace(self, ctx: RequestContext, resp: GatewayResponse) -> list[ExchangeTap]:
+        taps: list[ExchangeTap] = []
         for listener in self.trace_listeners:
             try:
-                listener(ctx, status)
+                tap = listener(ctx, resp)
             except Exception:
                 log.exception("trace listener failed")
+                continue
+            if tap is not None:
+                taps.append(tap)
+        return taps
 
     @asynccontextmanager
     async def running(self) -> AsyncIterator[None]:
@@ -231,10 +273,15 @@ class GatewayRuntime:
             self.settings.ssrf_policy(), self.settings.gateway_ca_bundle, self._resolver
         )
         await self.reload()
+        try:  # capture sessions that are already active apply from the first request
+            await anyio.to_thread.run_sync(self.inspector.load, self._factory)
+        except Exception:
+            log.exception("loading packet capture sessions failed")
         tasks = [
             asyncio.create_task(self._reloader(changed)),
             asyncio.create_task(self.bus.run_listener()),
             asyncio.create_task(self._flusher()),
+            asyncio.create_task(self._inspector_loop()),
         ]
         try:
             yield
@@ -244,6 +291,8 @@ class GatewayRuntime:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
             await self.flush_metrics()  # keep the last seconds of traffic
+            with contextlib.suppress(Exception):
+                await self.inspector_tick()  # and the last captured exchanges
             await self.client.aclose()
             if self._redis is not None:
                 with contextlib.suppress(Exception):
@@ -375,6 +424,9 @@ def _context(
     raw_query = request.scope.get("query_string", b"").decode("latin-1")
     peer = request.client.host if request.client else ""
     limit = runtime.settings.gateway_max_request_body_bytes
+    received = [
+        (k.decode("latin-1").lower(), v.decode("latin-1")) for k, v in request.scope["headers"]
+    ]
     return RequestContext(
         method=method,
         path=remainder,
@@ -390,6 +442,9 @@ def _context(
         product_id=api.product_id,
         api_id=api.api_id,
         body_reader=lambda: _read_body(request, limit),
+        url=str(request.url),
+        received_headers=received,
+        started_at=time.time(),
     )
 
 
@@ -406,9 +461,11 @@ def _finish(
     headers.append(("x-request-id", request_id))
     if api.state == DEPRECATED:
         headers.append(("deprecation", "true"))
+    taps: list[ExchangeTap] = []
     if ctx is not None:
         meter.consumer = ctx.consumer
-        runtime.emit_trace(ctx, resp.status)
+        resp.headers = headers
+        taps = runtime.emit_trace(ctx, resp)
     stream = resp.stream
     if stream is None:
         body = resp.body or b""
@@ -423,6 +480,7 @@ def _finish(
         out = Response(content=body, status_code=resp.status)
         out.raw_headers = raw
         meter.finish(resp.status, len(body))
+        _tap_all(taps, body, len(body))
         return out
 
     async def body_iter() -> AsyncIterator[bytes]:
@@ -430,14 +488,28 @@ def _finish(
         try:
             async for chunk in stream:
                 sent += len(chunk)
+                _tap_all(taps, chunk, None)
                 yield chunk
         finally:
             await stream.aclose()
             meter.finish(resp.status, sent)
+            _tap_all(taps, b"", sent)
 
     streaming = StreamingResponse(body_iter(), status_code=resp.status)
     streaming.raw_headers = [(k.encode("latin-1"), v.encode("latin-1")) for k, v in headers]
     return streaming
+
+
+def _tap_all(taps: list[ExchangeTap], chunk: bytes, finished: int | None) -> None:
+    """Feed a body chunk to the taps; ``finished`` (bytes sent) ends the exchange."""
+    for tap in taps:
+        try:
+            if chunk:
+                tap.body_chunk(chunk)
+            if finished is not None:
+                tap.finish(finished)
+        except Exception:
+            log.exception("exchange tap failed")
 
 
 async def _upstream_body(upstream: httpx.Response, api: RuntimeApi) -> AsyncGenerator[bytes, None]:
@@ -546,7 +618,7 @@ async def proxy(request: Request) -> Response:
             headers = _forward_headers(ctx, request, prefix)
             target_path = quote(remainder, safe=_PATH_SAFE)
             query = urlencode(ctx.query) if ctx.query_changed else ctx.raw_query
-            answer = await _send(runtime, api, method, target_path, query, headers, body)
+            answer = await _send(runtime, api, ctx, target_path, query, headers, body)
             limit = max((p.response_body_limit(ctx) for p in ran), default=0)
             if limit:
                 await _buffer(answer, limit)
@@ -562,13 +634,15 @@ async def proxy(request: Request) -> Response:
 async def _send(
     runtime: GatewayRuntime,
     api: RuntimeApi,
-    method: str,
+    ctx: RequestContext,
     target: str,
     query: str,
     headers: list[tuple[bytes, bytes]],
     body: bytes,
 ) -> GatewayResponse:
     assert runtime.client is not None  # noqa: S101  # nosec B101 - set during lifespan
+    method = ctx.method
+    started = time.perf_counter()
     idempotent = method in IDEMPOTENT
     attempts = 1 + runtime.settings.gateway_retries
     tried: set[int] = set()
@@ -578,6 +652,8 @@ async def _send(
         index = api.balancer.pick(frozenset(tried))
         tried.add(index)
         base = api.upstreams[index].url
+        ctx.upstream_url = base
+        ctx.upstream_attempts = attempt + 1
         url = base + target
         if query:
             url += "?" + query
@@ -610,6 +686,7 @@ async def _send(
         if upstream.status_code in RETRY_STATUSES and idempotent and not last:
             await upstream.aclose()
             continue
+        ctx.upstream_ms = (time.perf_counter() - started) * 1000
         return GatewayResponse(
             status=upstream.status_code,
             headers=_upstream_headers(upstream),

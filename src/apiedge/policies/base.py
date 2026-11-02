@@ -145,6 +145,18 @@ class RequestContext:
     body_reader: Callable[[], Awaitable[bytes]] | None = None
     _body: bytes | None = None
     query_changed: bool = False
+    # Recorded for the packet inspector (T-012); policies do not change these.
+    url: str = ""  # the URL as received (scheme, host, gateway path, query)
+    received_headers: list[tuple[str, str]] = field(default_factory=list)  # as received
+    started_at: float = 0.0  # epoch seconds
+    upstream_url: str = ""  # base URL of the upstream that answered (or was tried last)
+    upstream_attempts: int = 0
+    upstream_ms: float | None = None  # until the upstream's response headers arrived
+
+    @property
+    def body_read(self) -> bytes | None:
+        """The request body if it has been read (forwarded or inspected), else None."""
+        return self._body
 
     @property
     def consumer(self) -> str:

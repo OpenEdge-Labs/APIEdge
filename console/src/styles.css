@@ -126,3 +126,11 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .policy-fields { display: flex; flex-wrap: wrap; gap: 0 12px; }
 .check.wide { min-width: 100%; }
 .secret-once { display: inline-block; padding: 4px 8px; border: 1px dashed var(--ok); word-break: break-all; user-select: all; }
+
+/* Packet inspector (T-012) */
+.mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; word-break: break-all; }
+pre.body { max-height: 360px; overflow: auto; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+tr.selected > td { background: var(--bg); }
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; }

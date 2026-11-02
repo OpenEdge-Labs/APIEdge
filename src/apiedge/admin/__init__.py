@@ -10,6 +10,7 @@ from apiedge.admin import (
     analytics,
     apis,
     auth_routes,
+    inspector,
     policies,
     products,
     roles,
@@ -29,6 +30,7 @@ def build_router() -> APIRouter:
     api.include_router(apis.router)
     api.include_router(policies.router)
     api.include_router(analytics.router)
+    api.include_router(inspector.router)
     api.include_router(system.router)
     return api
 

@@ -162,3 +162,96 @@ export interface AnalyticsSummary {
   top_apis: (AnalyticsStats & { api_id: number; product_id: number; name: string | null })[];
   top_consumers: (AnalyticsStats & { consumer: string })[];
 }
+
+// Packet inspector (T-012)
+export type CaptureState = "active" | "stopped" | "expired";
+
+export interface CaptureSession {
+  id: number;
+  product_id: number;
+  api_id: number;
+  api_name: string | null;
+  route: string | null;
+  consumer: string | null;
+  max_exchanges: number;
+  max_body_bytes: number;
+  mask_fields: string[];
+  created_by: string | null;
+  created_at: string;
+  expires_at: string;
+  stopped_at: string | null;
+  state: CaptureState;
+  captured: number;
+  stored: number;
+}
+
+export interface ExchangeSummary {
+  id: number;
+  session_id: number;
+  product_id: number;
+  api_id: number;
+  request_id: string;
+  started_at: string;
+  method: string;
+  path: string;
+  route: string;
+  status: number;
+  consumer: string;
+  duration_ms: number;
+  upstream: string;
+}
+
+export interface CapturedBody {
+  captured: boolean;
+  size: number;
+  truncated: boolean;
+  encoding: "utf-8" | "base64";
+  text: string;
+}
+
+export interface TraceStep {
+  policy_id: string;
+  type: string;
+  phase: "request" | "response";
+  outcome: string;
+  detail: string;
+  duration_ms: number;
+}
+
+export interface CapturedExchangeData {
+  request: {
+    method: string;
+    url: string;
+    path: string;
+    query: string;
+    headers: [string, string][];
+    body: CapturedBody;
+    upstream_path: string;
+    upstream_query: string;
+    upstream_headers: [string, string][] | null;
+  };
+  response: { status: number; headers: [string, string][]; body: CapturedBody; source: string };
+  client_ip: string;
+  consumer: string;
+  route: string;
+  upstream: string;
+  upstream_attempts: number;
+  timings: { total_ms: number; upstream_ms: number | null; policies_ms: number };
+  trace: TraceStep[];
+  started_at: number;
+}
+
+export interface ExchangeDetail extends ExchangeSummary {
+  masked: boolean;
+  exchange: CapturedExchangeData;
+}
+
+export interface ReplayResult {
+  masked: boolean;
+  url: string;
+  status: number | null;
+  error: string | null;
+  duration_ms: number;
+  headers: [string, string][];
+  body: CapturedBody;
+}

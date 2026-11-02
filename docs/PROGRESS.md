@@ -432,3 +432,49 @@ setting; per-process cache; preflights handled before the chain.
 T-014 moves keys under consumer applications and adds plan quotas; a shared (Redis) response
 cache later. One pre-existing analytics integration test failed once in a full local run and
 passed on every rerun (likely a minute-boundary timing flake; to be watched).
+
+## 2026-11-02 - T-012 Packet inspector
+
+**Summary.** Opt-in, time-boxed traffic capture per API (optionally one route or consumer). The
+gateway's T-008 trace listener now receives the final response and may return a body tap; the
+new `CaptureRecorder` copies matching exchanges (request/response line, headers, bodies up to a
+cap, timings, upstream and attempts, policy trace) into a byte-bounded queue and a background
+task writes them AES-256-GCM encrypted, keeps a per-session ring buffer and purges after the
+retention period. Admin API `/api/v1/tenants/{id}/inspector`: sessions (start/stop/delete),
+exchanges with filters, SSE live stream, detail (masked; unmasked with `inspector:unmask`,
+audited), HAR 1.2 export, replay to the API's own upstream through the SSRF guard. Console
+**Packet inspector** page (capture form, session table, filters, live toggle, detail pane with
+trace, HAR, replay, unmask). Migration 0007, ADR 0010, Packet Inspector Guide.
+
+**Files.** `src/apiedge/inspector/{__init__,recorder,store,masking,har}.py`,
+`src/apiedge/admin/{inspector,__init__,system}.py`, `src/apiedge/gateway/app.py`,
+`src/apiedge/policies/base.py`, `src/apiedge/config.py`, `src/apiedge/db/models.py`,
+`src/apiedge/db/migrations/versions/0007_inspector.py`, `console/src/{inspector.ts,types.ts,
+access.ts,App.tsx,styles.css}`, `console/src/pages/Inspector.tsx`, `console/test/{inspector,
+access}.test.ts`, `src/apiedge/static/*`, `tests/integration/test_inspector.py`,
+`tests/unit/test_inspector_units.py`, `tests/integration/test_policies_gateway.py` (listener
+signature), `docs/adr/0010-packet-inspector.md`, `docs/user-guide/inspector.md`,
+`docs/{ARCHITECTURE,SECURITY}.md`, `docs/admin-guide/configuration.md`, `.env.example`,
+`README.md`, `CHANGELOG.md`, `pyproject.toml`.
+
+**Tests.** 438 pytest pass (18 new: 7 unit - body encoding and truncation, AAD binding, masking
+of headers/query/JSON/form/truncated JSON/trace, HAR, session matching incl. expiry and tenant,
+tap body cap and byte-bounded queue; 11 integration through the real gateway and admin app -
+capture with masked and unmasked views and audit, encrypted storage, policy trace, ring buffer
+and body cap, start limits, route/consumer/stop/expiry, retention and delete, HAR masked and
+unmasked, replay incl. SSRF refusal and audit, SSE live stream, RBAC 403 on every route for a
+user without inspector permissions, Viewer denials, cross-tenant 404s, AAD-bound ciphertext,
+product-scoped grants); 37 console tests (6 new); ruff, ruff format, mypy --strict, bandit, tsc.
+One full local run had a single failure that did not reproduce in two further full runs or
+three runs of the inspector, analytics and policy suites; the failing test name was not
+captured (possibly the known analytics minute-boundary flake). No new dependencies.
+Exercised through integration tests (ASGI test clients with real upstream servers); the console
+page was type-checked and built but not clicked through in a browser.
+
+**Decisions.** ADR 0010: database storage (works across processes), encryption required,
+masking at read time, SSE instead of WebSocket, replay only to the API's current upstreams,
+requests that match no route are not captured.
+
+**Follow-ups.** Browser E2E for the page (Playwright arrives with the E2E task); capture of
+404/405 within an API if wanted; retention also from the admin process.
+

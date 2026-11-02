@@ -11,6 +11,7 @@ import type { Me, Tenant } from "./types";
 import { AccountPage } from "./pages/Account";
 import { AnalyticsPage } from "./pages/Analytics";
 import { AuditPage } from "./pages/Audit";
+import { InspectorPage } from "./pages/Inspector";
 import { ProductsPage } from "./pages/Products";
 import { RolesPage } from "./pages/Roles";
 import { SettingsPage } from "./pages/Settings";
@@ -156,6 +157,8 @@ function PageView(props: { page: Page; me: Me; tenantId: number | null; onMeChan
       return tenantId === null ? null : <ProductsPage key={tenantId} me={me} tenantId={tenantId} />;
     case "analytics":
       return tenantId === null ? null : <AnalyticsPage key={tenantId} tenantId={tenantId} />;
+    case "inspector":
+      return tenantId === null ? null : <InspectorPage key={tenantId} me={me} tenantId={tenantId} />;
     case "users":
       return tenantId === null ? null : <UsersPage key={tenantId} me={me} tenantId={tenantId} />;
     case "roles":

@@ -37,7 +37,7 @@ API consumers ──────► :8081/<tenant>/<api base>  gateway ──►
 | `apiedge.gateway` | Data plane (T-007, [ADR 0007](adr/0007-gateway-runtime.md)): `app` (proxy ASGI app, retries, headers, errors), `snapshot` (routing snapshot, lifecycle states, weighted balancer), `transport` (SSRF-guarded connection pool, TLS), `bus` (config change events: in-process, Redis) |
 | `apiedge.analytics` | T-013, [ADR 0008](adr/0008-analytics.md): `metrics` (per-request collector, minute aggregates with latency histograms, flush, Prometheus text), `query` (sums, percentiles, series, export rows) |
 | `apiedge.policies` | T-008, [ADR 0009](adr/0009-policies.md): `config` (policy chain models, validated on save and load), `base` (pipeline, request context, decision trace, fail-closed placeholder), `builtin` (API key, JWT, rate limit, transform, CORS, IP filter, cache, mock; pipeline builder), `jwt` (verifier, JWKS cache), `stores` (rate-limit windows in memory or Redis, response cache) |
-| `inspector` | Placeholder for T-012 |
+| `apiedge.inspector` | T-012, [ADR 0010](adr/0010-packet-inspector.md): `recorder` (gateway trace listener and exchange tap, bounded queue, writer, ring buffer, retention), `store` (stored exchange format, encryption), `masking` (display masking), `har` (HAR 1.2 export); admin routes in `admin.inspector` |
 | `console/` | React + Vite + TypeScript source; `npm run build` writes to `src/apiedge/static` |
 
 ## 3. Data

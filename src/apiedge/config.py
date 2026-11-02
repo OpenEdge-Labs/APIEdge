@@ -109,6 +109,21 @@ class Settings(BaseSettings):
     # Bearer token for the Prometheus endpoint GET /metrics; unset = the endpoint is off (404).
     metrics_token: SecretStr | None = None
 
+    # --- Packet inspector (T-012, ADR 0010).
+    # How often the gateway picks up capture sessions and writes captured exchanges (seconds).
+    inspector_poll_interval_seconds: float = Field(default=1.0, ge=0.1, le=60)
+    # Upper limits a capture session may ask for.
+    inspector_max_duration_minutes: int = Field(default=60, ge=1, le=1440)
+    inspector_max_exchanges: int = Field(default=1000, ge=1, le=100_000)
+    inspector_max_body_bytes: int = Field(default=64 * 1024, ge=0, le=1024 * 1024)
+    inspector_max_active_sessions: int = Field(default=10, ge=1, le=1000)
+    # Captured exchanges are deleted this long after their session ended.
+    inspector_retention_hours: int = Field(default=24, ge=1, le=24 * 90)
+    # Memory the gateway may hold for captured exchanges not yet written (dropped beyond it).
+    inspector_queue_max_bytes: int = Field(default=16 * 1024 * 1024, ge=64 * 1024, le=1024**3)
+    # Extra JSON field / header / parameter names masked in every capture (comma separated).
+    inspector_mask_fields: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
     @field_validator("data_dir")
     @classmethod
     def _expand(cls, v: Path) -> Path:
@@ -120,6 +135,7 @@ class Settings(BaseSettings):
         "ssrf_allow_cidrs",
         "ssrf_deny_cidrs",
         "gateway_trusted_proxies",
+        "inspector_mask_fields",
         mode="before",
     )
     @classmethod
