@@ -1,0 +1,20 @@
+{{- /* Copyright 2026 OpenEdge Labs. SPDX-License-Identifier: Apache-2.0 */ -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "apiedge.fullname" . }}
+  labels:
+    {{- include "apiedge.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "apiedge.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: console
+      port: {{ .Values.service.consolePort }}
+      targetPort: console
+      protocol: TCP
+    - name: gateway
+      port: {{ .Values.service.gatewayPort }}
+      targetPort: gateway
+      protocol: TCP

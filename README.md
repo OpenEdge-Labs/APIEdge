@@ -19,6 +19,8 @@ cd APIEdge
 
 The installer creates a virtual environment and the database, asks for the first admin password (or generates one and shows it once), then starts APIEdge and opens the console at **http://localhost:8080/**. Run it again to upgrade or repair, or with `--uninstall` to remove it. Unattended: `--unattended`. All options are in the [Installation Guide](docs/installation.md).
 
+Other ways to run it: a pip wheel, a multi-arch Docker image with `docker compose` (APIEdge, PostgreSQL and Valkey) and a Helm chart; see the [Installation Guide](docs/installation.md) sections 8 to 11, which also explain how to verify release checksums and the CycloneDX SBOM. Maintainers: [docs/releasing.md](docs/releasing.md).
+
 Once installed, the `apiedge` command is available inside the environment:
 
 ```

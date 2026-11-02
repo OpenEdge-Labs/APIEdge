@@ -1,0 +1,79 @@
+# Copyright 2026 OpenEdge Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# APIEdge + PostgreSQL + Valkey (Redis-compatible, BSD licensed) on one host.
+#
+#   cp .env.example .env            # optional: APIEdge settings
+#   export POSTGRES_PASSWORD=...    # required (or put it in .env)
+#   docker compose up -d --build
+#   docker compose logs apiedge     # shows the generated first admin password ONCE
+#
+# Console: http://localhost:8080/   Gateway: http://localhost:8081/<tenant>/<base path>
+# The image is built locally with the optional PostgreSQL driver (see
+# packaging/docker/postgres-driver.txt and docs/installation.md, "Docker").
+name: apiedge
+
+services:
+  apiedge:
+    build:
+      context: .
+      dockerfile: packaging/docker/Dockerfile
+      args:
+        APIEDGE_WITH_POSTGRES: "1"
+    image: apiedge:local
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    environment:
+      APIEDGE_DATABASE_URL: "postgresql+psycopg://apiedge:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/apiedge"
+      APIEDGE_REDIS_URL: "redis://valkey:6379/0"
+      APIEDGE_ADMIN_USER: "${APIEDGE_ADMIN_USER:-admin}"
+    ports:
+      # Published on localhost only; put a TLS reverse proxy in front to expose it.
+      - "127.0.0.1:${APIEDGE_CONSOLE_PORT:-8080}:8080"
+      - "127.0.0.1:${APIEDGE_GATEWAY_PUBLISH_PORT:-8081}:8081"
+    volumes:
+      # Holds the secrets master key (secret.key): back it up together with the database.
+      - apiedge-data:/var/lib/apiedge
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  postgres:
+    image: postgres:17.11-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: apiedge
+      POSTGRES_USER: apiedge
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apiedge -d apiedge"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
+  valkey:
+    image: valkey/valkey:9.0.7-alpine@sha256:2d04268dfa26ab31cfa3fdc538866e76438b2d00e41db41b8cb86d780ac5a416
+    restart: unless-stopped
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  apiedge-data:
+  postgres-data:

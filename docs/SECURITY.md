@@ -47,6 +47,8 @@ Report vulnerabilities privately to the OpenEdge Labs maintainers; do not open p
 | Console (T-004): strict CSP without `unsafe-inline` (bundle has no inline scripts or styles), double-submit CSRF header on every unsafe request, session only in HttpOnly cookies (no token in JS storage), React output encoding, permission-aware navigation as UX only (the server enforces); system settings view never returns secrets | `console/src/api.ts`, `console/src/access.ts`, `src/apiedge/admin/system.py` | `tests/integration/test_console.py`, `console/test/*.test.ts` |
 | No server/version disclosure (`server_header=False`, minimal `/healthz`) | `cli.py`, `app.py` | `tests/integration/test_app.py` |
 | Hash-locked dependencies, license gate | `requirements/*.lock`, `scripts/check-licenses.py` | CI `quality` job |
+| Release integrity (T-016): wheel content check (console and migrations present, no third-party code), installer bundles built only from git-tracked files, CycloneDX SBOM, SHA256SUMS verified on every OS before use, optional GPG signature; publishing is opt-in and draft-only | `scripts/build-release.py`, `.github/workflows/release.yml` | `tests/unit/test_build_release.py`, `release.yml` jobs |
+| Container hardening (T-016): base images pinned by digest, dependencies installed with `--require-hashes`, allow-list `.dockerignore`, non-root user 10001, read-only root filesystem and dropped capabilities in compose and Helm, ports published on localhost only, no default passwords (compose refuses to start without `POSTGRES_PASSWORD`), first admin password from a secret file or generated once | `packaging/docker/`, `docker-compose.yml`, `packaging/helm/apiedge/` | `test_build_release.py::test_dockerfile_*`, `::test_compose_*`, `release.yml` (`docker`, `helm`) |
 
 ## 2. OWASP Top 10 (2021)
 
@@ -57,9 +59,9 @@ Report vulnerabilities privately to the OpenEdge Labs maintainers; do not open p
 | A03 | Injection | SQLAlchemy ORM / bound parameters only; Pydantic validation; strict CSP; no `eval`/`exec` outside the sandbox (T-010); bandit + CodeQL in CI | Done (baseline) |
 | A04 | Insecure Design | Body-size limits (T-002, gateway T-007); login throttling and lockout, anti-escalation rules (T-003); gateway rate limits and quotas, fail-closed policy pipeline (T-008) | Done (baseline) |
 | A05 | Security Misconfiguration | Secure defaults (localhost bind, production mode, CORS closed), security headers, docs only in development, no stack traces | Done (baseline) |
-| A06 | Vulnerable and Outdated Components | Hash-locked pins, pip-audit (runtime strict), npm audit, license gate; SBOM per release (T-016) | Partial (T-016) |
+| A06 | Vulnerable and Outdated Components | Hash-locked pins, pip-audit (runtime strict), npm audit, license gate; CycloneDX SBOM of the Python runtime and bundled console packages in every release build; container base images pinned by digest (T-016) | Done (baseline) |
 | A07 | Identification and Authentication Failures | Argon2id (T-001); password policy, lockout, TOTP MFA, refresh rotation with reuse detection, session invalidation, forced first password change (T-003); OIDC SSO later | Done |
-| A08 | Software and Data Integrity Failures | Hash-verified installs, CSRF (T-002); signed releases and checksums (T-016) | Partial |
+| A08 | Software and Data Integrity Failures | Hash-verified installs (installer, wheel smoke test and container image), CSRF (T-002); SHA256SUMS over every release artifact, verified in CI on each OS before use (T-016); GPG signature of SHA256SUMS when the release key secret is configured (pending the customer's key, T-031) | Partial (signing key) |
 | A09 | Security Logging and Monitoring Failures | Structured JSON logs with masking and request ids (T-002); audit log with tenant-scoped viewer API (T-003); log shipping and alerting (T-028) | Partial (T-028) |
 | A10 | Server-Side Request Forgery | SSRF guard utility (T-002); enforced when upstream URLs are saved (T-006); enforced at connect time in the gateway proxy against DNS rebinding (T-007); inspector replay limited to the API's upstreams and SSRF-checked (T-012); scripts (T-010) | Partial |
 
@@ -95,7 +97,7 @@ Report vulnerabilities privately to the OpenEdge Labs maintainers; do not open p
 | V11 Business Logic | - | T-008 |
 | V12 Files and Resources | Body-size limits | T-011 imports |
 | V13 API and Web Service | CORS allow-list, CSRF, strict input models (unknown fields rejected) | each feature |
-| V14 Configuration | Secure defaults, docs only in dev, no server header, pinned deps | T-016 SBOM |
+| V14 Configuration | Secure defaults, docs only in dev, no server header, pinned deps, CycloneDX SBOM, checksummed release artifacts (T-016) | Release signing key (T-031) |
 
 ## 5. CI security gates
 

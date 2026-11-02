@@ -1,0 +1,279 @@
+# Copyright 2026 OpenEdge Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Release build: wheel (console included), one-click installer bundles per OS, CycloneDX SBOM,
+# Helm chart, SHA256SUMS (+ a GPG signature when a key is configured), a multi-arch image and
+# smoke tests of every artifact on Windows, Linux and macOS.
+#
+# Publishing is OFF by default: the `publish` job only runs for a v* tag when the repository
+# variable APIEDGE_PUBLISH_RELEASE is "true", and then creates a DRAFT GitHub release.
+# Nothing is pushed to PyPI or to a container registry by this workflow.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+    branches: [main]
+    # Path filters do not apply to tag pushes: every v* tag builds.
+    paths:
+      - ".github/workflows/release.yml"
+      - ".dockerignore"
+      - "docker-compose.yml"
+      - "install.*"
+      - "packaging/**"
+      - "pyproject.toml"
+      - "requirements/**"
+      - "scripts/build-release.py"
+      - "scripts/install*"
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - ".dockerignore"
+      - "docker-compose.yml"
+      - "install.*"
+      - "packaging/**"
+      - "pyproject.toml"
+      - "requirements/**"
+      - "scripts/build-release.py"
+      - "scripts/install*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  HELM_VERSION: v3.19.0
+
+jobs:
+  build:
+    name: Build artifacts
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+      - name: Console packages (license data for the SBOM only; the console is prebuilt)
+        working-directory: console
+        run: npm ci --ignore-scripts
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+      - name: Build environment (hash-locked)
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --disable-pip-version-check --require-hashes -r requirements/build.lock
+          .venv/bin/pip install --disable-pip-version-check --require-hashes -r requirements/runtime.lock
+      - id: version
+        name: Version
+        run: |
+          VERSION=$(.venv/bin/python -c "import importlib.util as u, sys; s = u.spec_from_file_location('br', 'scripts/build-release.py'); m = u.module_from_spec(s); s.loader.exec_module(m); print(m.project_version())")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
+      - name: Build wheel, installer bundles, SBOM, Helm chart and checksums
+        run: .venv/bin/python scripts/build-release.py build --out dist/release --helm
+      - name: Sign SHA256SUMS (skipped when no signing key is configured)
+        env:
+          GPG_KEY: ${{ secrets.APIEDGE_RELEASE_GPG_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.APIEDGE_RELEASE_GPG_PASSPHRASE }}
+        run: |
+          if [ -z "$GPG_KEY" ]; then
+            echo "::notice::No release signing key configured: artifacts are checksummed but not signed."
+            exit 0
+          fi
+          export GNUPGHOME="$(mktemp -d)"
+          printf '%s\n' "$GPG_KEY" | gpg --batch --import
+          printf '%s' "$GPG_PASSPHRASE" | gpg --batch --pinentry-mode loopback --passphrase-fd 0 \
+            --armor --detach-sign --output dist/release/SHA256SUMS.asc dist/release/SHA256SUMS
+          gpg --batch --verify dist/release/SHA256SUMS.asc dist/release/SHA256SUMS
+          rm -rf "$GNUPGHOME"
+      - name: Verify checksums and wheel contents
+        run: |
+          .venv/bin/python scripts/build-release.py verify dist/release
+          (cd dist/release && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apiedge-release
+          path: dist/release/
+          if-no-files-found: error
+          retention-days: 14
+
+  installer-bundle:
+    name: Installer bundle smoke test (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: apiedge-release
+          path: dist
+      - name: Verify checksums
+        run: python scripts/build-release.py verify dist
+      - name: Unzip, install unattended, health check, re-run, uninstall (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem dist\apiedge-*-installer-windows.zip | Select-Object -First 1
+          Expand-Archive $zip.FullName -DestinationPath "$env:RUNNER_TEMP\bundle"
+          $dir = Get-ChildItem "$env:RUNNER_TEMP\bundle" -Directory | Select-Object -First 1
+          $data = "$env:RUNNER_TEMP\apiedge-data"
+          Set-Location $dir.FullName
+          .\install.bat --unattended --smoke-test --no-shortcut --no-service --data-dir $data
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .\install.bat --unattended --smoke-test --no-shortcut --no-service --data-dir $data
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .\install.bat --uninstall --purge-data --yes --data-dir $data
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Unzip, install unattended, health check, re-run, uninstall (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then OS=macos; LAUNCHER=./install.command; else OS=linux; LAUNCHER=./install.sh; fi
+          unzip -q dist/apiedge-*-installer-$OS.zip -d "$RUNNER_TEMP/bundle"
+          cd "$RUNNER_TEMP"/bundle/apiedge-*
+          test -x "$LAUNCHER" && test -x scripts/install.sh
+          DATA="$RUNNER_TEMP/apiedge-data"
+          "$LAUNCHER" --unattended --smoke-test --no-shortcut --no-service --data-dir "$DATA"
+          "$LAUNCHER" --unattended --smoke-test --no-shortcut --no-service --data-dir "$DATA"
+          "$LAUNCHER" --uninstall --purge-data --yes --data-dir "$DATA"
+
+  wheel:
+    name: Wheel smoke test (${{ matrix.os }}, Python ${{ matrix.python }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: apiedge-release
+          path: dist
+      - name: pip install the wheel into a clean venv (dependencies hash-locked), init, health check
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/wheel-venv"
+          if [ "$RUNNER_OS" = "Windows" ]; then BIN="$RUNNER_TEMP/wheel-venv/Scripts"; else BIN="$RUNNER_TEMP/wheel-venv/bin"; fi
+          "$BIN/python" -m pip install --disable-pip-version-check --require-hashes -r requirements/runtime.lock
+          "$BIN/python" -m pip install --disable-pip-version-check --no-deps dist/apiedge-*.whl
+          "$BIN/apiedge" --version
+          python scripts/build-release.py smoke "$BIN/apiedge" --data-dir "$RUNNER_TEMP/wheel-data"
+
+  docker:
+    name: Multi-arch image and docker compose smoke test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build linux/amd64 + linux/arm64 (not pushed)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packaging/docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: VERSION=${{ needs.build.outputs.version }}
+          push: false
+          cache-to: type=gha,mode=max
+      - name: Load the linux/amd64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packaging/docker/Dockerfile
+          platforms: linux/amd64
+          build-args: VERSION=${{ needs.build.outputs.version }}
+          load: true
+          tags: apiedge:ci
+          cache-from: type=gha
+      - name: Image smoke test (SQLite, non-root, health check)
+        run: |
+          docker run -d --name apiedge -p 127.0.0.1:18080:8080 apiedge:ci
+          for i in $(seq 1 60); do
+            STATUS=$(docker inspect -f '{{.State.Health.Status}}' apiedge)
+            [ "$STATUS" = "healthy" ] && break
+            sleep 2
+          done
+          test "$STATUS" = "healthy" || { docker logs apiedge; exit 1; }
+          curl -fsS http://127.0.0.1:18080/healthz
+          curl -fsS -o /dev/null http://127.0.0.1:18080/
+          test "$(docker exec apiedge id -u)" = "10001"
+          docker run --rm apiedge:ci version
+          docker rm -f apiedge
+      - name: docker compose smoke test (APIEdge + PostgreSQL + Valkey, sign-in)
+        env:
+          POSTGRES_PASSWORD: ci-only-${{ github.run_id }}-pw
+          APIEDGE_CONSOLE_PORT: "18090"
+          APIEDGE_GATEWAY_PUBLISH_PORT: "18091"
+        run: |
+          docker compose up -d --build --wait --wait-timeout 300 || { docker compose logs; exit 1; }
+          curl -fsS http://127.0.0.1:18090/healthz
+          PW=$(docker compose logs --no-log-prefix apiedge | grep -A1 "Generated password" | tail -n 1 | tr -d ' \r')
+          BODY=$(jq -cn --arg p "$PW" '{username: "admin", password: $p}')
+          curl -fsS -o /dev/null -X POST http://127.0.0.1:18090/api/v1/auth/login \
+            -H 'content-type: application/json' --data "$BODY"
+          echo "signed in against PostgreSQL"
+          docker compose restart apiedge
+          docker compose up -d --wait --wait-timeout 120
+          curl -fsS http://127.0.0.1:18090/healthz
+          docker compose down -v
+
+  helm:
+    name: Helm chart render
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+      - run: helm lint packaging/helm/apiedge --strict
+      - name: Render with defaults and with every option enabled
+        run: |
+          helm template t packaging/helm/apiedge > /dev/null
+          helm template t packaging/helm/apiedge \
+            --set ingress.enabled=true,ingress.consoleHost=console.example.com,ingress.gatewayHost=api.example.com \
+            --set admin.existingSecret=adm,secretKey.existingSecret=key,database.existingSecret=db,redis.existingSecret=rd \
+            --set persistence.existingClaim=data --set env.APIEDGE_LOG_LEVEL=debug > /dev/null
+
+  publish:
+    name: Draft GitHub release (opt-in)
+    needs: [build, installer-bundle, wheel, docker, helm]
+    if: startsWith(github.ref, 'refs/tags/v') && vars.APIEDGE_PUBLISH_RELEASE == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apiedge-release
+          path: dist
+      - name: Create a draft release with all artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --draft \
+            --title "APIEdge ${GITHUB_REF_NAME#v}" --notes "See CHANGELOG.md and docs/installation.md."

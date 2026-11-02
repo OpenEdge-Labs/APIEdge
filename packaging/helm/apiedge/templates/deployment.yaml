@@ -1,0 +1,145 @@
+{{- /* Copyright 2026 OpenEdge Labs. SPDX-License-Identifier: Apache-2.0 */ -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "apiedge.fullname" . }}
+  labels:
+    {{- include "apiedge.labels" . | nindent 4 }}
+spec:
+  # Single replica on a ReadWriteOnce volume (see values.yaml); Recreate avoids two pods on it.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "apiedge.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "apiedge.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "apiedge.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountToken }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: apiedge
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["serve"]
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: console
+              containerPort: 8080
+              protocol: TCP
+            - name: gateway
+              containerPort: 8081
+              protocol: TCP
+          env:
+            - name: APIEDGE_PORT
+              value: "8080"
+            - name: APIEDGE_GATEWAY_PORT
+              value: "8081"
+            - name: APIEDGE_ADMIN_USER
+              value: {{ .Values.admin.user | quote }}
+            {{- if .Values.admin.existingSecret }}
+            - name: APIEDGE_ADMIN_PASSWORD_FILE
+              value: /run/secrets/apiedge-admin/{{ .Values.admin.passwordKey }}
+            {{- end }}
+            {{- with .Values.secretKey.existingSecret }}
+            - name: APIEDGE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: {{ $.Values.secretKey.key }}
+            {{- end }}
+            {{- with .Values.database.existingSecret }}
+            - name: APIEDGE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: {{ $.Values.database.key }}
+            {{- end }}
+            {{- with .Values.redis.existingSecret }}
+            - name: APIEDGE_REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: {{ $.Values.redis.key }}
+            {{- end }}
+            {{- range $name, $value := .Values.env }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: console
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: console
+            periodSeconds: 15
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: console
+            periodSeconds: 10
+            timeoutSeconds: 3
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/apiedge
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.admin.existingSecret }}
+            - name: admin-password
+              mountPath: /run/secrets/apiedge-admin
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim | default (printf "%s-data" (include "apiedge.fullname" .)) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.admin.existingSecret }}
+        - name: admin-password
+          secret:
+            secretName: {{ .Values.admin.existingSecret }}
+            defaultMode: 0400
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

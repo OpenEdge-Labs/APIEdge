@@ -1,0 +1,18 @@
+# Copyright 2026 OpenEdge Labs
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: v2
+name: apiedge
+description: APIEdge, an on-premise, multi-tenant API Gateway with a no-code / low-code web console
+type: application
+# Replaced by `scripts/build-release.py build --helm` with the release version.
+version: 0.1.0-dev.0
+appVersion: "0.1.0.dev0"
+home: https://github.com/OpenEdge-Labs/APIEdge
+sources:
+  - https://github.com/OpenEdge-Labs/APIEdge
+keywords: [api-gateway, api-management, gateway]
+maintainers:
+  - name: OpenEdge Labs
+    url: https://github.com/OpenEdge-Labs
+annotations:
+  licenses: Apache-2.0

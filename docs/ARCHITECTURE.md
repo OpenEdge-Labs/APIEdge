@@ -75,6 +75,12 @@ See [ADR 0002](adr/0002-online-hash-locked-installer.md). Third-party packages a
 installer (`install.bat`, `install.command`, `install.sh` → `scripts/install.py`) creates a venv and
 installs with `pip --require-hashes`. The prebuilt console is committed, so users never need Node.js.
 
+Release packaging (T-016, [ADR 0011](adr/0011-release-packaging.md)): `scripts/build-release.py`
+builds the wheel, per-OS installer zips (git-tracked APIEdge files only), a CycloneDX SBOM, the Helm
+chart (`packaging/helm/apiedge`) and `SHA256SUMS`. The container image (`packaging/docker/`) runs
+`apiedge` as user 10001 with data in `/var/lib/apiedge`; `docker-compose.yml` adds PostgreSQL and
+Valkey. `.github/workflows/release.yml` tests every artifact on Windows, Linux and macOS.
+
 ## 6. Security
 
 The OWASP mapping lives in `docs/SECURITY.md`. T-001 baseline: loopback bind by default, docs UI

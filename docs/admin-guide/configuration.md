@@ -67,6 +67,17 @@ directory (see `.env.example`). Command-line options `--data-dir` and `--databas
 database is reachable and 503 `{"status":"unavailable"}` otherwise. Both are unauthenticated and
 disclose no version or error details.
 
+## Container-only settings (T-016)
+
+Read by the container entry point (`packaging/docker/entrypoint.sh`), not by `apiedge` itself.
+The image already sets `APIEDGE_DATA_DIR=/var/lib/apiedge`, `APIEDGE_HOST=0.0.0.0` and
+`APIEDGE_GATEWAY_HOST=0.0.0.0`.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `APIEDGE_ADMIN_USER` | `admin` | First SuperAdmin, created on first start if missing |
+| `APIEDGE_ADMIN_PASSWORD_FILE` | unset | File (Docker / Kubernetes secret) with the first admin's password. Unset: a password is generated and printed once in the container log. Either way it must be changed at the first sign-in |
+
 Users, roles, tenants and the audit log are described in [access-control.md](access-control.md).
 
 See `docs/SECURITY.md` for what each security setting protects against and how to rotate the

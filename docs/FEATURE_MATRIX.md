@@ -55,7 +55,7 @@ priorities and are not a procurement comparison.
 | Protocols | 1 | 0 | 6 | 1 |
 | Traffic management | 5 | 3 | 7 | 1 |
 | Consumers and monetization | 0 | 1 | 4 | 0 |
-| Operations and deployment | 3 | 1 | 6 | 1 |
+| Operations and deployment | 5 | 2 | 3 | 1 |
 | Observability | 4 | 0 | 4 | 0 |
 | Testing | 0 | 1 | 2 | 0 |
 | AI gateway | 0 | 0 | 5 | 0 |
@@ -182,9 +182,9 @@ priorities and are not a procurement comparison.
 | Remote or federated gateways under one control plane | Y | Y | Y | Y | - | Y | Y | Y | Y | **Planned** | T-026 | |
 | Rolling upgrades, backup and restore | Y | Y | P | Y | - | Y | Y | Y | Y | **Planned** | T-026 | |
 | Declarative configuration (YAML, GitOps) and CLI import and export | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Planned** | T-026 | The `apiedge` CLI already covers init, migrate, run and create-admin |
-| Container image and Docker Compose | Y | Y | Y | Y | - | Y | Y | Y | Y | **Planned** | T-016 | |
-| Kubernetes Helm chart | Y | Y | Y | Y | - | Y | Y | Y | Y | **Planned** | T-016 | |
-| Signed releases, SBOM and checksums | Y | Y | Y | Y | - | Y | Y | Y | Y | **Planned** | T-016 | |
+| Container image and Docker Compose | Y | Y | Y | Y | - | Y | Y | Y | Y | **Done** | T-016 | Multi-arch (amd64, arm64) non-root image built in CI; compose with PostgreSQL and Valkey. Not pushed to a registry yet (T-031) |
+| Kubernetes Helm chart | Y | Y | Y | Y | - | Y | Y | Y | Y | **Done** | T-016 | Single replica; multi-replica HA is T-026 |
+| Signed releases, SBOM and checksums | Y | Y | Y | Y | - | Y | Y | Y | Y | **Partial** | T-016, T-031 | CycloneDX SBOM and SHA256SUMS on every release build; the GPG signature step is ready but needs the customer's signing key |
 | Kubernetes ingress controller / Gateway API and a Terraform provider | P | Y | P | Y | Y | P | Y | Y | Y | **Proposed** | VP-007 | |
 
 ## Observability

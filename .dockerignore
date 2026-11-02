@@ -1,0 +1,15 @@
+# Copyright 2026 OpenEdge Labs
+# SPDX-License-Identifier: Apache-2.0
+# Allow-list: the image build only sees what packaging/docker/Dockerfile copies.
+*
+!pyproject.toml
+!README.md
+!LICENSE
+!NOTICE
+!requirements/build.lock
+!requirements/runtime.lock
+!src/
+!packaging/docker/
+**/__pycache__
+**/*.py[cod]
+src/*.egg-info

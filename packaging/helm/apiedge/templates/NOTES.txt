@@ -1,0 +1,16 @@
+APIEdge {{ .Chart.AppVersion }} is deploying as {{ include "apiedge.fullname" . }}.
+
+Console and admin API (port {{ .Values.service.consolePort }}):
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "apiedge.fullname" . }} 8080:{{ .Values.service.consolePort }}
+  then open http://localhost:8080/
+{{- if not .Values.admin.existingSecret }}
+
+First SuperAdmin "{{ .Values.admin.user }}": the generated password is printed ONCE in the pod log:
+  kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "apiedge.fullname" . }} | grep -A1 "Generated password"
+{{- end }}
+The password must be changed at the first sign-in.
+{{- if not .Values.secretKey.existingSecret }}
+
+The secrets master key was created on the data volume. Back the volume up, or set
+secretKey.existingSecret so the key lives in a Kubernetes Secret.
+{{- end }}

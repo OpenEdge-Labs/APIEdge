@@ -524,3 +524,40 @@ for prioritization only; capabilities are described in our own words.
 
 **Follow-ups.** Keep rows current: each task that changes a capability updates its row and the
 summary counts in the same commit.
+
+## 2026-11-02 - T-016 Cross-platform packaging and release
+
+**Summary.** Added `scripts/build-release.py` (stdlib only): builds the wheel with the prebuilt
+console and checks its contents; builds one installer zip per OS from git-tracked APIEdge files
+(launchers keep their executable bit, no third-party code); writes a CycloneDX 1.5 SBOM
+(runtime lock plus the console's bundled npm packages, with licenses and npm integrity hashes);
+packages the Helm chart; writes and verifies `SHA256SUMS`; smoke-tests an installed wheel.
+Added a multi-arch container image (`packaging/docker/`, non-root, digest-pinned base,
+hash-locked installs, health check, first-admin bootstrap), `docker-compose.yml` (APIEdge,
+PostgreSQL 17, Valkey), the Helm chart `packaging/helm/apiedge`, and
+`.github/workflows/release.yml`, which tests the artifacts themselves on Windows, Linux and
+macOS. GPG signing and draft-release publishing are opt-in and skipped without configuration.
+
+**Files.** `scripts/build-release.py`, `tests/unit/test_build_release.py`,
+`.github/workflows/release.yml`, `packaging/docker/{Dockerfile,entrypoint.sh,postgres-driver.txt}`,
+`.dockerignore`, `docker-compose.yml`, `packaging/helm/apiedge/**`, `docs/installation.md`,
+`docs/releasing.md`, `docs/adr/0011-release-packaging.md`, `docs/SECURITY.md`,
+`docs/FEATURE_MATRIX.md`, `docs/ARCHITECTURE.md`, `docs/admin-guide/configuration.md`,
+`.env.example`, `README.md`, `CHANGELOG.md`, `APIProjectTask.md`.
+
+**Tests.** 31 new unit tests (versions and tags, bundle selection and modes, wheel checks, SBOM,
+checksums and tampering, Dockerfile / compose / driver-list hardening). Full suite 469 passed;
+ruff, ruff format, mypy --strict and bandit clean. Run locally: a release build; `verify`; the
+`smoke` command against an installed `apiedge` on Windows; the Linux installer bundle unzipped and
+installed unattended in a `python:3.12-slim` container (smoke test passed); `docker compose up`
+with PostgreSQL and Valkey (healthy, migrations on PostgreSQL, sign-in with the generated admin
+password, restart keeps the admin, read-only root and uid 10001 confirmed); `helm lint --strict`
+and `helm template` with every option. Windows and macOS bundles, the arm64 image and the wheel on
+macOS run only in CI.
+
+**Decisions.** ADR 0011: own SBOM generator; GPG signature of `SHA256SUMS`; Valkey instead of
+Redis 8; PostgreSQL driver only in the compose-built image (VP-002 open); single-replica chart.
+
+**Follow-ups.** Customer: a release signing key and enabling publishing (T-031); decision on
+VP-002. Later: push the image to a registry and sign it (T-031), multi-replica chart (T-026),
+image vulnerability scanning (T-018).

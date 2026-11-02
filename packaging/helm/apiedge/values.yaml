@@ -1,0 +1,101 @@
+# Copyright 2026 OpenEdge Labs
+# SPDX-License-Identifier: Apache-2.0
+# Default values for the APIEdge chart. See docs/installation.md ("Kubernetes (Helm)").
+
+image:
+  # No public image is published yet: build packaging/docker/Dockerfile and push it to your registry.
+  repository: ghcr.io/openedge-labs/apiedge
+  # Defaults to the chart appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# The chart runs one replica: the default SQLite database and the secrets key file live on a
+# ReadWriteOnce volume. Multi-replica HA (shared PostgreSQL + Redis + an external secret key) is
+# future work.
+nameOverride: ""
+fullnameOverride: ""
+
+admin:
+  # First SuperAdmin created on first start; the password must be changed at the first sign-in.
+  user: admin
+  # Secret holding the initial password (key: passwordKey). Empty: a password is generated and
+  # printed ONCE in the pod log.
+  existingSecret: ""
+  passwordKey: password
+
+# Secrets master key (APIEDGE_SECRET_KEY, base64url 32 bytes). Empty: a key file is created on the
+# data volume on first start, so back the volume up. Recommended: keep it in a Secret.
+secretKey:
+  existingSecret: ""
+  key: secret-key
+
+# External database / Redis URLs, read from Secrets because they may contain passwords.
+# Empty: SQLite on the data volume / in-process fallbacks. PostgreSQL needs an image built with
+# --build-arg APIEDGE_WITH_POSTGRES=1 (see docs/installation.md).
+database:
+  existingSecret: ""
+  key: database-url
+redis:
+  existingSecret: ""
+  key: redis-url
+
+# Extra non-secret APIEDGE_* settings, for example {APIEDGE_LOG_LEVEL: info}. See .env.example.
+env: {}
+
+service:
+  type: ClusterIP
+  consolePort: 8080
+  gatewayPort: 8081
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessModes: [ReadWriteOnce]
+  size: 1Gi
+  # Use an existing PersistentVolumeClaim instead of creating one.
+  existingClaim: ""
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  # Host names for the console/admin API and for the gateway (leave one empty to skip it).
+  consoleHost: ""
+  gatewayHost: ""
+  tls: []
+  #  - secretName: apiedge-tls
+  #    hosts: [console.example.com, api.example.com]
+
+serviceAccount:
+  create: true
+  name: ""
+  automountToken: false
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

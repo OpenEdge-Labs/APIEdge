@@ -1,0 +1,21 @@
+{{- /* Copyright 2026 OpenEdge Labs. SPDX-License-Identifier: Apache-2.0 */ -}}
+{{- if and .Values.persistence.enabled (not .Values.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "apiedge.fullname" . }}-data
+  labels:
+    {{- include "apiedge.labels" . | nindent 4 }}
+  annotations:
+    # Holds the database and the secrets key: kept when the release is uninstalled.
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    {{- toYaml .Values.persistence.accessModes | nindent 4 }}
+  {{- with .Values.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+{{- end }}
