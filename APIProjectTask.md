@@ -132,7 +132,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 
 ## Phase 4: Debugging and Analytics
 
-- [~] **T-012** (P1) Packet inspector
+- [x] **T-012** (P1) Packet inspector
   - Capture traffic per API, route or consumer, opt-in and time-boxed, with ring-buffer and retention limits.
   - Record full exchanges with timings and a policy-by-policy trace.
   - Add a live view (WebSocket/SSE), filters, a detail pane, HAR export and replay (replay goes through the SSRF guard).
@@ -140,7 +140,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   - Write the Inspector Guide.
   - Depends on: T-008
   > Vendor decision: captures are stored in the database (encrypted with the secrets key, so capture needs the master key) so they work with separate gateway and console processes; masking happens when data is read, so the unmasked view is possible with `inspector:unmask`; the live view uses Server-Sent Events; replay goes to the API's current upstream (not through the gateway again) through the SSRF guard and needs `inspector:capture`; requests that match no route of the API are not captured (ADR 0010).
-  > In progress: implemented and verified locally (ruff, mypy --strict, bandit, 438 pytest, 37 console tests); waiting for CI and CodeQL before marking done.
+  > Done: CI run 41366973745 and CodeQL run 41366973700 green on 24e9ab6 (438 pytest, 37 console tests).
 
 - [x] **T-013** (P1) Analytics interface for admins
   - Collect per-request metrics and aggregate them into time buckets.
