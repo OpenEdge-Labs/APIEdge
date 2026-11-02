@@ -87,9 +87,9 @@ jobs:
         run: |
           python -m venv .docs-venv
           .docs-venv/bin/pip install --disable-pip-version-check --require-hashes -r requirements/docs.lock
-          .docs-venv/bin/mkdocs build --strict --site-dir build/site
+          .docs-venv/bin/mkdocs build --strict --site-dir "$RUNNER_TEMP/docs-site"
       - name: Build wheel, installer bundles, SBOM, Helm chart, docs zip and checksums
-        run: .venv/bin/python scripts/build-release.py build --out dist/release --helm --docs-site build/site
+        run: .venv/bin/python scripts/build-release.py build --out dist/release --helm --docs-site "$RUNNER_TEMP/docs-site"
       - name: Sign SHA256SUMS (skipped when no signing key is configured)
         env:
           GPG_KEY: ${{ secrets.APIEDGE_RELEASE_GPG_KEY }}

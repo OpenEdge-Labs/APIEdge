@@ -452,6 +452,13 @@ def cmd_build(args: argparse.Namespace) -> int:
         tag = os.environ.get("GITHUB_REF_NAME")
     check_tag(version, tag)
     out: Path = args.out.resolve()
+    if args.docs_site:
+        site = args.docs_site.resolve()
+        if site.is_relative_to(ROOT / "build"):
+            # build_wheel() deletes ROOT/build (stale setuptools output) before building.
+            raise ReleaseError(f"--docs-site must be outside {ROOT / 'build'}: it is cleaned")
+        if not (site / "index.html").is_file():
+            raise ReleaseError(f"{site} is not a built documentation site (no index.html)")
     if out.exists() and any(out.iterdir()):
         raise ReleaseError(f"{out} is not empty")
     out.mkdir(parents=True, exist_ok=True)

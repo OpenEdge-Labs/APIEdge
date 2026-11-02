@@ -21,8 +21,8 @@ The multi-arch container image is built and tested but not exported or pushed.
 ```
 python scripts/install.py --local --dev --no-start --no-shortcut    # once
 python -m venv .docs-venv && .docs-venv/bin/pip install --require-hashes -r requirements/docs.lock
-.docs-venv/bin/mkdocs build --strict --site-dir build/site                  # the documentation site
-.venv/bin/python scripts/build-release.py build --out dist/release --docs-site build/site  # add --helm if helm is installed
+.docs-venv/bin/mkdocs build --strict --site-dir dist/docs-site               # the documentation site
+.venv/bin/python scripts/build-release.py build --out dist/release --docs-site dist/docs-site  # add --helm if helm is installed
 .venv/bin/python scripts/build-release.py verify dist/release
 docker build -f packaging/docker/Dockerfile -t apiedge:local .
 ```

@@ -387,3 +387,11 @@ def test_docs_site_zip(tmp_path: Path) -> None:
         ]
     with pytest.raises(br.ReleaseError):
         br.write_docs_zip(tmp_path / "empty", tmp_path / "x.zip", "x")
+
+
+def test_build_refuses_a_docs_site_inside_the_cleaned_build_dir(tmp_path: Path) -> None:
+    args = br.argparse.Namespace(
+        tag=None, out=tmp_path / "out", helm=False, docs_site=br.ROOT / "build" / "site"
+    )
+    with pytest.raises(br.ReleaseError, match="outside"):
+        br.cmd_build(args)
