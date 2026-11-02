@@ -632,3 +632,10 @@ signing key and log shipping (T-031, T-028). Semgrep not added (its CLI is LGPL-
 **Tests.** 15 new tests (4 access matrix, 4 proxy trust, 7 scan gate / DAST helpers). Locally:
 DAST smoke pass 64/64 against a production-mode instance; bandit, ruff, mypy --strict, pip-audit
 (runtime strict, dev with documented exceptions, docs), npm audit clean.
+
+**Fix and CI.** The first CI run (41479170443, `650565e`) passed the DAST smoke pass (64/64) and
+the ZAP gate (no Medium or High; Low: CSRF cookie without HttpOnly by design, missing COEP). The
+Grype gate failed on 18 High CVEs in Debian base-image packages without a fixed version, the same
+in both image variants. Each was reviewed and accepted in `docs/SECURITY.md` (review by
+2027-01-31); accepted rows may now list several packages of one CVE. COEP `require-corp` was added.
+CI 41480270095 and CodeQL 41480270195 passed on `9413970`. Release 41479170250 passed on `650565e`.
