@@ -183,13 +183,14 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 
 ## Phase 7: Enterprise feature parity (IBM API Connect / DataPower and leading gateways)
 
-- [~] **T-020** (P1) Feature parity matrix
+- [x] **T-020** (P1) Feature parity matrix
   - Research the capabilities of IBM API Connect / DataPower, Kong, Apigee, Azure APIM, AWS API Gateway, MuleSoft, WSO2, Tyk and Gravitee.
   - Write `docs/FEATURE_MATRIX.md` (feature → which gateways have it → APIEdge task and status).
   - Propose tasks for any gaps not covered below in Vendor Proposals.
   - Depends on: T-001
   > Delivered: `docs/FEATURE_MATRIX.md` lists 103 capabilities in 11 areas (lifecycle, console and access control, policies, security, protocols, traffic, consumers, operations, observability, testing, AI gateway). Each row shows which of the nine reference gateway families offer it (offered, partial, not offered) and the APIEdge status with its task: 29 done, 11 partial, 58 planned, 5 proposed. Statuses were checked against the code, not task titles. Gaps no task covers are proposed as VP-003 to VP-007. Linked from the README.
   > Vendor decision: reference marks are a coarse summary of public product documentation as of late 2026 and are meant for prioritization, not procurement. Capabilities are described in our own words only. APIEdge-specific hardening (SSRF guard, encrypted captures, hash-locked dependencies) is listed in its own section without reference columns.
+  > Done: CI run 41368222524 and CodeQL run 41368222507 green on 543bcd7.
 
 - [ ] **T-021** (P1) Catalogs, environments and API lifecycle governance
   - Add catalogs/environments (dev, test, prod) with promotion, versions and revisions, approval workflows, API linting rules, change history and diff.
