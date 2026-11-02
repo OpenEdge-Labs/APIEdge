@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import base64
 import time
 
 import pyotp
@@ -93,7 +94,11 @@ def test_unauthenticated_and_forged_tokens_rejected(world: World) -> None:
     h = world.login("alice")
     token = h["Authorization"].split()[1]
     header, payload, sig = token.split(".")
-    forged = {"Authorization": f"Bearer {header}.{payload}.{sig[:-2]}AA"}
+    # Flip a bit in the decoded signature: editing base64url text can leave the bytes unchanged.
+    raw = bytearray(base64.urlsafe_b64decode(sig + "=" * (-len(sig) % 4)))
+    raw[0] ^= 0x01
+    bad_sig = base64.urlsafe_b64encode(bytes(raw)).rstrip(b"=").decode()
+    forged = {"Authorization": f"Bearer {header}.{payload}.{bad_sig}"}
     assert world.client.get("/api/v1/auth/me", headers=forged).status_code == 401
     none_alg = {"Authorization": "Bearer eyJhbGciOiJub25lIn0." + payload + "."}
     assert world.client.get("/api/v1/auth/me", headers=none_alg).status_code == 401
