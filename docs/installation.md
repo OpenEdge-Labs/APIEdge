@@ -5,9 +5,9 @@ APIEdge runs on **Windows, macOS and Linux** (x86_64 and arm64). The only prereq
 against the sha256 hashes in `requirements/*.lock`. Node.js is **not** needed: the web console is
 prebuilt and included.
 
-Other ways to run APIEdge: [pip (wheel)](#8-pip-wheel), [Docker and Docker Compose](#9-docker-and-docker-compose)
-and [Kubernetes (Helm)](#10-kubernetes-helm). How to check a download is in
-[Verifying release artifacts](#11-verifying-release-artifacts).
+Other ways to run APIEdge: [pip (wheel)](#9-pip-wheel), [Docker and Docker Compose](#10-docker-and-docker-compose)
+and [Kubernetes (Helm)](#11-kubernetes-helm). How to check a download is in
+[Verifying release artifacts](#12-verifying-release-artifacts).
 
 ## 1. Get APIEdge
 
@@ -84,7 +84,8 @@ admin-creation step, so a generated password is never written to disk.
 
 Pull the new version (`git pull`) and run the installer again. It reuses the environment (or recreates
 it if it is broken), reinstalls the locked versions, applies new migrations, and leaves your existing
-admin user and data untouched.
+admin user and data untouched. Read the [upgrade notes](upgrading.md) first and back up the data
+directory.
 
 ## 5. Start APIEdge later
 
@@ -96,12 +97,12 @@ Use the shortcut, or run `<data dir>/venv/Scripts/apiedge.exe run --open` (Windo
 Use `--proxy` and `--index-url`, or the standard pip variables (`HTTPS_PROXY`, `PIP_INDEX_URL`,
 `PIP_CERT`). Hash checking still applies, so a mirror must serve the original files.
 
-## 6a. Uninstall
+## 7. Uninstall
 
 Run the installer with `--uninstall`. This removes the virtual environment, shortcuts and the logon
 service, and keeps your data. Add `--purge-data` to delete the database and log too.
 
-## 7. Developers
+## 8. Developers
 
 ```
 python scripts/install.py --local --dev --no-start     # .venv with ruff, mypy, bandit, pytest, pip-audit
@@ -113,7 +114,7 @@ Maintainers change dependencies by editing `requirements/*.in` and running
 `python scripts/update-locks.py`, then `python scripts/check-licenses.py --write`, and committing the
 `.in`, `.lock` and `THIRD_PARTY_LICENSES.md` files together.
 
-## 8. pip (wheel)
+## 9. pip (wheel)
 
 The wheel `apiedge-<version>-py3-none-any.whl` contains APIEdge and the prebuilt console. Install
 the dependencies from the hash lock first, so you get exactly the tested versions:
@@ -131,7 +132,7 @@ apiedge-venv/bin/apiedge run --open
 `pip install apiedge-<version>-py3-none-any.whl` also works and resolves the version ranges in
 `pyproject.toml`, without hash checking. APIEdge is not published on PyPI yet.
 
-## 9. Docker and Docker Compose
+## 10. Docker and Docker Compose
 
 The image (`packaging/docker/Dockerfile`) is built for linux/amd64 and linux/arm64. It runs as the
 unprivileged user 10001, keeps its data (SQLite database, secrets key, captures) in the volume
@@ -170,10 +171,10 @@ PostgreSQL driver (psycopg 3, hash-pinned in `packaging/docker/postgres-driver.t
 not part of the default image or of the one-click installer yet: adding it to the runtime lock is
 proposal VP-002, which needs a license review (psycopg is LGPL-3.0). The default image uses SQLite.
 
-## 10. Kubernetes (Helm)
+## 11. Kubernetes (Helm)
 
 The chart is in `packaging/helm/apiedge` (and `apiedge-<chart version>.tgz` in a release). Push an
-image you built (section 9) to your registry, then:
+image you built (section 10) to your registry, then:
 
 ```
 helm install apiedge packaging/helm/apiedge -n apiedge --create-namespace   --set image.repository=registry.example.com/apiedge --set image.tag=<version>
@@ -196,7 +197,7 @@ The chart runs one replica (`Recreate` strategy) with a non-root, read-only root
 service-account token and the `RuntimeDefault` seccomp profile. Multi-replica high availability
 comes with clustering (T-026).
 
-## 11. Verifying release artifacts
+## 12. Verifying release artifacts
 
 Each release contains `SHA256SUMS`, and `SHA256SUMS.asc` when it is signed. Check a download
 before you use it:
@@ -211,3 +212,7 @@ gpg --verify SHA256SUMS.asc SHA256SUMS                       # signature, with t
 `apiedge-<version>.cdx.json` is a CycloneDX 1.5 software bill of materials listing every Python
 package of the runtime lock and the npm packages bundled into the console, with versions, package
 URLs and licenses. Feed it to your vulnerability scanner (for example Dependency-Track or grype).
+
+`apiedge-<version>-docs.zip` is this documentation as a static site: unzip it and open
+`index.html` in a browser (search needs a web server, for example
+`python -m http.server -d <unzipped folder>`).

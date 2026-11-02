@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Maintainer tool: regenerate the hash-locked requirement files.
 
-Reads ``requirements/{runtime,dev,build}.in`` (exact top-level pins) and writes
+Reads ``requirements/{runtime,dev,build,docs}.in`` (exact top-level pins) and writes
 ``requirements/*.lock`` that install on every supported target
 (Windows x86_64, Linux x86_64/aarch64, macOS x86_64/arm64 x CPython 3.10-3.12):
 
@@ -489,6 +489,7 @@ def main() -> int:
     args = ap.parse_args()
 
     runtime_in, dev_in, build_in = REQ / "runtime.in", REQ / "dev.in", REQ / "build.in"
+    docs_in = REQ / "docs.in"
     with tempfile.TemporaryDirectory(prefix="apiedge-lock-") as tmp:
         work = Path(tmp)
         venv.EnvBuilder(with_pip=True).create(work / "venv")
@@ -508,10 +509,11 @@ def main() -> int:
 
         all_dists = resolve(py, [runtime_in, dev_in], work)
         build_dists = resolve(py, [build_in], work)
+        docs_dists = resolve(py, [docs_in], work)
         configure_pythons(
             full_version_boundaries(
                 str(r.marker)
-                for d in (*all_dists.values(), *build_dists.values())
+                for d in (*all_dists.values(), *build_dists.values(), *docs_dists.values())
                 for r in d.requires
                 if r.marker is not None
             )
@@ -519,6 +521,7 @@ def main() -> int:
         runtime_need = {t: needed_for(t, roots([runtime_in]), all_dists) for t in TARGETS}
         all_need = {t: needed_for(t, roots([runtime_in, dev_in]), all_dists) for t in TARGETS}
         build_need = {t: needed_for(t, roots([build_in]), build_dists) for t in TARGETS}
+        docs_need = {t: needed_for(t, roots([docs_in]), docs_dists) for t in TARGETS}
 
         runtime_names = set().union(*runtime_need.values())
         # A runtime-locked package that dev tools need on *more* targets (e.g. tomli: runtime
@@ -530,13 +533,15 @@ def main() -> int:
         runtime_pins, p1 = build_pins(runtime_names, all_dists, runtime_need)
         dev_pins, p2 = build_pins(dev_names, all_dists, dev_need)
         build_pins_, p3 = build_pins(set().union(*build_need.values()), build_dists, build_need)
-        problems += p1 + p2 + p3
+        docs_pins, p4 = build_pins(set().union(*docs_need.values()), docs_dists, docs_need)
+        problems += p1 + p2 + p3 + p4
 
         if not args.skip_verify and not problems:
             print("verifying every target (pip --dry-run --require-hashes):")
             problems += verify(py, work, [runtime_pins])
             problems += verify(py, work, [runtime_pins, dev_pins])
             problems += verify(py, work, [build_pins_])
+            problems += verify(py, work, [docs_pins])
 
     for p in problems:
         print(f"ERROR: {p}")
@@ -554,6 +559,11 @@ def main() -> int:
         ),
         "build.lock": render_lock(
             "APIEdge installer/build tooling lock", "Input: requirements/build.in", build_pins_
+        ),
+        "docs.lock": render_lock(
+            "APIEdge documentation tooling lock (separate venv)",
+            "Input: requirements/docs.in",
+            docs_pins,
         ),
     }
     changed = False

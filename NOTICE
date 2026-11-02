@@ -2,3 +2,7 @@ APIEdge
 Copyright 2026 OpenEdge Labs
 
 This product includes software developed by OpenEdge Labs.
+
+The prebuilt web console in src/apiedge/static bundles third-party JavaScript packages; they and
+the Python packages installed with APIEdge are listed, with their licenses, in
+THIRD_PARTY_LICENSES.md.

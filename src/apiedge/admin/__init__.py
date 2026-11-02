@@ -18,20 +18,26 @@ from apiedge.admin import (
     tenants,
     users,
 )
+from apiedge.admin.deps import annotate_access
 
 
 def build_router() -> APIRouter:
     api = APIRouter(prefix="/api/v1")
-    api.include_router(auth_routes.router)
-    api.include_router(tenants.router)
-    api.include_router(users.router)
-    api.include_router(roles.router)
-    api.include_router(products.router)
-    api.include_router(apis.router)
-    api.include_router(policies.router)
-    api.include_router(analytics.router)
-    api.include_router(inspector.router)
-    api.include_router(system.router)
+    for module in (
+        auth_routes,
+        tenants,
+        users,
+        roles,
+        products,
+        apis,
+        policies,
+        analytics,
+        inspector,
+        system,
+    ):
+        # Publish each operation's permission as ``x-apiedge-access`` in the OpenAPI document.
+        annotate_access(module.router.routes)
+        api.include_router(module.router)
     return api
 
 

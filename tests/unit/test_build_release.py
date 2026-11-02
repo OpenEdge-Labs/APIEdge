@@ -371,3 +371,19 @@ def test_compose_has_no_default_secrets_and_pins_images() -> None:
     # Published ports bind to localhost only.
     for port in re.findall(r'^\s+- "([^"]+:\d+)"$', text, re.M):
         assert port.startswith("127.0.0.1:"), port
+
+
+def test_docs_site_zip(tmp_path: Path) -> None:
+    site = tmp_path / "site"
+    (site / "api").mkdir(parents=True)
+    (site / "index.html").write_text("<html></html>", encoding="utf-8")
+    (site / "api" / "reference.html").write_text("<html></html>", encoding="utf-8")
+    dest = tmp_path / "apiedge-1.0.0-docs.zip"
+    assert br.write_docs_zip(site, dest, "apiedge-1.0.0-docs") == 2
+    with zipfile.ZipFile(dest) as zf:
+        assert sorted(zf.namelist()) == [
+            "apiedge-1.0.0-docs/api/reference.html",
+            "apiedge-1.0.0-docs/index.html",
+        ]
+    with pytest.raises(br.ReleaseError):
+        br.write_docs_zip(tmp_path / "empty", tmp_path / "x.zip", "x")

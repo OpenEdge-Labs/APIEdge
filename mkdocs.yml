@@ -1,0 +1,85 @@
+# Copyright 2026 OpenEdge Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Documentation site (T-017, ADR 0012). Build: mkdocs build --strict (see docs/releasing.md).
+# Uses only the theme and Markdown extensions that ship with mkdocs / Python-Markdown, and loads
+# nothing from the internet, so the site works offline from the release bundle.
+site_name: APIEdge documentation
+site_description: On-premise, multi-tenant API Gateway with a no-code / low-code web console
+site_author: OpenEdge Labs
+copyright: Copyright 2026 OpenEdge Labs. Licensed under the Apache License 2.0.
+repo_url: https://github.com/OpenEdge-Labs/APIEdge
+edit_uri: ""
+docs_dir: docs
+site_dir: build/site
+# file:// friendly links (page.html, not page/), so the bundled site opens without a web server.
+use_directory_urls: false
+strict: true
+
+theme:
+  name: mkdocs
+  highlightjs: false   # the theme would load highlight.js from a CDN
+  navigation_depth: 3
+  locale: en
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - tables
+  - fenced_code
+  - attr_list
+  - admonition
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+
+nav:
+  - Home: index.md
+  - Installation Guide: installation.md
+  - Upgrade notes: upgrading.md
+  - Administrator Guide:
+      - Overview: admin-guide/index.md
+      - Configuration: admin-guide/configuration.md
+      - Access control: admin-guide/access-control.md
+      - Operations: admin-guide/operations.md
+  - User Guide:
+      - Overview and first API: user-guide/index.md
+      - Products: user-guide/products.md
+      - APIs: user-guide/apis.md
+      - Policies: user-guide/policies.md
+      - Calling APIs through the gateway: user-guide/gateway.md
+      - Low-code (status): user-guide/low-code.md
+  - Packet Inspector Guide: user-guide/inspector.md
+  - Analytics Guide: user-guide/analytics.md
+  - Admin API:
+      - Guide: api/index.md
+      - Reference: api/reference.md
+  - Troubleshooting: troubleshooting.md
+  - Security: SECURITY.md
+  - Architecture:
+      - Overview: ARCHITECTURE.md
+      - Decision records: adr/index.md
+      - 0001 Python, FastAPI, SQLite default: adr/0001-python-fastapi-sqlite-default.md
+      - 0002 Online hash-locked installer: adr/0002-online-hash-locked-installer.md
+      - 0003 Security foundation: adr/0003-security-foundation.md
+      - 0004 Auth, tenancy and RBAC: adr/0004-auth-tenancy-rbac.md
+      - 0005 Products: adr/0005-products.md
+      - 0006 APIs: adr/0006-apis.md
+      - 0007 Gateway runtime: adr/0007-gateway-runtime.md
+      - 0008 Analytics: adr/0008-analytics.md
+      - 0009 Policies: adr/0009-policies.md
+      - 0010 Packet inspector: adr/0010-packet-inspector.md
+      - 0011 Release packaging: adr/0011-release-packaging.md
+      - 0012 Documentation site: adr/0012-documentation-site.md
+  - Project:
+      - Feature parity matrix: FEATURE_MATRIX.md
+      - Project guide: PROJECT_GUIDE.md
+      - Releasing (maintainers): releasing.md
+      - Progress log: PROGRESS.md

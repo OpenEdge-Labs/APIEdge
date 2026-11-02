@@ -8,7 +8,7 @@ directory (see `.env.example`). Command-line options `--data-dir` and `--databas
 | `APIEDGE_ENV` | `production` | `development` enables the interactive API docs at `/api/docs` |
 | `APIEDGE_DATA_DIR` | OS user data dir | Holds the SQLite database and the installer venv |
 | `APIEDGE_DATABASE_URL` | SQLite in the data dir | PostgreSQL: `postgresql+psycopg://user:pass@host/db` (install `apiedge[postgres]`) |
-| `APIEDGE_HOST` | `127.0.0.1` | Set `0.0.0.0` to accept remote connections (put a TLS-terminating proxy in front until TLS ships with T-016/T-023) |
+| `APIEDGE_HOST` | `127.0.0.1` | Set `0.0.0.0` to accept remote connections (put a TLS-terminating proxy in front: APIEdge does not terminate TLS itself until T-023; see [operations](operations.md#exposing-apiedge-on-the-network-tls)) |
 | `APIEDGE_PORT` | `8080` | |
 | `APIEDGE_LOG_LEVEL` | `info` | `critical`, `error`, `warning`, `info`, `debug` |
 | `APIEDGE_LOG_FORMAT` | `json` | `json` (one masked JSON object per line) or `text`. Credentials are masked in both |
@@ -80,5 +80,5 @@ The image already sets `APIEDGE_DATA_DIR=/var/lib/apiedge`, `APIEDGE_HOST=0.0.0.
 
 Users, roles, tenants and the audit log are described in [access-control.md](access-control.md).
 
-See `docs/SECURITY.md` for what each security setting protects against and how to rotate the
+See [Security](../SECURITY.md) for what each security setting protects against and how to rotate the
 secrets key.

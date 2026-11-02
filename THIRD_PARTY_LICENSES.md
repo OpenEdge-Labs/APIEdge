@@ -171,3 +171,29 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | tinyglobby | 0.2.17 | UNKNOWN |
 | typescript | 5.9.3 | UNKNOWN |
 | vite | 6.4.5 | UNKNOWN |
+
+## Documentation site tooling
+
+Builds the documentation site in CI and release builds (`requirements/docs.lock`, a
+separate environment); never installed with APIEdge.
+
+| Package | Version | License | Source |
+|---|---|---|---|
+| click | 8.5.0 | BSD-3-Clause | https://github.com/pallets/click/ |
+| colorama | 0.4.6 | BSD License | https://github.com/tartley/colorama |
+| ghp-import | 2.1.0 | Apache Software License | https://github.com/c-w/ghp-import |
+| Jinja2 | 3.1.6 | BSD License | https://github.com/pallets/jinja/ |
+| Markdown | 3.10.3 | BSD-3-Clause | https://Python-Markdown.github.io/ |
+| MarkupSafe | 3.0.4 | BSD-3-Clause | https://github.com/pallets/markupsafe/ |
+| mergedeep | 1.3.4 | MIT License | https://github.com/clarketm/mergedeep |
+| mkdocs | 1.6.1 | BSD-2-Clause | https://github.com/mkdocs/mkdocs |
+| mkdocs-get-deps | 0.2.2 | MIT | https://github.com/mkdocs/get-deps |
+| packaging | 26.3 | Apache-2.0 OR BSD-2-Clause | https://github.com/pypa/packaging |
+| pathspec | 1.1.1 | Mozilla Public License 2.0 (MPL 2.0) | https://github.com/cpburnz/python-pathspec |
+| platformdirs | 4.12.4 | MIT | https://github.com/tox-dev/platformdirs |
+| python-dateutil | 3.0.0 | BSD License; Apache Software License | https://github.com/dateutil/dateutil |
+| PyYAML | 6.0.3 | MIT License | https://pyyaml.org/ |
+| pyyaml_env_tag | 1.1 | MIT | https://github.com/waylan/pyyaml-env-tag |
+| six | 1.17.0 | MIT License | https://github.com/benjaminp/six |
+| tzdata | 2026.6 | Apache-2.0 | https://github.com/python/tzdata |
+| watchdog | 6.0.0 | Apache Software License | https://github.com/gorakhargosh/watchdog |

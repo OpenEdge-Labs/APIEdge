@@ -22,7 +22,7 @@ restart. Retired APIs are read-only.
   (the editor marks it).
 * **Enabled**: untick to keep a policy configured but switched off.
 * Every decision is recorded in a per-request trace (policy, outcome, detail, duration) that the
-  packet inspector will show (T-012). Traces never contain credentials.
+  [packet inspector](inspector.md) shows. Traces never contain credentials.
 * If a stored policy cannot be used (for example its secret can no longer be decrypted after the
   master key was replaced), the API answers **503** instead of skipping the policy.
 

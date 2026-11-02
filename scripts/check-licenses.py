@@ -11,6 +11,8 @@ Usage:
   python scripts/check-licenses.py                 # check only
   python scripts/check-licenses.py --write         # check and write THIRD_PARTY_LICENSES.md
   python scripts/check-licenses.py --runtime-only  # restrict to requirements/runtime.lock
+  python scripts/check-licenses.py --docs-only [--write]
+      # with the docs venv's Python: check requirements/docs.lock and (re)write its own section
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ SELF = "apiedge"
 
 FORBIDDEN = re.compile(r"\b(A?GPL|SSPL|GNU General Public|Affero|Server Side Public)", re.I)
 REVIEW = re.compile(r"\b(LGPL|GNU Lesser)", re.I)
+DOCS_HEADING = "## Documentation site tooling"
 
 
 def canonical(name: str) -> str:
@@ -76,14 +79,48 @@ def source_url(dist: Distribution) -> str:
     return f"https://pypi.org/project/{_field(dist, 'Name')}/"
 
 
+def _existing_docs_section() -> list[str]:
+    """The documentation-tooling section of THIRD_PARTY_LICENSES.md, kept across rewrites."""
+    if not OUTPUT.exists():
+        return []
+    text = OUTPUT.read_text(encoding="utf-8")
+    if DOCS_HEADING not in text:
+        return []
+    return ["", *text[text.index(DOCS_HEADING) :].rstrip("\n").splitlines()]
+
+
+def _write_docs_section(rows: dict[str, tuple[str, str, str, str]]) -> None:
+    section = [
+        DOCS_HEADING,
+        "",
+        "Builds the documentation site in CI and release builds (`requirements/docs.lock`, a",
+        "separate environment); never installed with APIEdge.",
+        "",
+        "| Package | Version | License | Source |",
+        "|---|---|---|---|",
+    ]
+    for _, (display, ver, lic, url) in sorted(rows.items()):
+        section.append(f"| {display} | {ver} | {lic} | {url} |")
+    text = OUTPUT.read_text(encoding="utf-8") if OUTPUT.exists() else ""
+    if DOCS_HEADING in text:
+        text = text[: text.index(DOCS_HEADING)]
+    text = text.rstrip("\n") + "\n\n" + "\n".join(section) + "\n"
+    OUTPUT.write_text(text, encoding="utf-8", newline="\n")
+    print(f"wrote the documentation tooling section of {OUTPUT.relative_to(ROOT)}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--write", action="store_true", help="write THIRD_PARTY_LICENSES.md")
     ap.add_argument("--runtime-only", action="store_true")
+    ap.add_argument("--docs-only", action="store_true", help="requirements/docs.lock (docs venv)")
     args = ap.parse_args()
 
-    wanted = lock_names(ROOT / "requirements" / "runtime.lock")
-    if not args.runtime_only:
+    if args.docs_only:
+        wanted = lock_names(ROOT / "requirements" / "docs.lock")
+    else:
+        wanted = lock_names(ROOT / "requirements" / "runtime.lock")
+    if not args.runtime_only and not args.docs_only:
         wanted |= lock_names(ROOT / "requirements" / "dev.lock")
         wanted |= lock_names(ROOT / "requirements" / "build.lock")
 
@@ -110,7 +147,12 @@ def main() -> int:
     for e in errors:
         print(f"ERROR: {e}")
 
-    if args.write:
+    if args.write and args.docs_only:
+        if missing:
+            errors.append("install requirements/docs.lock before writing its section")
+        else:
+            _write_docs_section(rows)
+    elif args.write:
         runtime = lock_names(ROOT / "requirements" / "runtime.lock")
         lines = [
             "# Third-party licenses",
@@ -127,6 +169,7 @@ def main() -> int:
             scope = "runtime" if name in runtime else "development / install tooling"
             lines.append(f"| {display} | {ver} | {lic} | {scope} | {url} |")
         lines += npm_lines
+        lines += _existing_docs_section()
         OUTPUT.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
         print(f"wrote {OUTPUT.relative_to(ROOT)}")
 

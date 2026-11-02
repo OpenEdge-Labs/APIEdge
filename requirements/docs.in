@@ -1,0 +1,3 @@
+# Documentation site tooling (T-017, ADR 0012): CI and release builds only, never installed by
+# the one-click installer. Resolved on its own into docs.lock; install it into a separate venv.
+mkdocs==1.6.1

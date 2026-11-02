@@ -1,7 +1,8 @@
 # APIEdge Architecture
 
-> Status: T-001 to T-003 (foundation, security baseline, auth/tenancy/RBAC). Sections marked *(planned)* describe the target design from
-> `docs/PROJECT_GUIDE.md` and are filled in as tasks land.
+> Status: covers everything delivered up to T-017 (foundation, security, auth/tenancy/RBAC,
+> console, products, APIs, gateway, policies, analytics, packet inspector, packaging,
+> documentation). Planned capabilities are tracked in the [feature parity matrix](FEATURE_MATRIX.md).
 
 ## 1. Overview
 
@@ -10,15 +11,15 @@ APIEdge is a single Python application (FastAPI on Uvicorn). One process serves:
 | Surface | Path | Delivered in |
 |---|---|---|
 | Liveness / readiness probes | `GET /healthz`, `GET /readyz` | T-001 |
-| Admin API (OpenAPI 3) | `/api/v1/...`, schema at `/api/v1/openapi.json` | T-003: auth, tenants, users, roles, audit; T-005: products; T-006: APIs in products; T-013: analytics |
+| Admin API (OpenAPI 3) | `/api/v1/...`, schema at `/api/v1/openapi.json` ([reference](api/reference.md)) | T-003: auth, tenants, users, roles, audit; T-005: products; T-006: APIs in products; T-008: policies, API keys; T-012: inspector; T-013: analytics |
 | Prometheus metrics (off unless `APIEDGE_METRICS_TOKEN` is set) | `GET /metrics` | T-013 |
-| Web console (static SPA) | `/` | T-004 admin panel (sign-in, MFA, tenants, users, roles, audit, settings); T-005 products; T-006 API form editor; later tasks add screens |
+| Web console (static SPA) | `/` | T-004 admin panel (sign-in, MFA, tenants, users, roles, audit, settings); T-005 products; T-006 API form editor; T-008 policy editor and API keys; T-012 packet inspector; T-013 analytics |
 | Gateway data plane (own port, `APIEDGE_GATEWAY_PORT`, default 8081) | `/<tenant slug><base path>/...`, probes `/-/healthz`, `/-/readyz` | T-007 |
 
 ```
           browser ──► /            static console (React build, committed in src/apiedge/static)
                  └──► /api/v1/*    admin API ──► RBAC dependency ──► services ──► SQLAlchemy ──► SQLite / PostgreSQL
-API consumers ──────► :8081/<tenant>/<api base>  gateway ──► (policy pipeline, T-008) ──► guarded httpx ──► upstreams
+API consumers ──────► :8081/<tenant>/<api base>  gateway ──► policy pipeline ──► guarded httpx ──► upstreams
 ```
 
 ## 2. Package layout
@@ -46,7 +47,7 @@ API consumers ──────► :8081/<tenant>/<api base>  gateway ──►
   `init` and `create-admin`). Migrations use `render_as_batch` so they also work on SQLite.
 * Default database: SQLite file `apiedge.db` in the data directory (WAL mode, foreign keys on).
   PostgreSQL: set `APIEDGE_DATABASE_URL=postgresql+psycopg://...` and install the `postgres` extra.
-* Schema (migrations 0001-0003): `tenants`; `users` (one tenant each, or platform SuperAdmin with
+* Schema (migrations 0001-0007): `tenants`; `users` (one tenant each, or platform SuperAdmin with
   `tenant_id` NULL; lockout, MFA and `token_version` columns); `permissions` (catalog);
   `roles` (built-in global or per tenant) and `role_permissions`; `role_assignments` (tenant or
   product scope, `product_id` references `products`); `refresh_tokens` (SHA-256 only); `audit_log`;
@@ -54,7 +55,9 @@ API consumers ──────► :8081/<tenant>/<api base>  gateway ──►
   [ADR 0005](adr/0005-products.md)); `apis` (base path unique per tenant, version, timeout,
   lifecycle), `api_upstreams` and `api_routes` (T-006, [ADR 0006](adr/0006-apis.md));
   `analytics_buckets` (insert-only per-minute aggregates with latency histogram columns, T-013,
-  [ADR 0008](adr/0008-analytics.md)).
+  [ADR 0008](adr/0008-analytics.md)); per-API policy chains and product API keys (SHA-256 only)
+  (migration 0006, T-008, [ADR 0009](adr/0009-policies.md)); capture sessions and encrypted
+  captured exchanges (migration 0007, T-012, [ADR 0010](adr/0010-packet-inspector.md)).
 * Tenancy ([ADR 0004](adr/0004-auth-tenancy-rbac.md)): every tenant-owned row carries `tenant_id`.
   The RBAC dependency binds the request's session to the tenant in the path, and
   `apiedge.db.tenancy` then filters every ORM query and refuses cross-tenant writes.
@@ -147,3 +150,38 @@ gateway proxy -> _Meter (status, latency to last byte, bytes, route, method) -> 
 console Analytics page -> GET /tenants/{id}/analytics/summary | export.csv (analytics:view,
   tenant-bound session, product scope) -> SQL SUM per group -> percentiles from merged histograms
 ```
+
+## Policies (T-008)
+
+See [ADR 0009](adr/0009-policies.md) and the [policies guide](user-guide/policies.md).
+
+```
+admin PUT .../apis/{id}/policies -> strict Pydantic models -> secrets AES-256-GCM -> policy chain row
+gateway reload -> build pipeline per API (validated again; unusable entries fail closed: 503)
+request -> policies top to bottom (reject / answer / modify; trace each decision)
+        -> upstream -> response back through the policies that ran, bottom to top
+```
+
+Rate-limit counters live in Redis when `APIEDGE_REDIS_URL` is set (in-process fallback), the
+response cache in bounded process memory.
+
+## Packet inspector (T-012)
+
+See [ADR 0010](adr/0010-packet-inspector.md) and the [Packet Inspector Guide](user-guide/inspector.md).
+
+```
+console starts a capture session (inspector:capture) -> row in the database
+gateway inspector tick -> picks up active sessions -> trace listener + body tap per matching request
+  -> bounded in-memory queue -> writer (worker thread) -> exchanges encrypted per tenant and capture
+  -> ring buffer and retention purge
+console list / detail / SSE live view / HAR / replay (inspector:view, :unmask, :capture)
+  -> decrypt -> mask (default) -> respond; unmasked views, exports and replays are audited
+```
+
+## Documentation (T-017)
+
+See [ADR 0012](adr/0012-documentation-site.md). The Markdown in `docs/` is built with MkDocs
+(`mkdocs.yml`, tooling pinned in `requirements/docs.lock`) into a static site that works offline
+and ships in each release as `apiedge-<version>-docs.zip`. `scripts/export-openapi.py` writes the
+Admin API reference (`docs/api/openapi.json`, `docs/api/reference.md`) from the application;
+every operation carries its RBAC requirement as `x-apiedge-access`.

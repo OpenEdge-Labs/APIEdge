@@ -19,9 +19,10 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Path, Request, status
+from fastapi.routing import APIRoute
 from sqlalchemy.orm import Session
 
 from apiedge.config import Settings
@@ -34,6 +35,10 @@ from apiedge.security.rbac import PERMISSIONS, Principal
 SESSION_COOKIE, REFRESH_COOKIE = AUTH_COOKIE_NAMES
 
 log = logging.getLogger("apiedge.security")
+
+# What each access dependency demands, published per operation as ``x-apiedge-access`` in the
+# OpenAPI document (see :func:`annotate_access`). Filled when the dependencies are created.
+ACCESS: dict[Callable[..., object], dict[str, str]] = {}
 
 
 def get_db(request: Request) -> Iterator[Session]:
@@ -158,6 +163,7 @@ def require_platform(permission: str) -> Callable[..., Caller]:
             raise _deny(caller, permission, None)
         return caller
 
+    ACCESS[dep] = {"scope": "platform", "permission": permission}
     return dep
 
 
@@ -191,6 +197,7 @@ def require(permission: str, *, product_scoped: bool = False) -> Callable[..., T
             tenant=tenant,
         )
 
+    ACCESS[dep] = {"scope": "product" if product_scoped else "tenant", "permission": permission}
     return dep
 
 
@@ -202,3 +209,32 @@ def require_any(permission: str) -> Callable[..., TenantCaller]:
 def deny(caller: Caller, permission: str, tenant_id: int | None) -> HTTPException:
     """403 for a missing permission (logged without user-influenced values beyond the name)."""
     return _deny(caller, permission, tenant_id)
+
+
+ACCESS[authenticated] = {"scope": "signed-in"}
+ACCESS[active_caller] = {"scope": "signed-in"}
+_PRECEDENCE = {"platform": 0, "tenant": 0, "product": 0, "signed-in": 1}
+
+
+def _access_of(dependant: Any) -> dict[str, str] | None:
+    """The strictest access requirement among a route's (nested) dependencies."""
+    found: dict[str, str] | None = ACCESS.get(dependant.call) if dependant.call else None
+    for sub in dependant.dependencies:
+        candidate = _access_of(sub)
+        if candidate and (
+            found is None or _PRECEDENCE[candidate["scope"]] < _PRECEDENCE[found["scope"]]
+        ):
+            found = candidate
+    return found
+
+
+def annotate_access(routes: list[Any]) -> None:
+    """Record each operation's access requirement as ``x-apiedge-access`` in OpenAPI.
+
+    ``scope`` is ``public``, ``signed-in``, ``platform`` (SuperAdmins), ``tenant`` (the
+    permission tenant-wide) or ``product`` (tenant-wide or for the product concerned).
+    """
+    for route in routes:
+        if isinstance(route, APIRoute):
+            access = _access_of(route.dependant) or {"scope": "public"}
+            route.openapi_extra = {**(route.openapi_extra or {}), "x-apiedge-access": access}

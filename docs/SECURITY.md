@@ -138,7 +138,7 @@ text and never contains the password.
 
 ## 6. Security configuration
 
-See `docs/admin-guide/configuration.md` and `.env.example`. Security-relevant settings:
+See the [configuration guide](admin-guide/configuration.md) and `.env.example`. Security-relevant settings:
 `APIEDGE_ENV`, `APIEDGE_CORS_ALLOW_ORIGINS`, `APIEDGE_MAX_REQUEST_BODY_BYTES`,
 `APIEDGE_HSTS_MAX_AGE`, `APIEDGE_LOG_FORMAT`, `APIEDGE_SECRET_KEY`, `APIEDGE_SECRET_KEY_PREVIOUS`,
 `APIEDGE_SECRET_KEY_FILE`, `APIEDGE_SSRF_ALLOW_PRIVATE`, `APIEDGE_SSRF_ALLOW_CIDRS`,
@@ -148,5 +148,7 @@ See `docs/admin-guide/configuration.md` and `.env.example`. Security-relevant se
 
 **Back up the secrets key** (`<data dir>/secret.key` or `APIEDGE_SECRET_KEY`). Without it,
 encrypted secrets cannot be recovered. To rotate: set the new key as `APIEDGE_SECRET_KEY`, list the
-old one in `APIEDGE_SECRET_KEY_PREVIOUS`, and re-encrypt stored secrets (a re-encryption command
-arrives with the first feature that stores secrets).
+old one in `APIEDGE_SECRET_KEY_PREVIOUS`. New data is encrypted with the new key and old data stays
+readable. There is no re-encryption command yet (proposal VP-008), so the old key must stay in
+`APIEDGE_SECRET_KEY_PREVIOUS` while data encrypted with it exists (MFA secrets, policy secrets,
+captured traffic). See [operations](admin-guide/operations.md#the-secrets-key).

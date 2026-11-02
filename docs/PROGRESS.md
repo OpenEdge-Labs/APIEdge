@@ -561,3 +561,43 @@ Redis 8; PostgreSQL driver only in the compose-built image (VP-002 open); single
 **Follow-ups.** Customer: a release signing key and enabling publishing (T-031); decision on
 VP-002. Later: push the image to a registry and sign it (T-031), multi-replica chart (T-026),
 image vulnerability scanning (T-018).
+
+## 2026-11-02 - T-017 Complete documentation set
+
+**Summary.** The documentation set is complete and built as an offline MkDocs site. New pages:
+documentation home, Upgrade notes, Administrator Guide overview and Operations (service, TLS
+behind a reverse proxy, backup and restore, secrets key, logs, monitoring, disk and memory
+budget, scaling), User Guide overview with a first-API tutorial, a Low-code status page (T-009,
+T-010, T-011 and T-022 marked upcoming, nothing invented), Admin API guide, Troubleshooting, ADR
+index and ADR 0012. Existing pages were checked against `config.py`, `.env.example`, the CLI, the
+installer and the routes, and updated (Architecture now covers policies, inspector and docs;
+Security's key-rotation note is corrected: there is no re-encryption command yet, proposed as
+VP-008; Installation sections renumbered and the docs bundle described; README status and
+features). The Admin API reference (`docs/api/openapi.json`, `docs/api/reference.md`) is
+generated from the app by `scripts/export-openapi.py`; each operation now carries its RBAC
+requirement as `x-apiedge-access` (from the route's dependency, `admin.deps.annotate_access`).
+
+**Tooling.** `requirements/docs.in` -> `docs.lock` (mkdocs 1.6.1 and 17 dependencies, all
+BSD/MIT/Apache/MPL-2.0, pip-audit clean), installed into a separate venv; `update-locks.py`
+generates it, `check-licenses.py --docs-only` gates and documents it. CI job `docs`: reference
+`--check`, pip-audit, license gate, `mkdocs build --strict` (links, anchors, nav), site uploaded as
+an artifact. The release build adds `apiedge-<version>-docs.zip` (`build-release.py --docs-site`).
+
+**Files.** `mkdocs.yml`, `docs/index.md`, `docs/upgrading.md`, `docs/troubleshooting.md`,
+`docs/admin-guide/{index,operations}.md`, `docs/user-guide/{index,low-code}.md`,
+`docs/api/{index.md,reference.md,openapi.json}`, `docs/adr/{index,0012-documentation-site}.md`,
+`docs/{ARCHITECTURE,SECURITY,installation,releasing}.md`, `docs/admin-guide/configuration.md`,
+`docs/user-guide/policies.md`, `scripts/export-openapi.py`, `scripts/update-locks.py`,
+`scripts/check-licenses.py`, `scripts/build-release.py`, `src/apiedge/admin/{__init__,deps}.py`,
+`src/apiedge/app.py`, `tests/unit/test_docs.py`, `tests/unit/test_build_release.py`,
+`requirements/docs.{in,lock}`, `.github/workflows/{ci,release}.yml`, `.gitignore`, `README.md`,
+`CHANGELOG.md`, `NOTICE`, `THIRD_PARTY_LICENSES.md`, `APIProjectTask.md`.
+
+**Tests.** 8 new tests (settings documented both ways, relative links, nav coverage, reference up
+to date, every operation declares its access and tenant routes a permission, reference escaping,
+docs zip). Full suite 477 passed; ruff, ruff format, mypy --strict, bandit clean; `mkdocs build
+--strict` clean locally (and verified to fail on a broken link and a missing anchor).
+
+**Follow-ups.** VP-008 (secrets re-encryption command). Site search needs a web server when the
+bundled site is opened from `file://`. MkDocs has had no release since 2024 (build-time only;
+see ADR 0012).

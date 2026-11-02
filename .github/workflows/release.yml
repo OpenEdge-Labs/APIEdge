@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Release build: wheel (console included), one-click installer bundles per OS, CycloneDX SBOM,
-# Helm chart, SHA256SUMS (+ a GPG signature when a key is configured), a multi-arch image and
+# Helm chart, documentation site zip, SHA256SUMS (+ a GPG signature when a key is configured), a multi-arch image and
 # smoke tests of every artifact on Windows, Linux and macOS.
 #
 # Publishing is OFF by default: the `publish` job only runs for a v* tag when the repository
@@ -20,6 +20,7 @@ on:
       - ".dockerignore"
       - "docker-compose.yml"
       - "install.*"
+      - "mkdocs.yml"
       - "packaging/**"
       - "pyproject.toml"
       - "requirements/**"
@@ -31,6 +32,7 @@ on:
       - ".dockerignore"
       - "docker-compose.yml"
       - "install.*"
+      - "mkdocs.yml"
       - "packaging/**"
       - "pyproject.toml"
       - "requirements/**"
@@ -81,8 +83,13 @@ jobs:
           VERSION=$(.venv/bin/python -c "import importlib.util as u, sys; s = u.spec_from_file_location('br', 'scripts/build-release.py'); m = u.module_from_spec(s); s.loader.exec_module(m); print(m.project_version())")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
-      - name: Build wheel, installer bundles, SBOM, Helm chart and checksums
-        run: .venv/bin/python scripts/build-release.py build --out dist/release --helm
+      - name: Documentation site (hash-locked tooling in its own venv, strict build)
+        run: |
+          python -m venv .docs-venv
+          .docs-venv/bin/pip install --disable-pip-version-check --require-hashes -r requirements/docs.lock
+          .docs-venv/bin/mkdocs build --strict --site-dir build/site
+      - name: Build wheel, installer bundles, SBOM, Helm chart, docs zip and checksums
+        run: .venv/bin/python scripts/build-release.py build --out dist/release --helm --docs-site build/site
       - name: Sign SHA256SUMS (skipped when no signing key is configured)
         env:
           GPG_KEY: ${{ secrets.APIEDGE_RELEASE_GPG_KEY }}

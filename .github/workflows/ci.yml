@@ -98,6 +98,35 @@ jobs:
           ./install.sh --unattended --smoke-test --no-shortcut --no-service
           ./install.sh --uninstall --purge-data --yes
 
+  docs:
+    name: Documentation (API reference current, strict site build, licenses)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Developer install (hash-locked)
+        run: python scripts/install.py --local --dev --yes --no-start --no-shortcut
+      - name: Admin API reference (docs/api) matches the application
+        run: .venv/bin/python scripts/export-openapi.py --check
+      - name: Documentation tooling (hash-locked, separate venv)
+        run: |
+          python -m venv .docs-venv
+          .docs-venv/bin/pip install --disable-pip-version-check --require-hashes -r requirements/docs.lock
+      - name: pip-audit docs lock (strict)
+        run: .venv/bin/pip-audit --strict --disable-pip --require-hashes -r requirements/docs.lock
+      - name: License gate for the docs tooling
+        run: .docs-venv/bin/python scripts/check-licenses.py --docs-only
+      - name: Build the site (broken links, anchors or pages outside the nav fail the build)
+        run: .docs-venv/bin/mkdocs build --strict --site-dir build/site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apiedge-docs-site
+          path: build/site/
+          if-no-files-found: error
+          retention-days: 14
+
   console:
     name: Console build is committed and current
     runs-on: ubuntu-latest

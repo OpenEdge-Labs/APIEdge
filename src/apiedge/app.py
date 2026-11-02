@@ -28,6 +28,7 @@ from sqlalchemy import text
 
 from apiedge import __version__
 from apiedge.admin import build_router
+from apiedge.admin.deps import annotate_access
 from apiedge.analytics.metrics import MetricsCollector
 from apiedge.config import Settings, get_settings
 from apiedge.db.base import make_engine, make_session_factory
@@ -129,6 +130,9 @@ def create_app(
             media_type="text/plain; version=0.0.4; charset=utf-8",
             headers={"cache-control": "no-store"},
         )
+
+    # Probes are public; admin routes are annotated in ``build_router``.
+    annotate_access(app.routes)
 
     if (STATIC_DIR / "index.html").is_file():
         app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="console")

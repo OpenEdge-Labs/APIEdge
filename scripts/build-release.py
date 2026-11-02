@@ -7,7 +7,7 @@ Uses only the Python standard library plus pip/setuptools from requirements/buil
 Run it with the Python of an environment that has build.lock installed (for example the
 ``.venv`` created by ``python scripts/install.py --local``):
 
-  python scripts/build-release.py build --out dist/release [--tag v0.1.0] [--helm]
+  python scripts/build-release.py build --out dist/release [--tag v0.1.0] [--helm] [--docs-site DIR]
   python scripts/build-release.py verify dist/release
   python scripts/build-release.py smoke <apiedge executable> --data-dir DIR [--port 18080]
 
@@ -17,6 +17,8 @@ Run it with the Python of an environment that has build.lock installed (for exam
 * ``apiedge-<version>-installer-<os>.zip``    one-click installer bundle for windows, macos, linux
 * ``apiedge-<version>.cdx.json``              CycloneDX 1.5 SBOM (Python runtime + console npm)
 * ``apiedge-<chart version>.tgz``             Helm chart (with ``--helm``; needs the helm CLI)
+* ``apiedge-<version>-docs.zip``              documentation site (with ``--docs-site``, the output
+                                             of ``mkdocs build --strict``)
 * ``SHA256SUMS``                              sha256 of every file above (``sha256sum -c`` format)
 
 Third-party packages are never bundled: the installer bundles download them from PyPI with
@@ -166,6 +168,15 @@ def write_bundle(root: Path, members: list[str], dest: Path, prefix: str) -> Non
             info.create_system = 3  # Unix, so unzip / Archive Utility honour the mode bits
             info.compress_type = zipfile.ZIP_DEFLATED
             zf.writestr(info, (root / rel).read_bytes())
+
+
+def write_docs_zip(site: Path, dest: Path, prefix: str) -> int:
+    """Zip a built documentation site under ``prefix/``; returns the number of files."""
+    if not (site / "index.html").is_file():
+        raise ReleaseError(f"{site} is not a built documentation site (no index.html)")
+    members = sorted(p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file())
+    write_bundle(site, members, dest, prefix)
+    return len(members)
 
 
 # ---------------------------------------------------------------- wheel
@@ -499,6 +510,11 @@ def cmd_build(args: argparse.Namespace) -> int:
         )
         print(f"  chart   {NAME}-{cv}.tgz")
 
+    if args.docs_site:
+        dest = out / f"{NAME}-{version}-docs.zip"
+        count = write_docs_zip(args.docs_site.resolve(), dest, f"{NAME}-{version}-docs")
+        print(f"  docs    {dest.name} ({count} files)")
+
     sums = write_checksums(out)
     print(f"  sums    {sums.name}")
     return 0
@@ -539,6 +555,9 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--out", type=Path, default=ROOT / "dist" / "release")
     b.add_argument("--tag", help="release tag to check against the version (default: GITHUB_REF)")
     b.add_argument("--helm", action="store_true", help="also lint and package the Helm chart")
+    b.add_argument(
+        "--docs-site", type=Path, help="also zip this built documentation site (mkdocs output)"
+    )
     b.set_defaults(func=cmd_build)
     v = sub.add_parser("verify", help="check SHA256SUMS and the wheel in a release directory")
     v.add_argument("directory", type=Path)
