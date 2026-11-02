@@ -74,6 +74,11 @@ class Settings(BaseSettings):
     # Always mark auth cookies Secure (set this behind a TLS-terminating proxy); they are
     # Secure automatically when the request itself is HTTPS.
     cookie_secure: bool = False
+    # Reverse proxies in front of the console / admin API (IPs or CIDRs). Only requests whose
+    # direct peer is listed may set the client address and scheme with X-Forwarded-For / -Proto
+    # (login throttling, audit addresses, cookie and CSRF scheme checks). Empty: forwarded headers
+    # are ignored. The default keeps a reverse proxy on the same host working (T-018).
+    trusted_proxies: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["127.0.0.1"])
 
     # --- Gateway runtime (T-007, ADR 0007).
     gateway_enabled: bool = True
@@ -134,6 +139,7 @@ class Settings(BaseSettings):
         "secret_key_previous",
         "ssrf_allow_cidrs",
         "ssrf_deny_cidrs",
+        "trusted_proxies",
         "gateway_trusted_proxies",
         "inspector_mask_fields",
         mode="before",
@@ -162,7 +168,9 @@ class Settings(BaseSettings):
             out.append(origin.rstrip("/"))
         return out
 
-    @field_validator("ssrf_allow_cidrs", "ssrf_deny_cidrs", "gateway_trusted_proxies")
+    @field_validator(
+        "ssrf_allow_cidrs", "ssrf_deny_cidrs", "trusted_proxies", "gateway_trusted_proxies"
+    )
     @classmethod
     def _check_cidrs(cls, v: list[str]) -> list[str]:
         for cidr in v:

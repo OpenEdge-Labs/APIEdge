@@ -59,6 +59,17 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def proxy_options(trusted: list[str]) -> dict[str, Any]:
+    """Uvicorn forwarded-header handling: only the listed proxies are trusted (T-018).
+
+    Uvicorn trusts 127.0.0.1 unless told otherwise, which let any local process choose its
+    client address with X-Forwarded-For (login throttling, gateway IP filter and rate limits).
+    """
+    if not trusted:
+        return {"proxy_headers": False}
+    return {"proxy_headers": True, "forwarded_allow_ips": ",".join(trusted)}
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -89,6 +100,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             log_level=settings.log_level,
             log_config=log_config,
             server_header=False,  # no product/version disclosure
+            **proxy_options(settings.trusted_proxies),
         )
         return EXIT_OK
 
@@ -107,12 +119,19 @@ def cmd_run(args: argparse.Namespace) -> int:
     }
     _serve_all(
         [
-            uvicorn.Config(create_app(settings, bus, metrics), host=host, port=port, **common),
+            uvicorn.Config(
+                create_app(settings, bus, metrics),
+                host=host,
+                port=port,
+                **common,
+                **proxy_options(settings.trusted_proxies),
+            ),
             uvicorn.Config(
                 create_gateway_app(settings, bus, metrics=metrics),
                 host=settings.gateway_host,
                 port=settings.gateway_port,
                 **common,
+                **proxy_options(settings.gateway_trusted_proxies),
             ),
         ]
     )

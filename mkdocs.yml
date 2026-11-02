@@ -62,7 +62,9 @@ nav:
       - Guide: api/index.md
       - Reference: api/reference.md
   - Troubleshooting: troubleshooting.md
-  - Security: SECURITY.md
+  - Security:
+      - Overview: SECURITY.md
+      - Verification report: security-verification.md
   - Architecture:
       - Overview: ARCHITECTURE.md
       - Decision records: adr/index.md

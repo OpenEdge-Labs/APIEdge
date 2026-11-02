@@ -181,7 +181,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   > Vendor decision: low-code is documented as available only as far as it exists (transform and mock policies, the admin API); the script policy, flow builder and OpenAPI import are marked upcoming. The missing secrets re-encryption command is documented honestly and proposed as VP-008.
   > Delivered: an offline MkDocs documentation site (`mkdocs build --strict`; shipped in release builds as `apiedge-<version>-docs.zip`). It includes Installation Guide, Upgrade notes, Administrator Guide (configuration, access control, operations), User Guide (first-API tutorial, low-code status), Packet Inspector and Analytics Guides, Admin API guide and a reference generated from the app (`scripts/export-openapi.py`, `docs/api/`), Troubleshooting, Security, Architecture and ADRs. The CI `docs` job and the tests catch drift in settings, links, navigation and the API reference. Try it: build with `requirements/docs.lock` (see docs/releasing.md) and open `build/site/index.html`. Green: CI run 41472434372, CodeQL run 41472434325, Release run 41472434391.
 
-- [ ] **T-018** (P1) Security verification before release
+- [~] **T-018** (P1) Security verification before release
   - Run an OWASP ZAP baseline scan against the console and the gateway in CI.
   - Review the ASVS L2 checklist.
   - Fix every high and critical finding, and record the results in `docs/SECURITY.md`.
@@ -284,3 +284,4 @@ The development team writes suggested improvements here. Move one into a phase a
 - **VP-006** (P2, proposed 2026-11-02, from T-020) HTTP/2 between clients and the gateway (the current ASGI server speaks HTTP/1.1). Native gRPC in T-024 needs it.
 - **VP-007** (P3, proposed 2026-11-02, from T-020) Kubernetes ingress controller / Gateway API support and a Terraform provider for the admin API, beyond the Helm chart of T-016.
 - **VP-008** (P1, proposed 2026-11-02, from T-017) A secrets-key re-encryption command (`apiedge rotate-secrets`): re-encrypt MFA secrets, policy secrets and stored captures with the current master key, so an old key can be removed from `APIEDGE_SECRET_KEY_PREVIOUS` after a rotation. Today the old key must be kept as long as data encrypted with it exists.
+- **VP-009** (P2, proposed 2026-11-02, from T-018) An MFA enforcement policy: require TOTP enrolment for SuperAdmins (platform setting) and optionally for all users of a tenant (tenant setting), with a grace period at first sign-in. Today MFA is optional for every account (finding F-03 in `docs/security-verification.md`). Changes the sign-in flow, so it needs a customer decision.

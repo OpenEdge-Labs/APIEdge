@@ -32,6 +32,8 @@ jobs:
       - run: .venv/bin/bandit -c pyproject.toml -r src scripts
       - name: CodeQL accepted findings (inline marker and docs/SECURITY.md row both required)
         run: python scripts/codeql-gate.py
+      - name: Scanner acceptances (ZAP / Grype rows in docs/SECURITY.md complete and not expired)
+        run: python scripts/scan-gate.py check
       - name: pip-audit runtime lock (strict, no exceptions)
         run: .venv/bin/pip-audit --strict --disable-pip --require-hashes -r requirements/runtime.lock
       - name: pip-audit dev lock (documented dev-only exceptions)
@@ -148,3 +150,97 @@ jobs:
         run: npm run build
       - name: Prebuilt console in src/apiedge/static matches the source
         run: git diff --exit-code -- src/apiedge/static
+
+  dast:
+    name: DAST (smoke pass and ZAP baseline against a running instance)
+    runs-on: ubuntu-latest
+    env:
+      APIEDGE_DATA_DIR: ${{ github.workspace }}/.dast-data
+      APIEDGE_GATEWAY_MAX_REQUEST_BODY_BYTES: "65536"
+      APIEDGE_TRUSTED_PROXIES: ""  # the scanner is not a proxy: spoofed X-Forwarded-For is ignored
+      # pinned by digest; reviewed with every bump
+      ZAP_IMAGE: ghcr.io/zaproxy/zaproxy:2.17.0@sha256:030d3df57735dacbb83464854758e674dd9ad01d79d12a129a8e58b1fd384238
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Developer install (hash-locked)
+        run: python scripts/install.py --local --dev --yes --no-start --no-shortcut
+      - name: Start APIEdge (production mode, console 8080, gateway 8081)
+        run: |
+          mkdir -p "$APIEDGE_DATA_DIR" zap
+          python -c "import secrets; print('Dast-' + secrets.token_urlsafe(24))" > "$RUNNER_TEMP/pw.txt"
+          .venv/bin/apiedge init
+          .venv/bin/apiedge create-admin --password-stdin < "$RUNNER_TEMP/pw.txt"
+          nohup .venv/bin/apiedge run > "$RUNNER_TEMP/apiedge.log" 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:8080/healthz && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8080/healthz
+      - name: DAST smoke pass (headers, CSP, CORS, cookies, CSRF, limits, errors, SSRF)
+        run: |
+          .venv/bin/python scripts/dast-smoke.py --console http://127.0.0.1:8080 \
+            --gateway http://127.0.0.1:8081 --password-file "$RUNNER_TEMP/pw.txt" \
+            --gateway-max-body 65536
+      - name: ZAP baseline (console and gateway)
+        run: |
+          chmod 777 zap
+          for target in console:8080 gateway:8081; do
+            name=${target%%:*}; port=${target##*:}
+            set +e
+            docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" "$ZAP_IMAGE" \
+              zap-baseline.py -t "http://127.0.0.1:$port/" -J "zap-$name.json" -r "zap-$name.html" -I
+            rc=$?
+            set -e
+            # 0 clean, 1/2 alerts (judged by the gate below), anything else is a scan error
+            if [ "$rc" -gt 2 ]; then echo "ZAP scan of $name failed to run ($rc)"; exit 1; fi
+          done
+      - name: ZAP gate (Medium and High alerts fail unless accepted in docs/SECURITY.md)
+        run: |
+          python scripts/scan-gate.py zap --target console --report zap/zap-console.json
+          python scripts/scan-gate.py zap --target gateway --report zap/zap-gateway.json
+      - name: Server log on failure
+        if: failure()
+        run: tail -n 200 "$RUNNER_TEMP/apiedge.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-reports
+          path: zap/
+          if-no-files-found: warn
+          retention-days: 14
+
+  image-scan:
+    name: Container image scan (${{ matrix.variant }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: default
+            postgres: "0"
+          - variant: postgres
+            postgres: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image
+        run: |
+          docker build -f packaging/docker/Dockerfile \
+            --build-arg APIEDGE_WITH_POSTGRES=${{ matrix.postgres }} -t apiedge:scan .
+      - name: Grype scan (gate below decides)
+        id: grype
+        # anchore/scan-action v7.4.2, pinned by commit
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439
+        with:
+          image: apiedge:scan
+          fail-build: false
+          output-format: json
+          severity-cutoff: high
+      - name: Grype gate (High and Critical fail unless accepted in docs/SECURITY.md)
+        run: python scripts/scan-gate.py grype --report "${{ steps.grype.outputs.json }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: grype-${{ matrix.variant }}
+          path: ${{ steps.grype.outputs.json }}
+          if-no-files-found: warn
+          retention-days: 14

@@ -607,3 +607,28 @@ building the wheel, which also removed the site built into `build/site`. The wor
 site into `RUNNER_TEMP`, and `--docs-site` inside `./build` is refused up front (new test).
 CI 41472434372 passed; the macOS installer job was re-run once because no hosted runner picked it
 up. CodeQL 41472434325 and Release 41472434391, with the docs zip, also passed.
+
+## 2026-11-02 - T-018 Security verification before release
+
+**Summary.** Verified the OWASP Top 10 (2021), API Security Top 10 (2023) and ASVS 4.0 L2 items
+against code and tests and recorded the result in `docs/security-verification.md` (findings,
+severities, resolutions, per-standard verdicts). No high or critical finding. Fixed F-01 (Low):
+forwarded headers were trusted from 127.0.0.1 by default, so a local process could bypass the
+per-IP sign-in throttle (reproduced live) and the gateway's IP filter and per-address rate limits;
+each listener now trusts only its configured proxies (new `APIEDGE_TRUSTED_PROXIES`). Added an
+access-control matrix test over all 61 admin operations, a standard-library DAST smoke pass, an
+OWASP ZAP baseline scan (console and gateway) and a Grype scan of both container image variants in
+CI, gated by `scripts/scan-gate.py` with a reviewed, expiring allowlist in `docs/SECURITY.md`.
+Open items: F-02 native TLS (T-023), F-03 MFA enforcement (VP-009), F-05 psycopg LGPL-3.0 in the
+PostgreSQL image (VP-002), F-06 re-encryption (VP-008), F-07 dev-only advisories (VP-001), F-08
+signing key and log shipping (T-031, T-028). Semgrep not added (its CLI is LGPL-2.1).
+
+**Files.** `scripts/{dast-smoke,scan-gate}.py`, `src/apiedge/{cli,config}.py`,
+`tests/integration/test_route_access_matrix.py`, `tests/unit/{test_proxy_trust,test_scan_gate}.py`,
+`.github/workflows/ci.yml`, `docs/{security-verification,SECURITY,upgrading}.md`,
+`docs/admin-guide/configuration.md`, `mkdocs.yml`, `.env.example`, `CHANGELOG.md`,
+`APIProjectTask.md`.
+
+**Tests.** 15 new tests (4 access matrix, 4 proxy trust, 7 scan gate / DAST helpers). Locally:
+DAST smoke pass 64/64 against a production-mode instance; bandit, ruff, mypy --strict, pip-audit
+(runtime strict, dev with documented exceptions, docs), npm audit clean.

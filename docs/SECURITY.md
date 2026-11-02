@@ -7,6 +7,9 @@ place, more to come in the named task) or **Planned**.
 
 Report vulnerabilities privately to the OpenEdge Labs maintainers; do not open public issues.
 
+The pre-release verification (T-018), with findings, severities and resolutions, is in the
+[security verification report](security-verification.md).
+
 ## 1. Controls in place
 
 | Control | Code | Tests |
@@ -46,6 +49,9 @@ Report vulnerabilities privately to the OpenEdge Labs maintainers; do not open p
 | Audit log of sign-ins (success/failure), lockouts, refresh-token reuse and every privileged change; masked details; tenant-scoped reading | `src/apiedge/security/audit.py`, `admin/tenants.py` | `test_rbac_api.py::test_audit_log_is_tenant_scoped`, `::test_tenant_admin_user_and_role_lifecycle` |
 | Console (T-004): strict CSP without `unsafe-inline` (bundle has no inline scripts or styles), double-submit CSRF header on every unsafe request, session only in HttpOnly cookies (no token in JS storage), React output encoding, permission-aware navigation as UX only (the server enforces); system settings view never returns secrets | `console/src/api.ts`, `console/src/access.ts`, `src/apiedge/admin/system.py` | `tests/integration/test_console.py`, `console/test/*.test.ts` |
 | No server/version disclosure (`server_header=False`, minimal `/healthz`) | `cli.py`, `app.py` | `tests/integration/test_app.py` |
+| Access-control matrix (T-018): every admin operation's declared access is compared with a reviewed table (unclassified routes fail); 401 without credentials, 403 without the permission, 404 across tenants, 403 for tenant admins on platform routes, and product-scoped grants refused on other products (real ids, valid bodies) | `src/apiedge/admin/deps.py` (`annotate_access`) | `tests/integration/test_route_access_matrix.py` |
+| Forwarded headers (T-018, F-01): `X-Forwarded-For` / `-Proto` honoured only from configured proxies, per listener (`APIEDGE_TRUSTED_PROXIES` for the console, default `127.0.0.1`; `APIEDGE_GATEWAY_TRUSTED_PROXIES` for the gateway, default none) | `src/apiedge/cli.py` (`proxy_options`), `config.py` | `tests/unit/test_proxy_trust.py`, DAST throttle check |
+| DAST (T-018): smoke pass over headers, CSP, CORS, cookie flags, CSRF, body limits, error documents, SSRF guard and login throttling against a running instance; OWASP ZAP baseline on console and gateway; Grype scan of both container image variants | `scripts/dast-smoke.py`, `scripts/scan-gate.py` | CI `dast` and `image-scan` jobs, `tests/unit/test_scan_gate.py` |
 | Hash-locked dependencies, license gate | `requirements/*.lock`, `scripts/check-licenses.py` | CI `quality` job |
 | Release integrity (T-016): wheel content check (console and migrations present, no third-party code), installer bundles built only from git-tracked files, CycloneDX SBOM, SHA256SUMS verified on every OS before use, optional GPG signature; publishing is opt-in and draft-only | `scripts/build-release.py`, `.github/workflows/release.yml` | `tests/unit/test_build_release.py`, `release.yml` jobs |
 | Container hardening (T-016): base images pinned by digest, dependencies installed with `--require-hashes`, allow-list `.dockerignore`, non-root user 10001, read-only root filesystem and dropped capabilities in compose and Helm, ports published on localhost only, no default passwords (compose refuses to start without `POSTGRES_PASSWORD`), first admin password from a secret file or generated once | `packaging/docker/`, `docker-compose.yml`, `packaging/helm/apiedge/` | `test_build_release.py::test_dockerfile_*`, `::test_compose_*`, `release.yml` (`docker`, `helm`) |
@@ -71,14 +77,14 @@ Report vulnerabilities privately to the OpenEdge Labs maintainers; do not open p
 |---|---|---|---|
 | API1 | Broken Object Level Authorization | Tenant filter in the data-access layer plus explicit ownership checks; BOLA tests (T-003); product-level checks and product BOLA tests (T-005); API BOLA tests (T-006); analytics product scoping and tenant isolation tests (T-013); inspector session/exchange BOLA and tenant tests (T-012) | Done (admin API) |
 | API2 | Broken Authentication | Argon2id, throttling, lockout, MFA, short-lived JWT + rotating refresh cookie (T-003); gateway API keys (hashed, revocable) and JWT validation with algorithm allow-list (T-008) | Done |
-| API3 | Broken Object Property Level Authorization | Explicit Pydantic response models (no ORM passthrough), 422 without echoed input (T-002) | Partial |
+| API3 | Broken Object Property Level Authorization | Explicit Pydantic response models (no ORM passthrough), unknown request fields rejected, 422 without echoed input (T-002); secrets write-only (T-008); verified in T-018 | Done |
 | API4 | Unrestricted Resource Consumption | Admin API body-size limit (T-002); gateway body limit, upstream timeouts and bounded retries (T-007); rate limits and quotas, bounded counters, caches and JWKS documents (T-008); bounded packet capture (T-012) | Done (baseline) |
 | API5 | Broken Function Level Authorization | `resource:action` permission on every admin route, 403 tests (T-003) | Done |
 | API6 | Unrestricted Access to Sensitive Business Flows | Rate limits and quotas per consumer, address or API (T-008); per plan (T-014) | Partial (T-014) |
 | API7 | Server Side Request Forgery | SSRF guard (T-002), enforced at every outbound call site; upstream URLs checked on save (T-006) and at every gateway connect (T-007); JWKS URLs checked on save and fetched through the guarded client (T-008); inspector replay (T-012) | Partial |
 | API8 | Security Misconfiguration | Same as A05; CORS allow-list | Done (baseline) |
 | API9 | Improper Inventory Management | API lifecycle and versions (T-006); deprecated and retired APIs enforced by the gateway (T-007, 410 / `Deprecation`); catalogs and governance (T-021) | Partial |
-| API10 | Unsafe Consumption of APIs | Upstream timeouts, response size caps, SSRF guard, TLS verification | Planned (T-007) |
+| API10 | Unsafe Consumption of APIs | Upstream timeouts and bounded retries, streamed responses, no redirects followed, SSRF guard, TLS verification always on, fixed error documents (T-007) | Done (baseline) |
 
 ## 4. ASVS 4.0 Level 2 (by chapter)
 
@@ -86,15 +92,15 @@ Report vulnerabilities privately to the OpenEdge Labs maintainers; do not open p
 |---|---|---|
 | V1 Architecture | `docs/ARCHITECTURE.md`, ADRs 0001-0004 | ongoing |
 | V2 Authentication | Argon2id, password policy, lockout, throttling, TOTP | OIDC SSO |
-| V3 Session Management | HttpOnly/SameSite=Strict/Secure cookies, 15-min tokens, rotation, revocation on logout/password/role change | idle timeout in console (T-004) |
+| V3 Session Management | HttpOnly/SameSite=Strict/Secure cookies, 15-min tokens, rotation, absolute 12 h refresh-family lifetime (3.3.2), revocation on logout/password/role change | - |
 | V4 Access Control | RBAC dependency, tenant filter, anti-escalation | per feature |
 | V5 Validation, Sanitization, Encoding | Pydantic, strict CSP, SSRF guard | each feature |
 | V6 Stored Cryptography | AES-256-GCM, key outside DB, rotation | T-023 vault integration |
 | V7 Error Handling and Logging | Generic errors, JSON logs, masking, request ids, audit log | T-028 |
 | V8 Data Protection | `Cache-Control: no-store` on API, masking; captured traffic encrypted, masked by default, retention-limited (T-012) | - |
-| V9 Communication | HSTS over HTTPS | T-016/T-023 TLS |
+| V9 Communication | HSTS over HTTPS; outbound TLS 1.2+ with verification | T-023 native TLS listeners (F-02) |
 | V10 Malicious Code | bandit, CodeQL, hash-locked dependencies | - |
-| V11 Business Logic | - | T-008 |
+| V11 Business Logic | Rate limits and quotas (T-008), lifecycle rules, per-product key limits | T-014 plans |
 | V12 Files and Resources | Body-size limits | T-011 imports |
 | V13 API and Web Service | CORS allow-list, CSRF, strict input models (unknown fields rejected) | each feature |
 | V14 Configuration | Secure defaults, docs only in dev, no server header, pinned deps, CycloneDX SBOM, checksummed release artifacts (T-016) | Release signing key (T-031) |
@@ -107,6 +113,10 @@ Report vulnerabilities privately to the OpenEdge Labs maintainers; do not open p
 | pip-audit | `ci.yml` (`quality`) | any known vulnerability in `runtime.lock` (strict); `dev.lock` with documented exceptions |
 | npm audit | `ci.yml` (`console`) | high or critical |
 | License gate | `ci.yml` (`quality`) | GPL, AGPL, SSPL |
+| Scanner acceptances | `ci.yml` (`quality`, `scripts/scan-gate.py check`) | an incomplete or expired row in the Accepted scanner findings table |
+| DAST smoke pass | `ci.yml` (`dast`, `scripts/dast-smoke.py`) | any failed check against the running instance |
+| OWASP ZAP baseline (console, gateway; image pinned by digest) | `ci.yml` (`dast`, gate `scripts/scan-gate.py zap`) | a Medium or High alert that is not accepted (reports kept as an artifact) |
+| Grype container scan (default and PostgreSQL image; action pinned by commit) | `ci.yml` (`image-scan`, gate `scripts/scan-gate.py grype`) | a High or Critical vulnerability that is not accepted (JSON kept as an artifact) |
 | CodeQL (Python, JS/TS, `security-extended`) | `.github/workflows/codeql.yml` (gate: `scripts/codeql-gate.py`) | any error or warning result that is not accepted (see below), or any mismatch between inline markers and the table below (SARIF kept as an artifact; the private repo has no code-scanning upload) |
 
 ### Accepted findings
@@ -130,10 +140,24 @@ containing "password" as a secret, so the policy constants were renamed (`MIN_PA
 `POLICY_MIN_LENGTH`, `PASSWORD_POLICY_TEXT` to `POLICY_TEXT`). The policy error message is static
 text and never contains the password.
 
+### Accepted scanner findings
+
+Fixing is always preferred. A ZAP alert (Medium or High) or a Grype vulnerability (High or
+Critical) is accepted only by a row below. `scripts/scan-gate.py` fails the build on an unaccepted
+finding, on an incomplete row, on a row past its review date, and on a review date more than 180
+days after acceptance, so every acceptance is reviewed again. Target is `console` or `gateway`
+for ZAP and the package name for Grype.
+
+| Scanner | ID | Target | Justification | Accepted | Review by |
+|---|---|---|---|---|---|
+
+No scanner finding is accepted at present.
+
 ### Fixed defects
 
 | Date | Found by | Defect | Fix |
 |---|---|---|---|
+| 2026-11-02 | Manual review and live probe, T-018 (F-01) | Forwarded headers were trusted from 127.0.0.1 (the ASGI server's default). A process on the APIEdge host could set its client address with `X-Forwarded-For`: 30 failed sign-ins with rotating addresses never reached the per-IP throttle, and the gateway's IP-filter and per-address rate-limit policies could be bypassed, contrary to the rule that only `APIEDGE_GATEWAY_TRUSTED_PROXIES` may forward. Remote clients and per-account lockout were unaffected. | Each listener now trusts forwarded headers only from its configured proxies: the gateway from `APIEDGE_GATEWAY_TRUSTED_PROXIES` (none by default), the console from the new `APIEDGE_TRUSTED_PROXIES` (default `127.0.0.1` for a same-host reverse proxy; empty disables). Tests: `tests/unit/test_proxy_trust.py`; the CI DAST pass checks the throttle with spoofed headers. |
 | 2026-11-01 | CI (Windows, Python 3.12), during T-005 | Tenant filter could be silently missing. `install_tenant_filter` skipped installation when `event.contains(...)` said the listener was present, but SQLAlchemy's event registry is keyed by `id(target)`: a session factory allocated at the address of a garbage-collected factory was reported as filtered, so its sessions ran unfiltered and a tenant's audit log (and other list queries that rely only on the data-layer filter) could include other tenants' rows. Route-level tenant checks (`require`, 404 for foreign tenants, explicit `tenant_id` comparisons on object lookups) were unaffected. The server creates one factory per process, so a long-running `apiedge run` was exposed only if a factory had been created and collected earlier in the same process (tests, embedding `create_app` more than once). | The guard is now a marker attribute on the factory itself (`src/apiedge/db/tenancy.py`). Regression test `tests/integration/test_tenancy.py::test_filter_installed_on_every_new_factory` creates factories at recycled addresses and fails on the old code. |
 
 ## 6. Security configuration
@@ -144,7 +168,8 @@ See the [configuration guide](admin-guide/configuration.md) and `.env.example`. 
 `APIEDGE_SECRET_KEY_FILE`, `APIEDGE_SSRF_ALLOW_PRIVATE`, `APIEDGE_SSRF_ALLOW_CIDRS`,
 `APIEDGE_SSRF_DENY_CIDRS`, `APIEDGE_ACCESS_TOKEN_TTL_SECONDS`,
 `APIEDGE_REFRESH_TOKEN_TTL_HOURS`, `APIEDGE_LOGIN_MAX_FAILURES`, `APIEDGE_LOGIN_LOCKOUT_MINUTES`,
-`APIEDGE_LOGIN_RATE_LIMIT_PER_MINUTE`, `APIEDGE_JWT_SECRET`, `APIEDGE_COOKIE_SECURE`.
+`APIEDGE_LOGIN_RATE_LIMIT_PER_MINUTE`, `APIEDGE_JWT_SECRET`, `APIEDGE_COOKIE_SECURE`,
+`APIEDGE_TRUSTED_PROXIES`, `APIEDGE_GATEWAY_TRUSTED_PROXIES`.
 
 **Back up the secrets key** (`<data dir>/secret.key` or `APIEDGE_SECRET_KEY`). Without it,
 encrypted secrets cannot be recovered. To rotate: set the new key as `APIEDGE_SECRET_KEY`, list the

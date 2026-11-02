@@ -50,6 +50,7 @@ directory (see `.env.example`). Command-line options `--data-dir` and `--databas
 | `APIEDGE_LOGIN_RATE_LIMIT_PER_MINUTE` | `20` | Sign-in attempts per client IP per minute (429 above) |
 | `APIEDGE_JWT_SECRET` | derived from the secrets key | Access-token signing key (at least 32 bytes). Without it and without a secrets key, a random per-process key is used and sessions end at restart |
 | `APIEDGE_COOKIE_SECURE` | `false` | Always mark session cookies `Secure` (set behind a TLS-terminating proxy; HTTPS requests get it automatically) |
+| `APIEDGE_TRUSTED_PROXIES` | `127.0.0.1` | Comma-separated IPs or CIDRs of reverse proxies in front of the console and admin API. Only requests from them may set the client address and scheme with `X-Forwarded-For` / `X-Forwarded-Proto` (sign-in throttling, audit addresses, `Secure` cookies, CSRF origin check). Set it to an empty value when no proxy runs on the same host, so local processes cannot choose their address |
 
 ## Commands
 

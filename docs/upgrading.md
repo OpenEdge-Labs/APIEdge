@@ -38,5 +38,9 @@ The first release has not been tagged yet. Notes for pre-release builds:
   change so far is a forward migration (0001 to 0007) and data has been preserved.
 * The PostgreSQL driver is only in the container image built with
   `APIEDGE_WITH_POSTGRES=1` (see the [Installation Guide](installation.md#10-docker-and-docker-compose)).
+* Forwarded headers (T-018): the gateway now honours `X-Forwarded-For` / `X-Forwarded-Proto`
+  only from `APIEDGE_GATEWAY_TRUSTED_PROXIES`; before, 127.0.0.1 was trusted implicitly. If a
+  reverse proxy on the same host fronts the gateway, add `127.0.0.1` to that setting. The console
+  keeps trusting 127.0.0.1 by default, now through the new `APIEDGE_TRUSTED_PROXIES` setting.
 * Admin API operations now carry their required permission as `x-apiedge-access` in the OpenAPI
   document. This is an addition; existing clients are unaffected.
