@@ -14,7 +14,7 @@ The pre-release verification (T-018), with findings, severities and resolutions,
 
 | Control | Code | Tests |
 |---|---|---|
-| Security headers: CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP/CORP, HSTS over HTTPS, `Cache-Control: no-store` on the API | `src/apiedge/security/middleware.py` (`SecurityHeadersMiddleware`) | `tests/integration/test_security_middleware.py` |
+| Security headers: CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP/CORP/COEP, HSTS over HTTPS, `Cache-Control: no-store` on the API | `src/apiedge/security/middleware.py` (`SecurityHeadersMiddleware`) | `tests/integration/test_security_middleware.py` |
 | CORS allow-list (closed by default, `*` rejected) | `middleware.py`, `config.py` (`cors_allow_origins`) | `test_security_middleware.py`, `tests/unit/test_config.py` |
 | Request body-size limit (Content-Length and streamed bodies, 413) | `BodySizeLimitMiddleware` | `test_security_middleware.py::test_body_size_limit` |
 | CSRF: double-submit cookie + Origin check for cookie-authenticated unsafe requests | `CSRFMiddleware` | `test_security_middleware.py::test_csrf_*` |
@@ -148,10 +148,33 @@ finding, on an incomplete row, on a row past its review date, and on a review da
 days after acceptance, so every acceptance is reviewed again. Target is `console` or `gateway`
 for ZAP and the package name for Grype.
 
+All rows below come from the first Grype run (CI 41479170443): High findings in Debian 13 packages of
+the pinned `python:3.12-slim` base image, the same in both image variants, for which Debian has no
+fixed version (status `wont-fix` or `not-fixed`). No Python package and no Critical finding was
+reported. None is reachable from network input to APIEdge; the image runs as uid 10001 with a
+read-only root filesystem and dropped capabilities (compose, Helm). Each row is reviewed again by
+its date, and earlier whenever the base image digest is bumped.
+
 | Scanner | ID | Target | Justification | Accepted | Review by |
 |---|---|---|---|---|---|
-
-No scanner finding is accepted at present.
+| grype | CVE-2025-69720 | libncursesw6, libtinfo6, ncurses-base, ncurses-bin | Debian 13 base-image package, no fixed version in Debian; overflow in the `infocmp` CLI, which APIEdge never runs. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-102010 | gcc-14-base, libgcc-s1, libstdc++6 | Debian 13 base-image package, no fixed version in Debian; libstdc++ priority-queue `erase_if`; no APIEdge or dependency code path passes untrusted input to it. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-95619 | gcc-14-base, libgcc-s1, libstdc++6 | Debian 13 base-image package, no fixed version in Debian; libstdc++ aligned `operator new` with huge sizes; request bodies are size-capped before any native code sees them. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-119373 | libsqlite3-0 | Debian 13 base-image package, no fixed version in Debian; FTS5 bug; APIEdge creates no FTS5 tables and only opens its own database with ORM-generated SQL. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-119374 | libsqlite3-0 | Debian 13 base-image package, no fixed version in Debian; FTS5 secure-delete with a crafted database file; APIEdge never opens database files from users. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-119379 | libsqlite3-0 | Debian 13 base-image package, no fixed version in Debian; SQLite session extension `sqlite3changeset_apply`, not used by Python's sqlite3 module or APIEdge. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-19499 | libc-bin, libc6 | Debian 13 base-image package, no fixed version in Debian; glibc `strfmon`, not called by Python or APIEdge. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-5435 | libc-bin, libc6 | Debian 13 base-image package, no fixed version in Debian; deprecated glibc `ns_printrr` / `fp_nquery` TSIG printing, not called. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-84243 | libc-bin, libc6 | Debian 13 base-image package, no fixed version in Debian; gettext `LANGUAGE` path handling; needs control of the process environment, which is set by the operator only. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-54369 | libacl1 | Debian 13 base-image package, no fixed version in Debian; local privilege escalation via ACL path functions; container runs as uid 10001 with a read-only root filesystem and no SUID use. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-54370 | libacl1 | Debian 13 base-image package, no fixed version in Debian; local TOCTOU in ACL path functions; same container restrictions, not called by APIEdge. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-76642 | bsdutils, libblkid1, liblastlog2-2, libmount1, libsmartcols1, libuuid1, login, mount, util-linux | Debian 13 base-image package, no fixed version in Debian; local mount-helper issue; container runs non-root with capabilities dropped and never mounts. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-78408 | bsdutils, libblkid1, liblastlog2-2, libmount1, libsmartcols1, libuuid1, login, mount, util-linux | Debian 13 base-image package, no fixed version in Debian; `nsenter --join-cgroup`, never run in the container. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-78409 | bsdutils, libblkid1, liblastlog2-2, libmount1, libsmartcols1, libuuid1, login, mount, util-linux | Debian 13 base-image package, no fixed version in Debian; `X-mount.subdir` symlink traversal by local users; no mounts in the container. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-78410 | bsdutils, libblkid1, liblastlog2-2, libmount1, libsmartcols1, libuuid1, login, mount, util-linux | Debian 13 base-image package, no fixed version in Debian; SUID `mount` with fstab bind mounts; no fstab mounts, non-root, capabilities dropped. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-82560 | perl-base | Debian 13 base-image package, no fixed version in Debian; Perl `Pod::Text`; Perl is never run by APIEdge. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-9538 | perl-base | Debian 13 base-image package, no fixed version in Debian; Perl `Archive::Tar`; Perl is never run by APIEdge. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
+| grype | CVE-2026-85091 | zlib1g | Debian 13 base-image package, no fixed version in Debian; zlib `gzwrite`/`gzprintf` non-blocking path; Python's gzip and httpx use only the deflate/inflate stream API. Revisit when Debian ships a fix or the base image is bumped | 2026-11-02 | 2027-01-31 |
 
 ### Fixed defects
 

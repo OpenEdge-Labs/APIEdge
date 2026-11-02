@@ -18,13 +18,15 @@ pipeline. Out of scope, because the features do not exist yet: the low-code scri
 | Severity | Found | Fixed | Open (tracked) |
 |---|---|---|---|
 | Critical | 0 | - | - |
-| High | 0 | - | - |
+| High (dependency, base image) | 1 group (18 CVEs) | 0 (no fix exists) | 1 (F-09, accepted with review date) |
 | Medium | 1 | 0 | 1 (F-02, T-023) |
-| Low | 3 | 1 | 2 (F-03 VP-009, F-04 accepted design) |
+| Low | 5 | 2 (F-01, F-10) | 3 (F-03 VP-009; F-04, F-11 accepted design) |
 | Informational | 4 | - | 4 (license and process items) |
 
-No high or critical finding was found by any method. The one code defect found (F-01) is fixed
-with tests. Open items are design gaps that already have a task or a proposal; none of them can be
+No critical finding and no high finding in APIEdge's own code or Python and npm dependencies
+was found by any method. The image scan reported 18 High CVEs in Debian packages of the base image
+for which Debian has no fix (F-09); each was reviewed and accepted with a review date. The code
+defects found (F-01, F-10) are fixed with tests. Open items are design gaps that already have a task or a proposal; none of them can be
 closed without a customer decision or a later task.
 
 ## 2. Methods and results
@@ -77,6 +79,9 @@ closed without a customer decision or a later task.
 | F-05 | Info | **LGPL-3.0 component in one image variant.** `psycopg` is installed only in the image built with `APIEDGE_WITH_POSTGRES=1` (the compose build). | **Open license finding**, pending the customer's decision on **VP-002**. Not shipped in the wheel, installer or default image. |
 | F-06 | Info | **Secrets re-encryption.** After a secrets-key rotation the old key must stay configured while data encrypted with it exists. | **Open**, proposal **VP-008** (pending). |
 | F-07 | Info | **Dev-only advisories.** 17 filelock advisories in `dev.lock`; the fix needs Python 3.11+. Not in the runtime set. | **Accepted dev-only** in `requirements/audit-ignore-dev.txt`; closes with **VP-001**. |
+| F-09 | High (third-party) | **Unfixed CVEs in the base image.** Grype reported 18 High CVEs (no Critical) in Debian 13 packages of `python:3.12-slim` (glibc, util-linux, ncurses, libstdc++, SQLite FTS5 and session extension, libacl, Perl, zlib `gz*`), identical in both image variants. Debian has no fixed version for any of them. No Python package was affected. | **Accepted with review** (rows in [Accepted scanner findings](SECURITY.md#accepted-scanner-findings), review by 2027-01-31): none is reachable from network input (APIEdge never runs the affected tools, uses no FTS5 or session extension, opens only its own database) and the container runs as uid 10001, read-only, with capabilities dropped. Re-checked on every CI run; a new High or Critical fails the build. |
+| F-10 | Low | **No `Cross-Origin-Embedder-Policy` header** (ZAP 90004 on the console). | **Fixed**: `Cross-Origin-Embedder-Policy: require-corp` on every response (the console loads only same-origin resources, which already carry CORP). Test: `test_security_middleware.py`. |
+| F-11 | Low | **CSRF cookie without `HttpOnly`** (ZAP 10010). | **Accepted design**: the double-submit token must be readable by the console to be echoed in `X-CSRF-Token`. It is not a credential, is `SameSite=Strict`, and the session cookies themselves are `HttpOnly`. Below the gate threshold, so no allowlist row is needed. |
 | F-08 | Info | **Release signing key and log shipping not yet in place.** SHA256SUMS are produced and verified; the GPG signature waits for the customer's key. Log shipping and alerting are not built. | **Open**, T-031 (signing key) and T-028 (log shipping, alerting). |
 
 ## 4. Access control coverage (RBAC and tenant isolation)
@@ -156,8 +161,18 @@ threshold fail the build unless accepted in the
 [Accepted scanner findings](SECURITY.md#accepted-scanner-findings) table, which requires a
 justification and a review date at most 180 days out (`scripts/scan-gate.py`).
 
-Results of the first runs are recorded in [Progress](https://github.com/OpenEdge-Labs/APIEdge/blob/main/docs/PROGRESS.md)
-with the run ids.
+First run, CI 41479170443 (commit `650565e`):
+
+| Scanner | Target | Result |
+|---|---|---|
+| DAST smoke pass | running instance | 64 passed, 0 failed |
+| ZAP baseline | console | 0 High, 0 Medium; Low: 10010 (F-11), 90004 (F-10, fixed); Informational: 10049, 10109, 10112 |
+| ZAP baseline | gateway | 0 High, 0 Medium, 0 Low; Informational: 10049 (non-storable content) |
+| Grype | default image | 193 matches; 0 Critical, 60 High package matches = 18 CVEs (F-09), the rest Medium or lower |
+| Grype | PostgreSQL image | identical to the default image (`psycopg` itself reported nothing) |
+
+ZAP's Informational alerts describe normal behaviour (an API that is not cacheable, a single-page
+application, session cookies) and need no action.
 
 ## 7. How to repeat the verification
 

@@ -100,6 +100,8 @@ class SecurityHeadersMiddleware:
                 h.setdefault("Referrer-Policy", "no-referrer")
                 h.setdefault("Cross-Origin-Opener-Policy", "same-origin")
                 h.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+                # Only same-origin (CORP) subresources may load (ZAP 90004, T-018).
+                h.setdefault("Cross-Origin-Embedder-Policy", "require-corp")
                 h.setdefault(
                     "Permissions-Policy",
                     "camera=(), microphone=(), geolocation=(), payment=(), usb=()",

@@ -33,7 +33,7 @@ DOC = """
 | Scanner | ID | Target | Justification | Accepted | Review by |
 |---|---|---|---|---|---|
 | zap | `10038` | console | reviewed | 2026-11-01 | 2027-01-31 |
-| grype | CVE-2026-0001 | libfoo | no fix, not reachable | 2026-11-01 | 2027-02-01 |
+| grype | CVE-2026-0001 | libfoo, libfoo-bin | no fix, not reachable | 2026-11-01 | 2027-02-01 |
 
 ## Next section
 | not | part |
@@ -63,7 +63,7 @@ def test_table_parsing_stops_at_the_table() -> None:
     rows = gate.parse_table(DOC)
     assert [(r.scanner, r.id, r.target) for r in rows] == [
         ("zap", "10038", "console"),
-        ("grype", "CVE-2026-0001", "libfoo"),
+        ("grype", "CVE-2026-0001", "libfoo, libfoo-bin"),
     ]
     assert gate.check_rows(rows, TODAY) == []
 
@@ -98,6 +98,7 @@ def test_grype_high_and_critical_fail_unless_accepted() -> None:
     report = {
         "matches": [
             _grype("CVE-2026-0001", "libfoo", "Critical"),  # accepted
+            _grype("CVE-2026-0001", "libfoo-bin", "Critical"),  # accepted (listed package)
             _grype("CVE-2026-0002", "libbar", "High"),
             _grype("CVE-2026-0003", "libbaz", "Medium"),
             _grype("CVE-2026-0001", "libother", "Critical"),  # same id, other package

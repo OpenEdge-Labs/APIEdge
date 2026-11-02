@@ -11,7 +11,7 @@ A finding at or above the threshold fails the build unless it is accepted by a r
 * ``ID`` is the ZAP plugin id (for example ``10038``) or the vulnerability id (``CVE-...`` /
   ``GHSA-...``).
 * ``Target`` is the scanned surface for ZAP (``console`` or ``gateway``) or the package name for
-  Grype (for example ``libssl3``).
+  Grype (for example ``libssl3``; several packages of one vulnerability comma separated).
 * ``Accepted`` and ``Review by`` are ``YYYY-MM-DD``. A row past its review date fails the gate,
   so every acceptance is re-reviewed; at most 180 days between the two dates.
 
@@ -159,7 +159,10 @@ def grype_findings(report: dict[str, Any]) -> list[Finding]:
 
 
 def gate(scanner: str, findings: list[Finding], rows: list[Row]) -> list[str]:
-    accepted = {(r.id, r.target) for r in rows if r.scanner == scanner}
+    # A row's Target may list several packages of one vulnerability, comma separated.
+    accepted = {
+        (r.id, t.strip()) for r in rows if r.scanner == scanner for t in r.target.split(",")
+    }
     errors: list[str] = []
     for f in sorted(set(findings), key=lambda f: (not f.blocking, f.id, f.target)):
         where = f"{scanner} {f.id} [{f.severity}] {f.target}: {f.title}"

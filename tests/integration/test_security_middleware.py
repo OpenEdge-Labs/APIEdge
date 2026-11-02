@@ -56,6 +56,7 @@ def test_security_headers_on_console_and_api(client: TestClient) -> None:
     for path in ("/", "/healthz", "/api/v1/openapi.json"):
         h = client.get(path).headers
         assert h["x-content-type-options"] == "nosniff"
+        assert h["cross-origin-embedder-policy"] == "require-corp"
         assert h["x-frame-options"] == "DENY"
         assert h["referrer-policy"] == "no-referrer"
         csp = h["content-security-policy"]
