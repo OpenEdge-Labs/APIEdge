@@ -487,3 +487,57 @@ class CapturedExchange(TenantOwned, Base):
     upstream: Mapped[str] = mapped_column(String(2048), nullable=False, default="")
     size: Mapped[int] = mapped_column(Integer, nullable=False)
     data: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class Truststore(TenantOwned, Base):
+    """A tenant's bundle of trusted CA certificates (T-023, ADR 0013).
+
+    Used by the ``mtls`` policy to check client certificates. Certificates are public data and
+    stored as normalised PEM.
+    """
+
+    __tablename__ = "truststores"
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_truststores_tenant_id_name"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    certificates: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+
+class Keystore(TenantOwned, Base):
+    """A tenant's certificate chain and private key (T-023, ADR 0013).
+
+    The private key is stored only encrypted with the secrets box (AES-256-GCM, bound to the
+    tenant and keystore) and is never returned by the admin API.
+    """
+
+    __tablename__ = "keystores"
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_keystores_tenant_id_name"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    certificate_chain: Mapped[str] = mapped_column(Text, nullable=False)
+    private_key: Mapped[str] = mapped_column(Text, nullable=False)  # secrets-box token
+    key_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    fingerprint_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    not_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )

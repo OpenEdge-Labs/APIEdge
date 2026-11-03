@@ -66,6 +66,7 @@ from apiedge.policies.jwt import JwksCache
 from apiedge.policies.stores import Limiter, MemoryLimiter, RedisLimiter, ResponseCache
 from apiedge.security.crypto import SecretBox, load_secret_box
 from apiedge.security.ssrf import AsyncResolver
+from apiedge.security.tls import cert_from_header, cert_from_scope
 
 log = logging.getLogger("apiedge.gateway")
 
@@ -172,6 +173,8 @@ class GatewayRuntime:
             ipaddress.ip_network(c, strict=False) for c in settings.gateway_trusted_proxies
         )
         self.secret_box: SecretBox | None = load_secret_box(settings)
+        header = settings.gateway_client_cert_header
+        self.cert_header_drop = frozenset({header}) if header else frozenset()
         self._redis: Any = None
         if limiter is None:
             memory = MemoryLimiter(settings.gateway_rate_limit_max_keys)
@@ -308,10 +311,12 @@ def _connection_tokens(headers: Sequence[tuple[bytes, bytes]]) -> set[str]:
     return tokens
 
 
-def _client_headers(request: Request) -> list[tuple[str, str]]:
+def _client_headers(
+    request: Request, also_drop: frozenset[str] = frozenset()
+) -> list[tuple[str, str]]:
     """The client's headers that may be forwarded (lower-case names)."""
     raw = request.scope["headers"]
-    drop = _REQUEST_DROP | _connection_tokens(raw)
+    drop = _REQUEST_DROP | also_drop | _connection_tokens(raw)
     out = []
     for k, v in raw:
         name = k.decode("latin-1").lower()
@@ -398,6 +403,19 @@ def _plain_error(status: int, code: str, message: str, request_id: str) -> JSONR
     )
 
 
+def _client_cert(request: Request, runtime: GatewayRuntime, peer: str) -> bytes | None:
+    """The client certificate of the TLS connection, or one forwarded by a trusted proxy."""
+    der = cert_from_scope(request.scope)
+    header = runtime.settings.gateway_client_cert_header
+    if der is not None or not header:
+        return der
+    ip = _ip(peer)
+    if ip is None or not any(ip.version == n.version and ip in n for n in runtime.trusted_proxies):
+        return None
+    value = request.headers.get(header)
+    return cert_from_header(value) if value else None
+
+
 async def _read_body(request: Request, limit: int) -> bytes:
     declared = request.headers.get("content-length")
     if declared is not None and declared.isdigit() and int(declared) > limit:
@@ -433,10 +451,11 @@ def _context(
         route=route,
         query=parse_qsl(raw_query, keep_blank_values=True),
         raw_query=raw_query,
-        headers=_client_headers(request),
+        headers=_client_headers(request, runtime.cert_header_drop),
         client_ip=client_address(
             peer, request.headers.getlist("x-forwarded-for"), runtime.trusted_proxies
         ),
+        client_cert=_client_cert(request, runtime, peer),
         request_id=request_id,
         tenant_id=api.tenant_id,
         product_id=api.product_id,

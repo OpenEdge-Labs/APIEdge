@@ -3676,6 +3676,488 @@
         }
       }
     },
+    "/api/v1/tenants/{tenant_id}/tls/truststores": {
+      "get": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "List truststores",
+        "operationId": "list_truststores_api_v1_tenants__tenant_id__tls_truststores_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TruststoreOut"
+                  },
+                  "title": "Response List Truststores Api V1 Tenants  Tenant Id  Tls Truststores Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:read"
+        }
+      },
+      "post": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "Create a truststore",
+        "operationId": "create_truststore_api_v1_tenants__tenant_id__tls_truststores_post",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TruststoreIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TruststoreOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:manage"
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/tls/truststores/{truststore_id}": {
+      "get": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "Get a truststore",
+        "operationId": "get_truststore_api_v1_tenants__tenant_id__tls_truststores__truststore_id__get",
+        "parameters": [
+          {
+            "name": "truststore_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Truststore Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TruststoreOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:read"
+        }
+      },
+      "patch": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "Change a truststore's description or certificates",
+        "operationId": "update_truststore_api_v1_tenants__tenant_id__tls_truststores__truststore_id__patch",
+        "parameters": [
+          {
+            "name": "truststore_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Truststore Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TruststoreUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TruststoreOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:manage"
+        }
+      },
+      "delete": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "Delete a truststore",
+        "operationId": "delete_truststore_api_v1_tenants__tenant_id__tls_truststores__truststore_id__delete",
+        "parameters": [
+          {
+            "name": "truststore_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Truststore Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:manage"
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/tls/keystores": {
+      "get": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "List keystores",
+        "operationId": "list_keystores_api_v1_tenants__tenant_id__tls_keystores_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KeystoreOut"
+                  },
+                  "title": "Response List Keystores Api V1 Tenants  Tenant Id  Tls Keystores Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:read"
+        }
+      },
+      "post": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "Create a keystore (certificate chain and private key)",
+        "operationId": "create_keystore_api_v1_tenants__tenant_id__tls_keystores_post",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeystoreIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeystoreOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:manage"
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/tls/keystores/{keystore_id}": {
+      "get": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "Get a keystore",
+        "operationId": "get_keystore_api_v1_tenants__tenant_id__tls_keystores__keystore_id__get",
+        "parameters": [
+          {
+            "name": "keystore_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Keystore Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeystoreOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:read"
+        }
+      },
+      "delete": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "Delete a keystore",
+        "operationId": "delete_keystore_api_v1_tenants__tenant_id__tls_keystores__keystore_id__delete",
+        "parameters": [
+          {
+            "name": "keystore_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Keystore Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:manage"
+        }
+      }
+    },
     "/api/v1/system/settings": {
       "get": {
         "tags": [
@@ -4749,6 +5231,74 @@
         ],
         "title": "CaptureOut"
       },
+      "CertificateOut": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "common_name": {
+            "type": "string",
+            "title": "Common Name"
+          },
+          "serial": {
+            "type": "string",
+            "title": "Serial"
+          },
+          "not_before": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Not Before"
+          },
+          "not_after": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Not After"
+          },
+          "fingerprint_sha256": {
+            "type": "string",
+            "title": "Fingerprint Sha256"
+          },
+          "key_type": {
+            "type": "string",
+            "title": "Key Type"
+          },
+          "is_ca": {
+            "type": "boolean",
+            "title": "Is Ca"
+          },
+          "dns_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dns Names"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "issuer",
+          "common_name",
+          "serial",
+          "not_before",
+          "not_after",
+          "fingerprint_sha256",
+          "key_type",
+          "is_ca",
+          "dns_names",
+          "status"
+        ],
+        "title": "CertificateOut"
+      },
       "ChangePasswordIn": {
         "properties": {
           "current_password": {
@@ -5318,6 +5868,105 @@
         ],
         "title": "JwtPolicy"
       },
+      "KeystoreIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.@-]{0,99}$",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Description",
+            "default": ""
+          },
+          "certificate_chain": {
+            "type": "string",
+            "maxLength": 524288,
+            "minLength": 1,
+            "title": "Certificate Chain"
+          },
+          "private_key": {
+            "type": "string",
+            "maxLength": 65536,
+            "minLength": 1,
+            "title": "Private Key"
+          },
+          "passphrase": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passphrase"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "certificate_chain",
+          "private_key"
+        ],
+        "title": "KeystoreIn"
+      },
+      "KeystoreOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "key_type": {
+            "type": "string",
+            "title": "Key Type"
+          },
+          "certificate": {
+            "$ref": "#/components/schemas/CertificateOut"
+          },
+          "chain": {
+            "items": {
+              "$ref": "#/components/schemas/CertificateOut"
+            },
+            "type": "array",
+            "title": "Chain"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "key_type",
+          "certificate",
+          "chain",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KeystoreOut"
+      },
       "LifecycleIn": {
         "properties": {
           "lifecycle": {
@@ -5591,6 +6240,115 @@
         ],
         "title": "MockPolicy"
       },
+      "MtlsConfig": {
+        "properties": {
+          "truststore_id": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Truststore Id"
+          },
+          "allowed_subjects": {
+            "items": {
+              "type": "string",
+              "maxLength": 500,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Allowed Subjects"
+          },
+          "allowed_fingerprints": {
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Allowed Fingerprints"
+          },
+          "consumer_from": {
+            "type": "string",
+            "enum": [
+              "common_name",
+              "subject",
+              "fingerprint"
+            ],
+            "title": "Consumer From",
+            "default": "common_name"
+          },
+          "forward_subject_header": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,100}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forward Subject Header"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "truststore_id"
+        ],
+        "title": "MtlsConfig",
+        "description": "Requires a client certificate issued by a CA of one of the tenant's truststores (T-023)."
+      },
+      "MtlsPolicy": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z0-9]{1,32}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Name",
+            "default": ""
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "routes": {
+            "items": {
+              "type": "string",
+              "maxLength": 500,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Routes"
+          },
+          "type": {
+            "type": "string",
+            "const": "mtls",
+            "title": "Type"
+          },
+          "config": {
+            "$ref": "#/components/schemas/MtlsConfig"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "config"
+        ],
+        "title": "MtlsPolicy"
+      },
       "OwnerOut": {
         "properties": {
           "user_id": {
@@ -5724,6 +6482,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/MockPolicy"
+                },
+                {
+                  "$ref": "#/components/schemas/MtlsPolicy"
                 }
               ],
               "discriminator": {
@@ -5735,6 +6496,7 @@
                   "ip-filter": "#/components/schemas/IpFilterPolicy",
                   "jwt": "#/components/schemas/JwtPolicy",
                   "mock": "#/components/schemas/MockPolicy",
+                  "mtls": "#/components/schemas/MtlsPolicy",
                   "rate-limit": "#/components/schemas/RateLimitPolicy",
                   "transform": "#/components/schemas/TransformPolicy"
                 }
@@ -5777,6 +6539,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/MockPolicy"
+                },
+                {
+                  "$ref": "#/components/schemas/MtlsPolicy"
                 }
               ],
               "discriminator": {
@@ -5788,6 +6553,7 @@
                   "ip-filter": "#/components/schemas/IpFilterPolicy",
                   "jwt": "#/components/schemas/JwtPolicy",
                   "mock": "#/components/schemas/MockPolicy",
+                  "mtls": "#/components/schemas/MtlsPolicy",
                   "rate-limit": "#/components/schemas/RateLimitPolicy",
                   "transform": "#/components/schemas/TransformPolicy"
                 }
@@ -6997,6 +7763,114 @@
           "type"
         ],
         "title": "TransformPolicy"
+      },
+      "TruststoreIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.@-]{0,99}$",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Description",
+            "default": ""
+          },
+          "certificates": {
+            "type": "string",
+            "maxLength": 524288,
+            "minLength": 1,
+            "title": "Certificates"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "certificates"
+        ],
+        "title": "TruststoreIn"
+      },
+      "TruststoreOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "certificates": {
+            "items": {
+              "$ref": "#/components/schemas/CertificateOut"
+            },
+            "type": "array",
+            "title": "Certificates"
+          },
+          "pem": {
+            "type": "string",
+            "title": "Pem"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "certificates",
+          "pem",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TruststoreOut"
+      },
+      "TruststoreUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "certificates": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 524288,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificates"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TruststoreUpdate"
       },
       "UpstreamIn": {
         "properties": {

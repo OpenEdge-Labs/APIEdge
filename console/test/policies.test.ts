@@ -90,3 +90,20 @@ test("policies can be reordered", () => {
   assert.deepEqual(move([1, 2, 3], 2, 1), [1, 3, 2]);
   assert.deepEqual(move([1, 2, 3], 0, -1), [1, 2, 3]);
 });
+
+test("the mtls policy needs a truststore and round-trips its allow-lists", () => {
+  assert.ok(specFromForm(newPolicy("mtls"), 0).errors.some((e) => e.includes("truststore")));
+  const spec: PolicySpec = {
+    id: "m1",
+    type: "mtls",
+    name: "",
+    enabled: true,
+    routes: [],
+    config: { truststore_id: 3, allowed_subjects: ["billing-svc"], allowed_fingerprints: [], consumer_from: "subject" },
+  };
+  const out = specFromForm(formFromSpec(spec), 0);
+  assert.deepEqual(out.errors, []);
+  assert.equal(out.spec?.config.truststore_id, 3);
+  assert.deepEqual(out.spec?.config.allowed_subjects, ["billing-svc"]);
+  assert.equal(out.spec?.config.consumer_from, "subject");
+});

@@ -10,13 +10,14 @@ user data directory (``platformdirs``) unless ``APIEDGE_DATA_DIR`` overrides it.
 from __future__ import annotations
 
 import ipaddress
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
 from platformdirs import user_data_path
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from apiedge.security.ssrf import SsrfPolicy
@@ -46,6 +47,28 @@ class Settings(BaseSettings):
     port: int = Field(default=8080, ge=1, le=65535)
     log_level: Literal["critical", "error", "warning", "info", "debug"] = "info"
     log_format: Literal["json", "text"] = "json"
+
+    # --- Native TLS (T-023, ADR 0013). PEM files; certificate and key both or neither.
+    # Console / admin API listener:
+    tls_cert_file: Path | None = None
+    tls_key_file: Path | None = None
+    tls_key_password: SecretStr | None = None
+    # Both listeners: lowest TLS version accepted and the TLS 1.2 cipher list (OpenSSL syntax).
+    tls_min_version: Literal["1.2", "1.3"] = "1.2"
+    tls_ciphers: str | None = None
+    # Gateway listener:
+    gateway_tls_cert_file: Path | None = None
+    gateway_tls_key_file: Path | None = None
+    gateway_tls_key_password: SecretStr | None = None
+    # Client certificates on the gateway listener (mTLS): none, optional (asked for, checked by
+    # the API's mtls policy) or required (the handshake fails without one). Certificates must
+    # chain to the CA bundle below; each API's mtls policy then checks the tenant's truststore.
+    gateway_tls_client_auth: Literal["none", "optional", "required"] = "none"
+    gateway_tls_client_ca_file: Path | None = None
+    # Behind a TLS-terminating proxy: request header carrying the client certificate
+    # (URL-encoded PEM, e.g. nginx $ssl_client_escaped_cert). Read only from
+    # APIEDGE_GATEWAY_TRUSTED_PROXIES and never forwarded upstream. Empty: off.
+    gateway_client_cert_header: str | None = None
 
     # --- HTTP hardening (T-002). Comma-separated lists in the environment.
     cors_allow_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
@@ -185,6 +208,47 @@ class Settings(BaseSettings):
         if len(v.get_secret_value()) < 16:
             raise ValueError("the metrics token must be at least 16 characters long")
         return v
+
+    @field_validator("gateway_client_cert_header")
+    @classmethod
+    def _check_cert_header(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        if not re.fullmatch(r"[A-Za-z0-9-]{1,100}", v):
+            raise ValueError("the client certificate header must be a plain header name")
+        return v.lower()
+
+    @field_validator("tls_ciphers")
+    @classmethod
+    def _check_ciphers(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        if not re.fullmatch(r"[A-Za-z0-9+:!@=_-]{1,2000}", v):
+            raise ValueError("invalid cipher list")
+        return v
+
+    @model_validator(mode="after")
+    def _check_tls(self) -> Settings:
+        for prefix in ("tls", "gateway_tls"):
+            cert = getattr(self, f"{prefix}_cert_file")
+            key = getattr(self, f"{prefix}_key_file")
+            if (cert is None) != (key is None):
+                name = f"APIEDGE_{prefix.upper()}"
+                raise ValueError(f"set both {name}_CERT_FILE and {name}_KEY_FILE, or neither")
+        if self.gateway_tls_client_auth != "none":
+            if self.gateway_tls_cert_file is None:
+                raise ValueError("client certificate authentication needs gateway TLS")
+            if self.gateway_tls_client_ca_file is None:
+                raise ValueError("set APIEDGE_GATEWAY_TLS_CLIENT_CA_FILE for client certificates")
+        return self
+
+    @property
+    def console_tls(self) -> bool:
+        return self.tls_cert_file is not None
+
+    @property
+    def gateway_tls(self) -> bool:
+        return self.gateway_tls_cert_file is not None
 
     @property
     def effective_secret_key_file(self) -> Path:

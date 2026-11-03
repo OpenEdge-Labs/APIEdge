@@ -4,7 +4,7 @@
 // definitions; the editor renders them generically and converts between the form (strings,
 // one item per line) and the admin API's JSON. The server validates everything again.
 
-export type PolicyType = "api-key" | "jwt" | "rate-limit" | "transform" | "cors" | "ip-filter" | "cache" | "mock";
+export type PolicyType = "api-key" | "jwt" | "rate-limit" | "transform" | "cors" | "ip-filter" | "cache" | "mock" | "mtls";
 
 export interface PolicySpec {
   id?: string | null;
@@ -156,6 +156,18 @@ export const POLICY_TYPES: { type: PolicyType; label: string; summary: string; f
       { key: "body", label: "Body", kind: "textarea" },
     ],
   },
+  {
+    type: "mtls",
+    label: "Client certificate (mTLS)",
+    summary: "Requires a client certificate issued by a CA in one of this tenant's truststores (TLS page).",
+    fields: [
+      { key: "truststore_id", label: "Truststore id", kind: "number", hint: "Shown on the TLS page." },
+      { key: "allowed_subjects", label: "Allowed subjects or common names, one per line (optional)", kind: "lines", placeholder: "billing-svc" },
+      { key: "allowed_fingerprints", label: "Allowed SHA-256 fingerprints, one per line (optional)", kind: "lines" },
+      { key: "consumer_from", label: "Consumer name from", kind: "select", options: ["common_name", "subject", "fingerprint"] },
+      { key: "forward_subject_header", label: "Send the verified subject to the upstream in header (optional)", kind: "text", placeholder: "x-client-subject" },
+    ],
+  },
 ];
 
 export function typeInfo(type: PolicyType) {
@@ -173,6 +185,7 @@ const DEFAULTS: Record<PolicyType, Record<string, unknown>> = {
   "ip-filter": {},
   cache: { ttl_seconds: 60, max_entry_bytes: 1048576 },
   mock: { status: 200, content_type: "application/json", body: '{"message": "mocked"}' },
+  mtls: { consumer_from: "common_name" },
 };
 
 function getPath(obj: Record<string, unknown>, path: string[]): unknown {
@@ -323,6 +336,7 @@ export function configErrors(type: PolicyType, config: Record<string, unknown>, 
   if (type === "ip-filter" && !((config.allow as string[]) ?? []).length && !((config.deny as string[]) ?? []).length) {
     errors.push(`${label}: list at least one allowed or denied address range.`);
   }
+  if (type === "mtls" && !config.truststore_id) errors.push(`${label}: choose a truststore (its id from the TLS page).`);
   if (type === "rate-limit" && config.limit === undefined) errors.push(`${label}: set the number of requests per window.`);
   return errors;
 }

@@ -52,9 +52,9 @@ class TraceEntry:
 
 @dataclass(frozen=True)
 class Identity:
-    """Who the request authenticated as (API key or JWT)."""
+    """Who the request authenticated as (API key, JWT or client certificate)."""
 
-    kind: Literal["api-key", "jwt"]
+    kind: Literal["api-key", "jwt", "mtls"]
     subject: str  # key id or the JWT's consumer claim
     name: str  # display name (analytics consumer label)
     claims: dict[str, Any] = field(default_factory=dict)
@@ -148,6 +148,7 @@ class RequestContext:
     # Recorded for the packet inspector (T-012); policies do not change these.
     url: str = ""  # the URL as received (scheme, host, gateway path, query)
     received_headers: list[tuple[str, str]] = field(default_factory=list)  # as received
+    client_cert: bytes | None = None  # DER of the client certificate (TLS or trusted proxy)
     started_at: float = 0.0  # epoch seconds
     started_perf: float = 0.0  # time.perf_counter() at arrival (durations)
     upstream_url: str = ""  # base URL of the upstream that answered (or was tried last)
@@ -164,7 +165,7 @@ class RequestContext:
         """The analytics consumer label ("" = anonymous)."""
         if self.identity is None:
             return ""
-        prefix = "key" if self.identity.kind == "api-key" else "jwt"
+        prefix = {"api-key": "key", "jwt": "jwt", "mtls": "cert"}[self.identity.kind]
         return f"{prefix}:{self.identity.name}"[:128]
 
     def header(self, name: str) -> str | None:

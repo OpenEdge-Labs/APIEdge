@@ -28,7 +28,16 @@ from typing import Any
 from sqlalchemy import event
 from sqlalchemy.orm import Session, sessionmaker
 
-from apiedge.db.models import Api, ApiKey, ApiRoute, ApiUpstream, Product, Tenant
+from apiedge.db.models import (
+    Api,
+    ApiKey,
+    ApiRoute,
+    ApiUpstream,
+    Keystore,
+    Product,
+    Tenant,
+    Truststore,
+)
 
 log = logging.getLogger("apiedge.gateway")
 
@@ -139,7 +148,7 @@ def build_bus(redis_url: str | None) -> ConfigBus:
     return RedisConfigBus(redis_url) if redis_url else ConfigBus()
 
 
-WATCHED = (Tenant, Product, Api, ApiUpstream, ApiRoute, ApiKey)
+WATCHED = (Tenant, Product, Api, ApiUpstream, ApiRoute, ApiKey, Truststore, Keystore)
 _CHANGED = "apiedge_gateway_config_changed"
 _INSTALLED = "_apiedge_change_notifier"
 

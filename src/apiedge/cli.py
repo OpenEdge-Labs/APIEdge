@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import os
+import re
 import sys
 from collections.abc import Iterator, Sequence
 from pathlib import Path
@@ -84,7 +86,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         run_migrations(settings.effective_database_url)
     _ensure_secret_key(settings)
     local = host in ("127.0.0.1", "::1", "0.0.0.0")  # noqa: S104  # nosec B104 - comparison, not a bind
-    url = f"http://{'localhost' if local else host}:{port}/"
+    scheme = "https" if settings.console_tls else "http"
+    url = f"{scheme}://{'localhost' if local else host}:{port}/"
     print(f"APIEdge console: {url}")
     if args.open:
         _open_browser_when_ready(url)
@@ -92,6 +95,14 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     configure_logging(settings.log_level, settings.log_format)
     log_config = logging_config(settings.log_level, settings.log_format)
+    from apiedge.security.tls import uvicorn_tls_options
+
+    try:
+        console_tls = uvicorn_tls_options(settings, gateway=False)
+        gateway_tls = uvicorn_tls_options(settings, gateway=True)
+    except (OSError, ValueError) as exc:  # ssl.SSLError is an OSError
+        print(f"error: cannot load the TLS certificate or key: {exc}", file=sys.stderr)
+        return EXIT_ERROR
     if not settings.gateway_enabled:
         uvicorn.run(
             create_app(settings),
@@ -101,6 +112,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             log_config=log_config,
             server_header=False,  # no product/version disclosure
             **proxy_options(settings.trusted_proxies),
+            **console_tls,
         )
         return EXIT_OK
 
@@ -111,7 +123,10 @@ def cmd_run(args: argparse.Namespace) -> int:
     redis_url = settings.redis_url.get_secret_value() if settings.redis_url else None
     bus = build_bus(redis_url)  # shared: admin changes reload the gateway in-process
     metrics = MetricsCollector()  # shared: /metrics on the console port shows gateway counters
-    print(f"APIEdge gateway: http://{settings.gateway_host}:{settings.gateway_port}/<tenant>/<api>")
+    gw_scheme = "https" if settings.gateway_tls else "http"
+    print(
+        f"APIEdge gateway: {gw_scheme}://{settings.gateway_host}:{settings.gateway_port}/<tenant>/<api>"
+    )
     common: dict[str, Any] = {
         "log_level": settings.log_level,
         "log_config": log_config,
@@ -125,6 +140,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 port=port,
                 **common,
                 **proxy_options(settings.trusted_proxies),
+                **console_tls,
             ),
             uvicorn.Config(
                 create_gateway_app(settings, bus, metrics=metrics),
@@ -132,6 +148,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 port=settings.gateway_port,
                 **common,
                 **proxy_options(settings.gateway_trusted_proxies),
+                **gateway_tls,
             ),
         ]
     )
@@ -259,6 +276,60 @@ def cmd_create_admin(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_tls_self_signed(args: argparse.Namespace) -> int:
+    """Write a self-signed certificate and key for trying TLS (not for production)."""
+    import ipaddress
+
+    from apiedge.security.x509 import build_certificate, generate_key, private_key_pem
+
+    out = Path(args.out_dir).expanduser().resolve()
+    cert_path, key_path = out / "apiedge-cert.pem", out / "apiedge-key.pem"
+    if (cert_path.exists() or key_path.exists()) and not args.force:
+        print(f"error: {cert_path} or {key_path} exists (use --force)", file=sys.stderr)
+        return EXIT_ERROR
+    names = args.host or ["localhost"]
+    bad = [n for n in names if not _is_ip(n) and not _HOSTNAME.fullmatch(n)]
+    if bad:
+        print(f"error: not a host name or IP address: {bad[0]!r}", file=sys.stderr)
+        return EXIT_USAGE
+    ips = [n for n in names if _is_ip(n)] + ["127.0.0.1"]
+    dns = [n for n in names if not _is_ip(n)]
+    key = generate_key("ec")
+    cert = build_certificate(
+        subject_key=key,
+        common_name=names[0],
+        organization="APIEdge self-signed",
+        days=args.days,
+        dns_names=dns,
+        ip_addresses=list(dict.fromkeys(str(ipaddress.ip_address(i)) for i in ips)),
+        purposes=("server",),
+    )
+    out.mkdir(parents=True, exist_ok=True)
+    cert_path.write_text(cert.pem(), encoding="ascii")
+    fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="ascii") as fh:
+        fh.write(private_key_pem(key))
+    print(f"certificate: {cert_path}")
+    print(f"private key: {key_path}")
+    print(f"SHA-256 fingerprint: {cert.fingerprint_sha256}")
+    print("Set APIEDGE_TLS_CERT_FILE / APIEDGE_TLS_KEY_FILE (and the APIEDGE_GATEWAY_TLS_* pair).")
+    return EXIT_OK
+
+
+_LABEL = r"[A-Za-z0-9]([A-Za-z0-9-]{0,62})"
+_HOSTNAME = re.compile(rf"(\*\.)?{_LABEL}(\.{_LABEL})*")
+
+
+def _is_ip(value: str) -> bool:
+    import ipaddress
+
+    try:
+        ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return True
+
+
 def cmd_version(_args: argparse.Namespace) -> int:
     print(__version__)
     return EXIT_OK
@@ -312,6 +383,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="succeed without changes if the user already exists",
     )
     s.set_defaults(func=cmd_create_admin)
+
+    s = sub.add_parser("tls", help="TLS helpers")
+    tls = s.add_subparsers(dest="tls_command", required=True)
+    t = tls.add_parser(
+        "self-signed", help="write a self-signed certificate and key for testing TLS"
+    )
+    t.add_argument("--out-dir", default=".", help="directory for apiedge-cert.pem / -key.pem")
+    t.add_argument(
+        "--host", action="append", help="DNS name or IP address (repeatable; default localhost)"
+    )
+    t.add_argument("--days", type=int, default=365, choices=range(1, 826), metavar="1-825")
+    t.add_argument("--force", action="store_true", help="overwrite existing files")
+    t.set_defaults(func=cmd_tls_self_signed)
 
     s = sub.add_parser("version", help="print the version")
     s.set_defaults(func=cmd_version)

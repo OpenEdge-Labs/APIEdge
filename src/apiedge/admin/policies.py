@@ -16,7 +16,8 @@ tenant-bound session.
 The chain is replaced as a whole. Policies keep their ``id`` (new ones get one), which the
 packet inspector's trace refers to. Secret fields (the JWT shared secret) are encrypted with the
 secrets box and never returned: sending ``null`` keeps the stored value of the policy with the
-same id. JWKS URLs pass the SSRF guard; route filters must name routes of the API.
+same id. JWKS URLs pass the SSRF guard; route filters must name routes of the API; ``mtls``
+policies must name a truststore of the same tenant (``admin.tls``).
 
 API keys belong to a product and work for every API of it that has an ``api-key`` policy. Only
 the SHA-256 of a key is stored; the key itself is in the create response only. Revoked keys stop
@@ -38,7 +39,7 @@ from apiedge.admin.apis import SSRF_HINT, _api, _product, _writable
 from apiedge.admin.deps import TenantCaller, deny, not_found, require_any
 from apiedge.admin.schemas import In, Out
 from apiedge.config import Settings
-from apiedge.db.models import Api, ApiKey, Product
+from apiedge.db.models import Api, ApiKey, Product, Truststore
 from apiedge.policies.builtin import hash_api_key, secret_aad
 from apiedge.policies.config import HMAC_ALGS, SECRET_FIELDS, PolicyChain, PolicySpec
 from apiedge.policies.jwt import load_pem_key
@@ -162,6 +163,10 @@ def put_policies(
                     load_pem_key(cfg.public_key)
                 except ValueError as exc:
                     errors.append(f"policy {i}: public key: {exc}")
+        if spec.type == "mtls":
+            store = caller.session.get(Truststore, spec.config.truststore_id)
+            if store is None or store.tenant_id != caller.tenant_id:
+                errors.append(f"policy {i}: truststore {spec.config.truststore_id} not found")
         stored.append(data)
     if errors:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail={"policies": errors})

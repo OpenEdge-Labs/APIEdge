@@ -209,13 +209,15 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   - Add invoke, proxy, switch, operation-switch, if, throw, catch/error flows, set-variable, visual data map, parse, validate (JSON Schema, XML Schema, OpenAPI), redact, log, XSLT, and JSON↔XML conversion, all usable in the flow builder.
   - Depends on: T-009
 
-- [ ] **T-023** (P1) Advanced security
+- [~] **T-023** (P1) Advanced security
   - Add a built-in OAuth 2.0 authorization server (client credentials, authorization code with PKCE, refresh, introspection, revocation), OIDC, and JWT generation.
   - Add basic auth with LDAP/AD, mTLS, and HMAC signatures.
   - Add JSON and XML threat protection, WAF rules, bot and IP reputation.
   - Add management of TLS profiles, keystores and truststores, and secrets-vault integration (HashiCorp Vault).
   - Add console SSO (OIDC, SAML, LDAP).
   - Depends on: T-008
+  > Vendor decision: delivered in slices, each committed separately. Listener certificates are operator files set in `APIEDGE_TLS_*` / `APIEDGE_GATEWAY_TLS_*` (platform configuration); keystores and truststores are tenant data. X.509 handling is our own bounded DER reader on the already-locked pycryptodome, because `cryptography` cannot be locked for every supported platform (ADR 0013). An `mtls` policy always checks the client certificate against a truststore of the API's own tenant, on top of the listener's platform CA bundle, so one tenant's client certificates cannot open another tenant's APIs. Revocation (CRL/OCSP) is not checked.
+  > In progress - slice 1 delivered: native TLS on the console and gateway listeners (closes F-02), `apiedge tls self-signed`, tenant truststores and keystores (admin API `/tenants/{id}/tls/...`, permissions `tls:read` / `tls:manage`, console page TLS & certificates), the `mtls` client-certificate policy (gateway listener or trusted proxy header). Try: `apiedge tls self-signed --out-dir tls`, set `APIEDGE_TLS_CERT_FILE` / `APIEDGE_TLS_KEY_FILE` (and the `APIEDGE_GATEWAY_TLS_*` pair), `apiedge run`, open https://localhost:8080/. Remaining: TLS profiles for upstream connections (upstream mTLS with keystores), OAuth 2.0 authorization server, OIDC, JWT generation, basic auth with LDAP/AD, HMAC signatures, JSON/XML threat protection, WAF rules, bot and IP reputation, HashiCorp Vault integration, console SSO.
 
 - [ ] **T-024** (P2) Multi-protocol support
   - Support SOAP/WSDL import, SOAP↔REST conversion and WS-Security.

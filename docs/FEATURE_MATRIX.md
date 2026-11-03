@@ -51,7 +51,7 @@ priorities and are not a procurement comparison.
 | Lifecycle and governance | 4 | 2 | 5 | 0 |
 | Console, administration and access control | 5 | 0 | 1 | 0 |
 | Policy pipeline and assembly | 3 | 1 | 8 | 1 |
-| Security | 4 | 2 | 10 | 1 |
+| Security | 4 | 4 | 8 | 1 |
 | Protocols | 1 | 0 | 6 | 1 |
 | Traffic management | 5 | 3 | 7 | 1 |
 | Consumers and monetization | 0 | 1 | 4 | 0 |
@@ -119,11 +119,11 @@ priorities and are not a procurement comparison.
 | OpenID Connect | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Planned** | T-023 | |
 | JWT generation | Y | Y | Y | P | - | Y | Y | Y | Y | **Planned** | T-023 | |
 | Basic authentication with LDAP or Active Directory | Y | Y | P | P | P | Y | Y | Y | Y | **Planned** | T-023 | |
-| Mutual TLS client authentication | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Planned** | T-023 | |
+| Mutual TLS client authentication | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Partial** | T-023 | Delivered in the first T-023 slice (Done when T-023 closes): `mtls` policy against tenant truststores; client certificates from the gateway's TLS listener or a trusted proxy header. No CRL/OCSP |
 | HMAC request signatures | Y | Y | P | P | - | P | P | Y | Y | **Planned** | T-023 | |
 | JSON and XML threat protection | Y | P | Y | Y | - | Y | Y | P | Y | **Planned** | T-023 | A global request body-size limit is already enforced (T-007) |
 | WAF rules, bot detection and IP reputation | Y | P | P | P | Y | P | P | - | P | **Planned** | T-023 | |
-| Gateway and console TLS termination with keystores | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Planned** | T-023 | Today both listeners serve HTTP and are meant to sit behind a TLS-terminating proxy |
+| Gateway and console TLS termination with keystores | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Partial** | T-023 | Delivered in the first T-023 slice (Done when T-023 closes): native TLS 1.2+/1.3 on both listeners from PEM files; tenant keystores and truststores managed in the console and admin API |
 | Secrets vault integration | Y | Y | P | Y | Y | Y | Y | Y | Y | **Planned** | T-023 | |
 | Upstream (backend) authentication and credential injection | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Proposed** | VP-004 | |
 

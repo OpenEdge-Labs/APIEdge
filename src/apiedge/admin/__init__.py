@@ -16,6 +16,7 @@ from apiedge.admin import (
     roles,
     system,
     tenants,
+    tls,
     users,
 )
 from apiedge.admin.deps import annotate_access
@@ -33,6 +34,7 @@ def build_router() -> APIRouter:
         policies,
         analytics,
         inspector,
+        tls,
         system,
     ):
         # Publish each operation's permission as ``x-apiedge-access`` in the OpenAPI document.

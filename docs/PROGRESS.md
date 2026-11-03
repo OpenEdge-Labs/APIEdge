@@ -639,3 +639,38 @@ Grype gate failed on 18 High CVEs in Debian base-image packages without a fixed 
 in both image variants. Each was reviewed and accepted in `docs/SECURITY.md` (review by
 2027-01-31); accepted rows may now list several packages of one CVE. COEP `require-corp` was added.
 CI 41480270095 and CodeQL 41480270195 passed on `9413970`. Release 41479170250 passed on `650565e`.
+## 2026-11-03 - T-023 Advanced security, slice 1: native TLS and client certificates
+
+**Summary.** Closed security finding F-02. The console and gateway listeners terminate TLS
+natively (`APIEDGE_TLS_*`, `APIEDGE_GATEWAY_TLS_*`: TLS 1.2 minimum or 1.3, ECDHE AEAD ciphers,
+no compression or renegotiation), with optional or required client certificates on the gateway
+against a platform CA bundle. A uvicorn protocol subclass adds the ASGI TLS extension so the new
+`mtls` policy sees the client certificate; behind a proxy it can come in a header accepted only
+from trusted proxies and stripped before forwarding. The `mtls` policy verifies the chain against
+a truststore of the API's own tenant (signatures, validity, CA flags, client-auth usage) with
+subject and fingerprint allow-lists; a foreign or missing truststore fails closed (503). Tenant
+truststores and keystores are managed through `/api/v1/tenants/{id}/tls/...` (`tls:read`,
+`tls:manage`, migration 0008) and the console page TLS & certificates; keystore private keys must
+match the certificate, are stored only encrypted (bound to tenant and keystore) and never
+returned. `apiedge tls self-signed` writes a test certificate. X.509 handling is a bounded
+pure-Python DER reader and builder on pycryptodome (ADR 0013); no new dependency.
+
+**Files.** `src/apiedge/security/{x509,tls}.py`, `src/apiedge/admin/tls.py`,
+`src/apiedge/db/migrations/versions/0008_tls_stores.py`, `src/apiedge/{cli,config}.py`,
+`src/apiedge/db/models.py`, `src/apiedge/gateway/{app,bus,snapshot}.py`,
+`src/apiedge/policies/{base,builtin,config}.py`, `src/apiedge/admin/{__init__,policies}.py`,
+`src/apiedge/security/rbac.py`, `console/src/{App.tsx,access.ts,policies.ts,pages/Tls.tsx}`,
+`console/test/*`, `src/apiedge/static/`, tests (`tests/integration/test_tls.py`,
+`tests/unit/test_x509.py`, `test_route_access_matrix.py`), docs (ADR 0013, configuration,
+operations, policies guide, SECURITY.md, security-verification.md, FEATURE_MATRIX.md, API
+reference), `.env.example`, `CHANGELOG.md`, `APIProjectTask.md`.
+
+**Tests.** 508 pytest pass locally (15 new: 7 TLS integration incl. real TLS handshakes for
+server TLS, optional and required mTLS, TLS 1.1 and plain HTTP refused; 8 X.509/TLS unit; the
+access matrix now covers 70 operations with 401/403/404 denials). 41 console tests, tsc clean.
+ruff, mypy --strict, bandit clean. Live: `apiedge tls self-signed` + `apiedge run` served HTTPS on
+both ports with HSTS and `Secure` cookies; TLS 1.1 and plain HTTP were refused.
+
+**Follow-ups.** Remaining T-023 slices: TLS profiles for upstream connections (upstream mTLS with
+keystores), OAuth 2.0 authorization server, OIDC, JWT generation, LDAP basic auth, HMAC, threat
+protection, WAF and IP reputation, Vault integration, console SSO. No CRL/OCSP checking.

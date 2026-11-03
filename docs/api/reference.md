@@ -95,6 +95,18 @@ APIEdge Admin API, version `0.1.0.dev0`, OpenAPI `3.1.0`. The machine-readable d
 | `GET /api/v1/tenants/{tenant_id}/inspector/exchanges/{exchange_id}` | A captured exchange (masked unless unmasked=true) |
 | `POST /api/v1/tenants/{tenant_id}/inspector/exchanges/{exchange_id}/replay` | Send a captured request to the API's upstream again |
 
+| tls | |
+|---|---|
+| `GET /api/v1/tenants/{tenant_id}/tls/truststores` | List truststores |
+| `POST /api/v1/tenants/{tenant_id}/tls/truststores` | Create a truststore |
+| `GET /api/v1/tenants/{tenant_id}/tls/truststores/{truststore_id}` | Get a truststore |
+| `PATCH /api/v1/tenants/{tenant_id}/tls/truststores/{truststore_id}` | Change a truststore's description or certificates |
+| `DELETE /api/v1/tenants/{tenant_id}/tls/truststores/{truststore_id}` | Delete a truststore |
+| `GET /api/v1/tenants/{tenant_id}/tls/keystores` | List keystores |
+| `POST /api/v1/tenants/{tenant_id}/tls/keystores` | Create a keystore (certificate chain and private key) |
+| `GET /api/v1/tenants/{tenant_id}/tls/keystores/{keystore_id}` | Get a keystore |
+| `DELETE /api/v1/tenants/{tenant_id}/tls/keystores/{keystore_id}` | Delete a keystore |
+
 | system | |
 |---|---|
 | `GET /api/v1/system/settings` | Effective settings (no secrets) |
@@ -1068,6 +1080,154 @@ Send a captured request to the API's upstream again.
 | 200 | Successful Response | <code>application/json</code>: [ReplayOut](#schema-replayout) |
 | 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
 
+## tls
+
+### GET /api/v1/tenants/{tenant_id}/tls/truststores
+
+List truststores.
+
+**Access:** `tls:read` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: array of [TruststoreOut](#schema-truststoreout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### POST /api/v1/tenants/{tenant_id}/tls/truststores
+
+Create a truststore.
+
+**Access:** `tls:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+**Request body (required):** <code>application/json</code>: [TruststoreIn](#schema-truststorein)
+
+| Status | Meaning | Body |
+|---|---|---|
+| 201 | Successful Response | <code>application/json</code>: [TruststoreOut](#schema-truststoreout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### GET /api/v1/tenants/{tenant_id}/tls/truststores/{truststore_id}
+
+Get a truststore.
+
+**Access:** `tls:read` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `truststore_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: [TruststoreOut](#schema-truststoreout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### PATCH /api/v1/tenants/{tenant_id}/tls/truststores/{truststore_id}
+
+Change a truststore's description or certificates.
+
+**Access:** `tls:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `truststore_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+**Request body (required):** <code>application/json</code>: [TruststoreUpdate](#schema-truststoreupdate)
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: [TruststoreOut](#schema-truststoreout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### DELETE /api/v1/tenants/{tenant_id}/tls/truststores/{truststore_id}
+
+Delete a truststore.
+
+**Access:** `tls:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `truststore_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 204 | Successful Response | - |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### GET /api/v1/tenants/{tenant_id}/tls/keystores
+
+List keystores.
+
+**Access:** `tls:read` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: array of [KeystoreOut](#schema-keystoreout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### POST /api/v1/tenants/{tenant_id}/tls/keystores
+
+Create a keystore (certificate chain and private key).
+
+**Access:** `tls:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+**Request body (required):** <code>application/json</code>: [KeystoreIn](#schema-keystorein)
+
+| Status | Meaning | Body |
+|---|---|---|
+| 201 | Successful Response | <code>application/json</code>: [KeystoreOut](#schema-keystoreout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### GET /api/v1/tenants/{tenant_id}/tls/keystores/{keystore_id}
+
+Get a keystore.
+
+**Access:** `tls:read` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `keystore_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: [KeystoreOut](#schema-keystoreout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### DELETE /api/v1/tenants/{tenant_id}/tls/keystores/{keystore_id}
+
+Delete a keystore.
+
+**Access:** `tls:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `keystore_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 204 | Successful Response | - |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
 ## system
 
 ### GET /api/v1/system/settings
@@ -1291,6 +1451,22 @@ Requires an API key of the API's product (``admin.policies`` issues them).
 | `captured` | integer | yes |  |
 | `stored` | integer | yes |  |
 
+### CertificateOut {#schema-certificateout}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `subject` | string | yes |  |
+| `issuer` | string | yes |  |
+| `common_name` | string | yes |  |
+| `serial` | string | yes |  |
+| `not_before` | string (date-time) | yes |  |
+| `not_after` | string (date-time) | yes |  |
+| `fingerprint_sha256` | string | yes |  |
+| `key_type` | string | yes |  |
+| `is_ca` | boolean | yes |  |
+| `dns_names` | array of string | yes |  |
+| `status` | string | yes |  |
+
 ### ChangePasswordIn {#schema-changepasswordin}
 
 | Field | Type | Required | Notes |
@@ -1410,6 +1586,29 @@ Requires an API key of the API's product (``admin.policies`` issues them).
 | `type` | <code>"jwt"</code> | yes |  |
 | `config` | [JwtConfig](#schema-jwtconfig) | yes |  |
 
+### KeystoreIn {#schema-keystorein}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `name` | string | yes | pattern <code>^&#91;A-Za-z0-9&#93;&#91;A-Za-z0-9 &#95;.@-&#93;&#123;0,99&#125;$</code> |
+| `description` | string | no | max length 500; default <code>""</code> |
+| `certificate_chain` | string | yes | min length 1; max length 524288 |
+| `private_key` | string | yes | min length 1; max length 65536 |
+| `passphrase` | string or null | no |  |
+
+### KeystoreOut {#schema-keystoreout}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | integer | yes |  |
+| `name` | string | yes |  |
+| `description` | string | yes |  |
+| `key_type` | string | yes |  |
+| `certificate` | [CertificateOut](#schema-certificateout) | yes |  |
+| `chain` | array of [CertificateOut](#schema-certificateout) | yes |  |
+| `created_at` | string (date-time) | yes |  |
+| `updated_at` | string (date-time) | yes |  |
+
 ### LifecycleIn {#schema-lifecyclein}
 
 | Field | Type | Required | Notes |
@@ -1478,6 +1677,29 @@ Requires an API key of the API's product (``admin.policies`` issues them).
 | `type` | <code>"mock"</code> | yes |  |
 | `config` | [MockConfig](#schema-mockconfig) | no |  |
 
+### MtlsConfig {#schema-mtlsconfig}
+
+Requires a client certificate issued by a CA of one of the tenant's truststores (T-023).
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `truststore_id` | integer | yes | min 1 |
+| `allowed_subjects` | array of string | no | max items 200 |
+| `allowed_fingerprints` | array of string | no | max items 200 |
+| `consumer_from` | string: <code>"common&#95;name"</code>, <code>"subject"</code>, <code>"fingerprint"</code> | no | default <code>"common&#95;name"</code> |
+| `forward_subject_header` | string or null | no |  |
+
+### MtlsPolicy {#schema-mtlspolicy}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | string or null | no |  |
+| `name` | string | no | max length 100; default <code>""</code> |
+| `enabled` | boolean | no | default <code>true</code> |
+| `routes` | array of string | no | max items 200 |
+| `type` | <code>"mtls"</code> | yes |  |
+| `config` | [MtlsConfig](#schema-mtlsconfig) | yes |  |
+
 ### OwnerOut {#schema-ownerout}
 
 | Field | Type | Required | Notes |
@@ -1509,13 +1731,13 @@ Requires an API key of the API's product (``admin.policies`` issues them).
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `policies` | array of [ApiKeyPolicy](#schema-apikeypolicy) or [JwtPolicy](#schema-jwtpolicy) or [RateLimitPolicy](#schema-ratelimitpolicy) or [TransformPolicy](#schema-transformpolicy) or [CorsPolicy](#schema-corspolicy) or [IpFilterPolicy](#schema-ipfilterpolicy) or [CachePolicy](#schema-cachepolicy) or [MockPolicy](#schema-mockpolicy) | no | max items 50 |
+| `policies` | array of [ApiKeyPolicy](#schema-apikeypolicy) or [JwtPolicy](#schema-jwtpolicy) or [RateLimitPolicy](#schema-ratelimitpolicy) or [TransformPolicy](#schema-transformpolicy) or [CorsPolicy](#schema-corspolicy) or [IpFilterPolicy](#schema-ipfilterpolicy) or [CachePolicy](#schema-cachepolicy) or [MockPolicy](#schema-mockpolicy) or [MtlsPolicy](#schema-mtlspolicy) | no | max items 50 |
 
 ### PolicyChainOut {#schema-policychainout}
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `policies` | array of [ApiKeyPolicy](#schema-apikeypolicy) or [JwtPolicy](#schema-jwtpolicy) or [RateLimitPolicy](#schema-ratelimitpolicy) or [TransformPolicy](#schema-transformpolicy) or [CorsPolicy](#schema-corspolicy) or [IpFilterPolicy](#schema-ipfilterpolicy) or [CachePolicy](#schema-cachepolicy) or [MockPolicy](#schema-mockpolicy) | yes |  |
+| `policies` | array of [ApiKeyPolicy](#schema-apikeypolicy) or [JwtPolicy](#schema-jwtpolicy) or [RateLimitPolicy](#schema-ratelimitpolicy) or [TransformPolicy](#schema-transformpolicy) or [CorsPolicy](#schema-corspolicy) or [IpFilterPolicy](#schema-ipfilterpolicy) or [CachePolicy](#schema-cachepolicy) or [MockPolicy](#schema-mockpolicy) or [MtlsPolicy](#schema-mtlspolicy) | yes |  |
 | `secrets_set` | map of array of string | no |  |
 
 ### ProductIn {#schema-productin}
@@ -1776,6 +1998,33 @@ Requires an API key of the API's product (``admin.policies`` issues them).
 | `routes` | array of string | no | max items 200 |
 | `type` | <code>"transform"</code> | yes |  |
 | `config` | [TransformConfig](#schema-transformconfig) | no |  |
+
+### TruststoreIn {#schema-truststorein}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `name` | string | yes | pattern <code>^&#91;A-Za-z0-9&#93;&#91;A-Za-z0-9 &#95;.@-&#93;&#123;0,99&#125;$</code> |
+| `description` | string | no | max length 500; default <code>""</code> |
+| `certificates` | string | yes | min length 1; max length 524288 |
+
+### TruststoreOut {#schema-truststoreout}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | integer | yes |  |
+| `name` | string | yes |  |
+| `description` | string | yes |  |
+| `certificates` | array of [CertificateOut](#schema-certificateout) | yes |  |
+| `pem` | string | yes |  |
+| `created_at` | string (date-time) | yes |  |
+| `updated_at` | string (date-time) | yes |  |
+
+### TruststoreUpdate {#schema-truststoreupdate}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `description` | string or null | no |  |
+| `certificates` | string or null | no |  |
 
 ### UpstreamIn {#schema-upstreamin}
 

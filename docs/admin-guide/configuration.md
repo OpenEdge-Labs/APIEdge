@@ -8,10 +8,21 @@ directory (see `.env.example`). Command-line options `--data-dir` and `--databas
 | `APIEDGE_ENV` | `production` | `development` enables the interactive API docs at `/api/docs` |
 | `APIEDGE_DATA_DIR` | OS user data dir | Holds the SQLite database and the installer venv |
 | `APIEDGE_DATABASE_URL` | SQLite in the data dir | PostgreSQL: `postgresql+psycopg://user:pass@host/db` (install `apiedge[postgres]`) |
-| `APIEDGE_HOST` | `127.0.0.1` | Set `0.0.0.0` to accept remote connections (put a TLS-terminating proxy in front: APIEdge does not terminate TLS itself until T-023; see [operations](operations.md#exposing-apiedge-on-the-network-tls)) |
+| `APIEDGE_HOST` | `127.0.0.1` | Set `0.0.0.0` to accept remote connections (enable native TLS below, or put a TLS-terminating proxy in front; see [operations](operations.md#exposing-apiedge-on-the-network-tls)) |
 | `APIEDGE_PORT` | `8080` | |
 | `APIEDGE_LOG_LEVEL` | `info` | `critical`, `error`, `warning`, `info`, `debug` |
 | `APIEDGE_LOG_FORMAT` | `json` | `json` (one masked JSON object per line) or `text`. Credentials are masked in both |
+| `APIEDGE_TLS_CERT_FILE` | unset | PEM certificate chain for HTTPS on the console and admin API (leaf first). Set together with `APIEDGE_TLS_KEY_FILE`; then plain HTTP is not served on that port |
+| `APIEDGE_TLS_KEY_FILE` | unset | PEM private key of the console certificate (RSA or EC). Keep it readable only by the APIEdge user |
+| `APIEDGE_TLS_KEY_PASSWORD` | unset | Passphrase of an encrypted console key |
+| `APIEDGE_TLS_MIN_VERSION` | `1.2` | Lowest TLS version on both listeners: `1.2` or `1.3` |
+| `APIEDGE_TLS_CIPHERS` | ECDHE with AES-GCM or ChaCha20 | OpenSSL cipher list for TLS 1.2 on both listeners (TLS 1.3 suites are always the library's safe defaults) |
+| `APIEDGE_GATEWAY_TLS_CERT_FILE` | unset | PEM certificate chain for HTTPS on the gateway listener (with `APIEDGE_GATEWAY_TLS_KEY_FILE`). May be the same files as the console |
+| `APIEDGE_GATEWAY_TLS_KEY_FILE` | unset | PEM private key of the gateway certificate |
+| `APIEDGE_GATEWAY_TLS_KEY_PASSWORD` | unset | Passphrase of an encrypted gateway key |
+| `APIEDGE_GATEWAY_TLS_CLIENT_AUTH` | `none` | Client certificates on the gateway (mTLS): `none`, `optional` (asked for; APIs with an `mtls` policy require one) or `required` (the handshake fails without one). Needs gateway TLS and `APIEDGE_GATEWAY_TLS_CLIENT_CA_FILE` |
+| `APIEDGE_GATEWAY_TLS_CLIENT_CA_FILE` | unset | PEM bundle of CAs whose client certificates the listener accepts. Each API's `mtls` policy then also requires a CA from the tenant's own truststore |
+| `APIEDGE_GATEWAY_CLIENT_CERT_HEADER` | unset | Behind a TLS-terminating proxy: header carrying the verified client certificate as URL-encoded PEM (nginx `$ssl_client_escaped_cert`, Envoy `x-forwarded-client-cert`). Read only from `APIEDGE_GATEWAY_TRUSTED_PROXIES`, never forwarded upstream |
 | `APIEDGE_CORS_ALLOW_ORIGINS` | empty (same-origin only) | Comma-separated exact origins (`https://host[:port]`) allowed to call the admin API with credentials; `*` is rejected |
 | `APIEDGE_MAX_REQUEST_BODY_BYTES` | `2097152` (2 MiB) | Larger request bodies get `413` |
 | `APIEDGE_HSTS_MAX_AGE` | `31536000` | HSTS max-age, sent only on HTTPS requests; `0` disables |
@@ -60,6 +71,7 @@ directory (see `.env.example`). Command-line options `--data-dir` and `--databas
 | `apiedge migrate` | Apply database migrations (idempotent) |
 | `apiedge run [--host H] [--port P] [--open]` | Start the console, admin API and gateway (migrates first) |
 | `apiedge create-admin [--username U] [--generate-password \| --password-stdin] [--if-missing]` | Create a SuperAdmin. The password is Argon2id-hashed. A generated password is printed once |
+| `apiedge tls self-signed [--out-dir D] [--host NAME]... [--days N] [--force]` | Write a self-signed EC P-256 certificate and key (`apiedge-cert.pem`, `apiedge-key.pem`, key file mode 0600) for trying TLS. Use a certificate from your CA in production |
 | `apiedge version` | Print the version |
 
 ## Health probes

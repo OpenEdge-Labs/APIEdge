@@ -20,6 +20,7 @@ the stored chain with the product's active API keys (only their SHA-256 hashes).
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -28,10 +29,13 @@ from datetime import timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from apiedge.db.models import Api, ApiKey, Product, Tenant
+from apiedge.db.models import Api, ApiKey, Product, Tenant, Truststore
 from apiedge.policies.base import Pipeline
 from apiedge.policies.builtin import ApiKeyInfo, PolicyServices, build_pipeline
 from apiedge.security.crypto import SecretBox
+from apiedge.security.x509 import Certificate, CertificateError, load_pem_certificates
+
+log = logging.getLogger("apiedge.gateway")
 
 SERVED = "served"
 DEPRECATED = "deprecated"
@@ -151,6 +155,7 @@ def build_runtime_api(
     services: PolicyServices | None = None,
     keys: Mapping[str, ApiKeyInfo] | None = None,
     box: SecretBox | None = None,
+    truststores: Mapping[int, tuple[Certificate, ...]] | None = None,
 ) -> RuntimeApi | None:
     state = _state(api.lifecycle, product_lifecycle)
     if state is None:
@@ -171,6 +176,7 @@ def build_runtime_api(
             keys=keys or {},
             services=services,
             box=box,
+            truststores=truststores,
         )
     return RuntimeApi(
         api_id=api.id,
@@ -199,6 +205,19 @@ def _active_keys(session: Session) -> dict[tuple[int, int], dict[str, ApiKeyInfo
     return keys
 
 
+def _truststores(session: Session) -> dict[int, dict[int, tuple[Certificate, ...]]]:
+    """tenant -> {truststore id -> certificates}; unreadable stores are left out (fail closed)."""
+    out: dict[int, dict[int, tuple[Certificate, ...]]] = {}
+    for t in session.scalars(select(Truststore)):
+        try:
+            certs = tuple(load_pem_certificates(t.certificates))
+        except CertificateError:
+            log.error("truststore %s cannot be read; policies using it fail closed", t.id)
+            continue
+        out.setdefault(t.tenant_id, {})[t.id] = certs
+    return out
+
+
 def load_snapshot(
     factory: sessionmaker[Session],
     services: PolicyServices | None = None,
@@ -213,6 +232,7 @@ def load_snapshot(
     with factory() as session:
         slugs = {t.id: t.slug for t in session.scalars(select(Tenant).where(Tenant.is_active))}
         keys = _active_keys(session) if services is not None else {}
+        stores = _truststores(session) if services is not None else {}
         rows = session.execute(
             select(Api, Product.lifecycle)
             .join(Product, (Product.id == Api.product_id) & (Product.tenant_id == Api.tenant_id))
@@ -229,6 +249,7 @@ def load_snapshot(
                 services=services,
                 keys=keys.get((api.tenant_id, api.product_id), {}),
                 box=box,
+                truststores=stores.get(api.tenant_id, {}),
             )
             if runtime is not None:
                 tenants.setdefault(slug, []).append(runtime)

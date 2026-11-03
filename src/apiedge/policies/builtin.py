@@ -48,6 +48,7 @@ from apiedge.policies.config import (
     IpFilterConfig,
     JwtConfig,
     MockConfig,
+    MtlsConfig,
     PolicySpec,
     RateLimitConfig,
     TransformConfig,
@@ -63,6 +64,7 @@ from apiedge.policies.jwt import (
 )
 from apiedge.policies.stores import CachedResponse, Limiter, ResponseCache
 from apiedge.security.crypto import CryptoError, SecretBox
+from apiedge.security.x509 import Certificate, CertificateError, parse_certificate, verify_chain
 
 log = logging.getLogger("apiedge.gateway.policies")
 
@@ -150,6 +152,88 @@ class ApiKeyAuth(Policy):
             else:
                 ctx.remove_header(cfg.header)
         return "pass", f"key {info.prefix}... ({info.name})", None
+
+
+class ClientCertAuth(Policy):
+    """``mtls``: a client certificate that chains to the tenant's truststore (T-023)."""
+
+    type = "mtls"
+    _CACHE_MAX = 1024
+
+    def __init__(
+        self,
+        policy_id: str,
+        routes: frozenset[str],
+        config: MtlsConfig,
+        anchors: tuple[Certificate, ...],
+    ) -> None:
+        super().__init__(policy_id, routes)
+        self.config = config
+        self.anchors = anchors
+        self.subjects = frozenset(config.allowed_subjects)
+        self.fingerprints = frozenset(config.allowed_fingerprints)
+        # DER digest -> (certificate or None, error or None, cache expiry): saves the signature
+        # check on every request; entries live at most a minute and never past the expiry.
+        self._seen: dict[bytes, tuple[Certificate | None, str | None, float]] = {}
+
+    def _check(self, der: bytes) -> tuple[Certificate | None, str | None]:
+        digest = hashlib.sha256(der).digest()
+        now = time.time()
+        hit = self._seen.get(digest)
+        if hit is not None and hit[2] > now:
+            return hit[0], hit[1]
+        cert: Certificate | None = None
+        try:
+            cert = parse_certificate(der)
+        except CertificateError:
+            error: str | None = "unreadable"
+            until = now + 60
+        else:
+            error = verify_chain(cert, self.anchors, purpose="client")
+            until = min(now + 60, cert.not_after.timestamp())
+        if len(self._seen) >= self._CACHE_MAX:
+            self._seen.clear()
+        self._seen[digest] = (cert, error, until)
+        return cert, error
+
+    async def on_request(self, ctx: RequestContext) -> RequestResult:
+        cfg = self.config
+        if ctx.client_cert is None:
+            return (
+                "reject",
+                "no client certificate",
+                json_error(401, "unauthorized", "A client certificate is required."),
+            )
+        cert, error = self._check(ctx.client_cert)
+        if cert is None or error is not None:
+            return (
+                "reject",
+                f"client certificate {error}",
+                json_error(401, "unauthorized", "The client certificate is not valid."),
+            )
+        if self.fingerprints and cert.fingerprint_sha256 not in self.fingerprints:
+            return (
+                "reject",
+                "certificate not in the allowed list",
+                json_error(403, "forbidden", "This client certificate is not allowed."),
+            )
+        if self.subjects and not ({cert.subject, cert.common_name} & self.subjects):
+            return (
+                "reject",
+                "subject not in the allowed list",
+                json_error(403, "forbidden", "This client certificate is not allowed."),
+            )
+        label = {
+            "common_name": cert.common_name or cert.fingerprint_sha256[:16],
+            "subject": cert.subject,
+            "fingerprint": cert.fingerprint_sha256,
+        }[cfg.consumer_from]
+        ctx.identity = Identity(
+            "mtls", cert.fingerprint_sha256, _safe(label, 128), {"subject": cert.subject}
+        )
+        if cfg.forward_subject_header:
+            ctx.set_header(cfg.forward_subject_header, _safe(cert.subject, 1024))
+        return "pass", f"certificate {_safe(cert.common_name or cert.subject, 100)}", None
 
 
 class JwtAuth(Policy):
@@ -655,6 +739,7 @@ def build_policy(
     api_id: int,
     keys: Mapping[str, ApiKeyInfo],
     services: PolicyServices,
+    truststores: Mapping[int, tuple[Certificate, ...]] | None = None,
 ) -> Policy:
     routes = frozenset(spec.routes)
     pid: str = spec.id
@@ -688,6 +773,11 @@ def build_policy(
         return Cache(pid, routes, cfg, services.cache)
     if spec.type == "mock":
         return Mock(pid, routes, cfg)
+    if spec.type == "mtls":
+        anchors = (truststores or {}).get(cfg.truststore_id)
+        if not anchors:
+            raise ValueError("the policy's truststore does not exist or is empty")
+        return ClientCertAuth(pid, routes, cfg, anchors)
     raise ValueError(f"unknown policy type {spec.type}")  # pragma: no cover - union is closed
 
 
@@ -699,6 +789,7 @@ def build_pipeline(
     keys: Mapping[str, ApiKeyInfo],
     services: PolicyServices,
     box: SecretBox | None,
+    truststores: Mapping[int, tuple[Certificate, ...]] | None = None,
 ) -> Pipeline:
     """The pipeline for an API's stored chain. Unusable entries fail closed (503)."""
     try:
@@ -724,7 +815,14 @@ def build_pipeline(
             if spec.id is None:
                 raise ValueError("policy without an id")
             policies.append(
-                build_policy(spec, tenant_id=tenant_id, api_id=api_id, keys=keys, services=services)
+                build_policy(
+                    spec,
+                    tenant_id=tenant_id,
+                    api_id=api_id,
+                    keys=keys,
+                    services=services,
+                    truststores=truststores,
+                )
             )
         except (ValidationError, ValueError, CryptoError) as exc:
             log.error(

@@ -19,7 +19,7 @@ pipeline. Out of scope, because the features do not exist yet: the low-code scri
 |---|---|---|---|
 | Critical | 0 | - | - |
 | High (dependency, base image) | 1 group (18 CVEs) | 0 (no fix exists) | 1 (F-09, accepted with review date) |
-| Medium | 1 | 0 | 1 (F-02, T-023) |
+| Medium | 1 | 1 (F-02, T-023) | 0 |
 | Low | 5 | 2 (F-01, F-10) | 3 (F-03 VP-009; F-04, F-11 accepted design) |
 | Informational | 4 | - | 4 (license and process items) |
 
@@ -42,7 +42,7 @@ closed without a customer decision or a later task.
 | Container image scan | Grype via `anchore/scan-action` pinned by commit, both image variants (`ci.yml` `image-scan`), gate `scripts/scan-gate.py` | fails on High/Critical unless accepted; results in section 6 |
 | DAST smoke pass | `scripts/dast-smoke.py` against a running production-mode instance (`ci.yml` `dast`) | 64 checks, all passing locally; also runs in CI |
 | DAST baseline | OWASP ZAP baseline (image pinned by digest) against console and gateway (`ci.yml` `dast`), gate `scripts/scan-gate.py` | fails on Medium/High unless accepted; results in section 6 |
-| Access-control review | `tests/integration/test_route_access_matrix.py` over all 61 admin operations | every route classified; 401/403/404 denials verified for each (section 4) |
+| Access-control review | `tests/integration/test_route_access_matrix.py` over all 70 admin operations | every route classified; 401/403/404 denials verified for each (section 4) |
 | Manual review | auth, sessions, CSRF, proxy handling, SSRF, error handling, logging, secrets | F-01 found and fixed; F-02 to F-04 recorded |
 
 ### DAST smoke checks
@@ -73,7 +73,7 @@ closed without a customer decision or a later task.
 | ID | Severity | Finding | Resolution |
 |---|---|---|---|
 | F-01 | Low | **Forwarded headers trusted from 127.0.0.1 by default.** Uvicorn trusts `X-Forwarded-For`/`-Proto` from 127.0.0.1 unless configured otherwise. Any process on the APIEdge host could choose its client address: verified live, 30 failed sign-ins with rotating `X-Forwarded-For` never hit the per-IP throttle (budget 20/min). On the gateway the same bypassed IP-filter and per-address rate-limit policies, contrary to the documented rule that only `APIEDGE_GATEWAY_TRUSTED_PROXIES` may forward. Per-account lockout still applied, and remote clients were not affected. | **Fixed.** The gateway listener trusts forwarded headers only from `APIEDGE_GATEWAY_TRUSTED_PROXIES` (empty by default: never). The console listener uses the new `APIEDGE_TRUSTED_PROXIES` (default `127.0.0.1`, so a reverse proxy on the same host keeps working; set it empty when there is none). Tests: `tests/unit/test_proxy_trust.py`; DAST regression check in CI. |
-| F-02 | Medium | **No native TLS listener.** `apiedge run` serves HTTP only; TLS depends on a TLS-terminating reverse proxy or ingress. Auth cookies are `Secure` only over HTTPS or with `APIEDGE_COOKIE_SECURE=true`; HSTS is sent only over HTTPS. | **Open, planned** (T-023 TLS profiles, keystores). Mitigations in place: localhost bind by default, documented reverse-proxy setup with `APIEDGE_COOKIE_SECURE=true` ([operations](admin-guide/operations.md)), Helm/compose publish on localhost or behind an ingress. Do not expose the listeners directly on untrusted networks. |
+| F-02 | Medium | **No native TLS listener.** `apiedge run` served HTTP only; TLS depended on a TLS-terminating reverse proxy or ingress. Auth cookies are `Secure` only over HTTPS or with `APIEDGE_COOKIE_SECURE=true`; HSTS is sent only over HTTPS. | **Fixed in T-023.** The console and gateway listeners terminate TLS natively (`APIEDGE_TLS_*`, `APIEDGE_GATEWAY_TLS_*`; TLS 1.2 minimum, AEAD ciphers, no compression or renegotiation), with optional client certificates on the gateway and the tenant-scoped `mtls` policy ([operations](admin-guide/operations.md#exposing-apiedge-on-the-network-tls), ADR 0013). Over HTTPS cookies are `Secure` and HSTS is sent. Verified with real handshakes in `tests/integration/test_tls.py` (TLS 1.1 and plain HTTP refused, mTLS optional and required) and live with `apiedge tls self-signed` + `apiedge run`. |
 | F-03 | Low | **MFA is optional for every account**, including SuperAdmins. TOTP is available and enforced once enrolled, but no policy requires it. ASVS 4.0 L2 does not require MFA for every user; it is good practice for platform administrators. | **Open**, proposal **VP-009** (MFA enforcement policy per tenant and for SuperAdmins). Needs a customer decision because it changes the sign-in flow. |
 | F-04 | Low | **Account lockout can be triggered by others.** Five wrong passwords lock an account for 15 minutes, so an attacker who knows a username can lock it out. | **Accepted design** (ASVS 2.2.1 allows lockout with throttling). Per-IP throttling limits the rate; administrators can unlock users; thresholds are configurable (`APIEDGE_LOGIN_MAX_FAILURES`, `APIEDGE_LOGIN_LOCKOUT_MINUTES`). |
 | F-05 | Info | **LGPL-3.0 component in one image variant.** `psycopg` is installed only in the image built with `APIEDGE_WITH_POSTGRES=1` (the compose build). | **Open license finding**, pending the customer's decision on **VP-002**. Not shipped in the wheel, installer or default image. |
@@ -88,7 +88,7 @@ closed without a customer decision or a later task.
 
 `tests/integration/test_route_access_matrix.py` enumerates every operation of the admin API from
 the OpenAPI document and compares its declared access (`x-apiedge-access`) with a reviewed table.
-A new route that is not classified fails the suite. For the 61 operations:
+A new route that is not classified fails the suite. For the 70 operations:
 
 | Access | Operations | Denials verified |
 |---|---|---|
@@ -110,7 +110,7 @@ analytics filters, users, roles, assignments) are covered by the feature tests l
 | ID | Verdict | Evidence / gap |
 |---|---|---|
 | A01 Broken Access Control | Met | Route matrix (section 4), BOLA and cross-tenant tests, CSRF (DAST and tests), tenant filter in the data layer |
-| A02 Cryptographic Failures | Partially met | AES-256-GCM at rest, Argon2id, hashed API keys and refresh tokens; HSTS over HTTPS. Gap: native TLS (F-02) |
+| A02 Cryptographic Failures | Met | AES-256-GCM at rest, Argon2id, hashed API keys and refresh tokens; native TLS 1.2+ listeners and HSTS over HTTPS (F-02 fixed in T-023) |
 | A03 Injection | Met | ORM only, strict Pydantic input models, no `eval`/`exec`, strict CSP, header CR/LF refused, CSV formula escaping; bandit and CodeQL clean |
 | A04 Insecure Design | Met | Body limits, login throttling and lockout, anti-escalation, fail-closed policies, bounded capture and caches |
 | A05 Security Misconfiguration | Met | Secure defaults verified by DAST (headers, CSP, docs hidden, CORS closed, no banners, no stack traces); ZAP baseline in CI |
@@ -141,13 +141,13 @@ analytics filters, users, roles, assignments) are covered by the feature tests l
 |---|---|---|
 | V1 Architecture | Met | Architecture, ADRs, threat-relevant decisions recorded; this report |
 | V2 Authentication | Met | 2.1 password policy (12-128, deny list, no composition rules); 2.2 throttling and lockout; 2.4 Argon2id; 2.5 forced change of generated/reset passwords; 2.8 TOTP with replay guard. MFA optional (F-03) |
-| V3 Session Management | Met | Random opaque refresh tokens, rotation and reuse detection, `HttpOnly`/`SameSite=Strict`/path-scoped cookies (`Secure` over HTTPS, F-02), 15 min access tokens, absolute 12 h re-authentication (3.3.2), logout and invalidation on password and role change |
+| V3 Session Management | Met | Random opaque refresh tokens, rotation and reuse detection, `HttpOnly`/`SameSite=Strict`/path-scoped cookies (`Secure` over HTTPS, native TLS since T-023), 15 min access tokens, absolute 12 h re-authentication (3.3.2), logout and invalidation on password and role change |
 | V4 Access Control | Met | Deny by default, server-side checks on every route, anti-escalation, tenant and object-level checks (section 4) |
 | V5 Validation, Sanitization, Encoding | Met | Strict Pydantic models, header value checks, CSP and React encoding, CSV escaping, SSRF guard |
 | V6 Stored Cryptography | Met | AES-256-GCM with associated data and key rotation, key outside the database; re-encryption tool pending (F-06) |
 | V7 Error Handling and Logging | Partially met | Generic errors with request ids, masked structured logs, audit trail; central log shipping pending (T-028) |
 | V8 Data Protection | Met | `no-store` on API responses, masking, encrypted and retention-limited captures, unmask permission and audit |
-| V9 Communication | Partially met | Outbound TLS 1.2+ with verification; inbound TLS through a proxy only (F-02) |
+| V9 Communication | Met | Inbound native TLS 1.2+ with optional client certificates (T-023, F-02 fixed); outbound TLS 1.2+ with verification. Revocation checking not implemented |
 | V10 Malicious Code | Met | bandit, CodeQL, hash-locked dependencies, pinned actions and images for the scanners |
 | V11 Business Logic | Met (baseline) | Rate limits, quotas, lifecycle rules (retired read-only), key limits per product |
 | V12 Files and Resources | Met | Body limits; no file upload or server-side file access in the current feature set |

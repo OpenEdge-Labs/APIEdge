@@ -80,6 +80,7 @@ nav:
       - 0010 Packet inspector: adr/0010-packet-inspector.md
       - 0011 Release packaging: adr/0011-release-packaging.md
       - 0012 Documentation site: adr/0012-documentation-site.md
+      - 0013 TLS and client certificates: adr/0013-tls-and-client-certificates.md
   - Project:
       - Feature parity matrix: FEATURE_MATRIX.md
       - Project guide: PROJECT_GUIDE.md

@@ -21,3 +21,4 @@ rewritten, they are superseded.
 | [0010](0010-packet-inspector.md) | Packet inspector | T-012 |
 | [0011](0011-release-packaging.md) | Release packaging, SBOM and signing | T-016 |
 | [0012](0012-documentation-site.md) | Documentation site and generated Admin API reference | T-017 |
+| [0013](0013-tls-and-client-certificates.md) | Native TLS, keystores, truststores and client certificates | T-023 |

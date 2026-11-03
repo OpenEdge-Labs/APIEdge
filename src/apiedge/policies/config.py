@@ -40,6 +40,7 @@ POLICY_TYPES = (
     "ip-filter",
     "cache",
     "mock",
+    "mtls",
 )
 
 # type -> config fields that hold secrets (encrypted at rest, write-only in the admin API).
@@ -279,6 +280,31 @@ class MockConfig(_Strict):
         return self
 
 
+Fingerprint = Annotated[
+    str, StringConstraints(strip_whitespace=True, to_lower=True, pattern=r"^[0-9a-f]{64}$")
+]
+
+
+class MtlsConfig(_Strict):
+    """Requires a client certificate issued by a CA of one of the tenant's truststores (T-023)."""
+
+    truststore_id: int = Field(ge=1)
+    # Optional allow-lists: the certificate's subject DN or common name, and SHA-256 fingerprints.
+    allowed_subjects: list[Annotated[str, StringConstraints(min_length=1, max_length=500)]] = Field(
+        default_factory=list, max_length=200
+    )
+    allowed_fingerprints: list[Fingerprint] = Field(default_factory=list, max_length=200)
+    consumer_from: Literal["common_name", "subject", "fingerprint"] = "common_name"
+    # Send the verified subject DN to the upstream in this header (any client value is replaced).
+    forward_subject_header: HeaderName | None = None
+
+    @model_validator(mode="after")
+    def _reserved(self) -> MtlsConfig:
+        if self.forward_subject_header:
+            _headers_ok([self.forward_subject_header], RESERVED_REQUEST_HEADERS)
+        return self
+
+
 # --------------------------------------------------------------------------- chain entries
 
 
@@ -331,6 +357,11 @@ class MockPolicy(_Spec):
     config: MockConfig = Field(default_factory=MockConfig)
 
 
+class MtlsPolicy(_Spec):
+    type: Literal["mtls"]
+    config: MtlsConfig
+
+
 PolicySpec = Annotated[
     Union[  # noqa: UP007 - pydantic discriminated union
         ApiKeyPolicy,
@@ -341,6 +372,7 @@ PolicySpec = Annotated[
         IpFilterPolicy,
         CachePolicy,
         MockPolicy,
+        MtlsPolicy,
     ],
     Field(discriminator="type"),
 ]

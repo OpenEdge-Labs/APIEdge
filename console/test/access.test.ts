@@ -36,7 +36,7 @@ test("an APIDeveloper sees products but not users, roles or audit", () => {
 
 test("a SuperAdmin sees everything, including system settings", () => {
   const root = me({ is_superadmin: true, tenant_id: null });
-  assert.deepEqual(navFor(root).map((n) => n.page), ["tenants", "products", "analytics", "inspector", "users", "roles", "audit", "settings", "account"]);
+  assert.deepEqual(navFor(root).map((n) => n.page), ["tenants", "products", "analytics", "inspector", "tls", "users", "roles", "audit", "settings", "account"]);
   assert.ok(can(root, "tenant:create"));
 });
 
@@ -80,4 +80,9 @@ test("the packet inspector needs inspector:view, tenant-wide or for a product", 
   assert.ok(navFor(me({ permissions: ["inspector:view"] })).some((n) => n.page === "inspector"));
   const scoped = me({ product_permissions: [{ product_id: 4, permissions: ["inspector:view"] }] });
   assert.ok(navFor(scoped).some((n) => n.page === "inspector"));
+});
+
+test("the TLS page needs tls:read", () => {
+  assert.ok(navFor(me({ permissions: ["tls:read"] })).some((n) => n.page === "tls"));
+  assert.ok(!navFor(me({ permissions: ["product:read"] })).some((n) => n.page === "tls"));
 });

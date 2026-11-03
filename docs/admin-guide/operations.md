@@ -37,7 +37,40 @@ are the supported server deployments.
 
 ## Exposing APIEdge on the network (TLS)
 
-APIEdge does not terminate TLS itself yet (TLS profiles, keystores and mTLS are task T-023).
+APIEdge can terminate TLS itself (T-023), or run behind a TLS-terminating reverse proxy.
+
+### Native TLS
+
+Give each listener a PEM certificate chain and key; plain HTTP is then not served on that port:
+
+```bash
+apiedge tls self-signed --out-dir /etc/apiedge/tls --host apiedge.example.com   # testing only
+export APIEDGE_TLS_CERT_FILE=/etc/apiedge/tls/apiedge-cert.pem
+export APIEDGE_TLS_KEY_FILE=/etc/apiedge/tls/apiedge-key.pem
+export APIEDGE_GATEWAY_TLS_CERT_FILE=/etc/apiedge/tls/apiedge-cert.pem
+export APIEDGE_GATEWAY_TLS_KEY_FILE=/etc/apiedge/tls/apiedge-key.pem
+apiedge run
+```
+
+* TLS 1.2 is the minimum (`APIEDGE_TLS_MIN_VERSION=1.3` for TLS 1.3 only); TLS 1.2 uses forward
+  secret AEAD ciphers (`APIEDGE_TLS_CIPHERS`); compression and renegotiation are off.
+* Over HTTPS, session cookies are `Secure` and HSTS is sent automatically.
+* Certificates are read at start-up: restart APIEdge after renewing them.
+* Use a certificate from your CA in production; the self-signed one is for trying it out.
+
+### Client certificates (mTLS) on the gateway
+
+Set `APIEDGE_GATEWAY_TLS_CLIENT_AUTH=optional` (or `required`) and
+`APIEDGE_GATEWAY_TLS_CLIENT_CA_FILE` to the CAs whose client certificates the listener accepts.
+Each API that needs a client certificate gets a **Client certificate (mTLS)** policy naming one
+of its tenant's truststores (console **TLS & certificates**); the policy checks the certificate
+against that truststore, so a certificate valid for one tenant does not open another tenant's
+APIs. With `optional`, APIs without an mTLS policy keep working for clients without
+certificates. Revocation lists (CRL/OCSP) are not checked: remove a compromised certificate's CA
+or pin allowed fingerprints in the policy.
+
+### Behind a reverse proxy
+
 Keep both ports bound to `127.0.0.1` and put a TLS-terminating reverse proxy or load balancer in
 front (nginx, HAProxy, Apache httpd, Traefik, or a Kubernetes ingress via the Helm chart's
 `ingress.*` values). Then:
@@ -46,13 +79,17 @@ front (nginx, HAProxy, Apache httpd, Traefik, or a Kubernetes ingress via the He
 * set `APIEDGE_GATEWAY_TRUSTED_PROXIES` to the proxy's address range, so IP filters and per-client
   rate limits see the real client address from `X-Forwarded-For` (never list networks that
   untrusted clients can connect from);
+* for mTLS at the proxy, let it verify client certificates and pass them in a header
+  (`APIEDGE_GATEWAY_CLIENT_CERT_HEADER`, e.g. nginx
+  `proxy_set_header X-Client-Cert $ssl_client_escaped_cert;`); APIEdge reads it only from
+  trusted proxies and never forwards it upstream;
 * keep `APIEDGE_CORS_ALLOW_ORIGINS` empty unless another web origin must call the admin API;
 * HSTS is sent automatically on HTTPS requests (`APIEDGE_HSTS_MAX_AGE`);
 * forward the `Host` header and allow Server-Sent Events (no response buffering) for
   `/api/v1/tenants/*/inspector/exchanges/stream`, the packet inspector's live view.
 
-If you must bind directly to the network, set `APIEDGE_HOST` / `APIEDGE_GATEWAY_HOST` to
-`0.0.0.0` and restrict access with a firewall.
+If you must bind directly to the network without TLS, set `APIEDGE_HOST` /
+`APIEDGE_GATEWAY_HOST` to `0.0.0.0` and restrict access with a firewall.
 
 ## Backup and restore
 

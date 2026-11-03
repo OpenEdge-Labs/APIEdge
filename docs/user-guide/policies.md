@@ -159,6 +159,27 @@ Answers every request it applies to with a fixed status (200-599), content type,
 body (up to 64 KiB); the upstream is not called. Useful while the backend does not exist yet,
 or limited to some routes.
 
+## Client certificate (mTLS)
+
+Requires a TLS client certificate issued by a CA in one of the tenant's **truststores**
+(console **TLS & certificates**, permission `tls:manage` to create them). The certificate comes
+from the gateway's own TLS listener (an administrator enables client certificates, see
+[operations](../admin-guide/operations.md#exposing-apiedge-on-the-network-tls)) or from a
+trusted TLS-terminating proxy.
+
+| Setting | Meaning |
+|---|---|
+| Truststore id | The truststore whose CAs may issue client certificates (a certificate in it is also accepted as itself, i.e. pinned) |
+| Allowed subjects | Optional: only these subject DNs (`CN=billing-svc,O=Acme`) or common names |
+| Allowed fingerprints | Optional: only certificates with these SHA-256 fingerprints |
+| Consumer name from | Common name (default), full subject or fingerprint: the consumer shown in analytics (`cert:<name>`) |
+| Send the subject in header | Optional: the verified subject DN is sent upstream in this header; a value sent by the client is replaced |
+
+No certificate, an expired one, one not issued by the truststore or one without client
+authentication usage gets **401**; a valid certificate outside the allow-lists gets **403**. If
+the truststore was deleted or is unreadable, the API answers **503** (fails closed). Revocation
+(CRL/OCSP) is not checked.
+
 ## Admin API
 
 ```

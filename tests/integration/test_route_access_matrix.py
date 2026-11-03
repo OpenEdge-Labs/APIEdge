@@ -25,6 +25,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from apiedge.security import x509
+
 from .conftest import PASSWORD, World
 
 PUBLIC = {
@@ -95,9 +97,20 @@ EXPECTED: dict[tuple[str, str], str] = {
     ("GET", T + "/inspector/exchanges/stream"): "product:inspector:view",
     ("GET", T + "/inspector/exchanges/{exchange_id}"): "product:inspector:view",
     ("POST", T + "/inspector/exchanges/{exchange_id}/replay"): "product:inspector:capture",
+    ("GET", T + "/tls/truststores"): "tenant:tls:read",
+    ("POST", T + "/tls/truststores"): "tenant:tls:manage",
+    ("GET", T + "/tls/truststores/{truststore_id}"): "tenant:tls:read",
+    ("PATCH", T + "/tls/truststores/{truststore_id}"): "tenant:tls:manage",
+    ("DELETE", T + "/tls/truststores/{truststore_id}"): "tenant:tls:manage",
+    ("GET", T + "/tls/keystores"): "tenant:tls:read",
+    ("POST", T + "/tls/keystores"): "tenant:tls:manage",
+    ("GET", T + "/tls/keystores/{keystore_id}"): "tenant:tls:read",
+    ("DELETE", T + "/tls/keystores/{keystore_id}"): "tenant:tls:manage",
 }
 
 PARAM = re.compile(r"\{(\w+)\}")
+_CA_KEY = x509.generate_key()
+_CA = x509.build_certificate(subject_key=_CA_KEY, common_name="Matrix CA", is_ca=True)
 
 # Valid bodies, so an authorization gap would show as success rather than as a 422.
 BODIES: dict[tuple[str, str], dict[str, Any]] = {
@@ -108,6 +121,13 @@ BODIES: dict[tuple[str, str], dict[str, Any]] = {
     ("POST", P + "/apis/{api_id}/lifecycle"): {"lifecycle": "published"},
     ("PUT", P + "/apis/{api_id}/policies"): {"policies": []},
     ("POST", P + "/api-keys"): {"name": "other"},
+    ("POST", T + "/tls/truststores"): {"name": "other", "certificates": _CA.pem()},
+    ("PATCH", T + "/tls/truststores/{truststore_id}"): {"description": "changed"},
+    ("POST", T + "/tls/keystores"): {
+        "name": "other",
+        "certificate_chain": _CA.pem(),
+        "private_key": x509.private_key_pem(_CA_KEY),
+    },
 }
 
 
@@ -159,6 +179,15 @@ def _seed(world: World) -> dict[str, Any]:
     y = post("/products", {"name": "Product Y"})["id"]
     api = post(f"/products/{y}/apis", {"name": "Orders", "base_path": "/orders"})["id"]
     key = post(f"/products/{y}/api-keys", {"name": "ci"})["id"]
+    truststore = post("/tls/truststores", {"name": "ca", "certificates": _CA.pem()})["id"]
+    keystore = post(
+        "/tls/keystores",
+        {
+            "name": "ks",
+            "certificate_chain": _CA.pem(),
+            "private_key": x509.private_key_pem(_CA_KEY),
+        },
+    )["id"]
     role = post("/roles", {"name": "Custom", "permissions": ["product:read"]})["id"]
     roles = {r["name"]: r["id"] for r in c.get(base + "/roles", headers=admin).json()}
     nobody = post(
@@ -173,6 +202,8 @@ def _seed(world: World) -> dict[str, Any]:
         "product_id": y,
         "api_id": api,
         "key_id": key,
+        "truststore_id": truststore,
+        "keystore_id": keystore,
         "role_id": role,
         "user_id": nobody,
         "assignment_id": grant["id"],

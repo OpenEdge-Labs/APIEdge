@@ -71,6 +71,7 @@ ignore = []
 # Reuses the gateway tests' pytest fixtures by importing them (F811: fixture parameters).
 "tests/integration/test_policies_gateway.py" = ["F811"]
 "tests/integration/test_inspector.py" = ["F811"]
+"tests/integration/test_tls.py" = ["F811"]
 
 [tool.mypy]
 python_version = "3.10"
