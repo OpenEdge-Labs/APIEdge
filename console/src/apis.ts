@@ -31,6 +31,8 @@ export interface ApiForm {
   base_path: string;
   description: string;
   timeout_ms: string;
+  /** TLS profile id for HTTPS upstreams ("" = the gateway's default). */
+  tls_profile_id: string;
   upstreams: UpstreamRow[];
   routes: RouteRow[];
 }
@@ -42,6 +44,7 @@ export function emptyForm(): ApiForm {
     base_path: "",
     description: "",
     timeout_ms: "30000",
+    tls_profile_id: "",
     upstreams: [{ url: "", weight: "1" }],
     routes: [{ methods: ["GET"], path: "/*", description: "" }],
   };
@@ -54,6 +57,7 @@ export function formFromApi(a: Api): ApiForm {
     base_path: a.base_path,
     description: a.description,
     timeout_ms: String(a.timeout_ms),
+    tls_profile_id: a.tls_profile_id ? String(a.tls_profile_id) : "",
     upstreams: a.upstreams.map((u) => ({ url: u.url, weight: String(u.weight) })),
     routes: a.routes.map((r) => ({ methods: [...r.methods], path: r.path, description: r.description })),
   };
@@ -137,6 +141,7 @@ export function toBody(f: ApiForm) {
     base_path: f.base_path.trim(),
     description: f.description,
     timeout_ms: Number(f.timeout_ms),
+    tls_profile_id: f.tls_profile_id ? Number(f.tls_profile_id) : null,
     upstreams: filledUpstreams(f).map((u) => ({ url: u.url.trim(), weight: Number(u.weight) })),
     routes: filledRoutes(f).map((r) => ({
       methods: METHODS.filter((m) => r.methods.includes(m)),

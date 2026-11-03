@@ -113,7 +113,7 @@ priorities and are not a procurement comparison.
 | JWT validation (HMAC, RSA, RSA-PSS, ECDSA; JWKS) | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Done** | T-008 | Algorithm allow-list, no `none`, algorithm-confusion and weak-key protection, JWKS fetched through the SSRF guard |
 | IP allow and deny lists | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Done** | T-008 | Trusted-proxy aware |
 | CORS | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Done** | T-008 | |
-| Upstream TLS | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Partial** | T-007, T-023 | Upstream certificates are always verified, with an optional CA bundle; TLS profiles and per-API trust stores are T-023 |
+| Upstream TLS | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Partial** | T-007, T-023 | Upstream certificates are always verified, with an optional CA bundle; per-API TLS profiles with tenant truststores and client certificates (upstream mTLS) delivered in T-023 slice 1b |
 | Secrets protection | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Partial** | T-002, T-023 | Secrets are AES-256-GCM encrypted at rest with key rotation; vault integration is T-023 |
 | OAuth 2.0 authorization server (client credentials, code with PKCE, refresh, introspection, revocation) | Y | Y | Y | P | P | P | Y | Y | Y | **Planned** | T-023 | |
 | OpenID Connect | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Planned** | T-023 | |

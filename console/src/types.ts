@@ -96,6 +96,7 @@ export interface Api {
   gateway_path: string;
   description: string;
   timeout_ms: number;
+  tls_profile_id?: number | null;
   lifecycle: Lifecycle;
   upstreams: Upstream[];
   routes: Route[];

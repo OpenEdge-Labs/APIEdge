@@ -52,7 +52,7 @@ from apiedge.config import Settings, get_settings
 from apiedge.db.base import make_engine, make_session_factory
 from apiedge.gateway.bus import ConfigBus, build_bus
 from apiedge.gateway.snapshot import DEPRECATED, RETIRED, RuntimeApi, Snapshot, load_snapshot
-from apiedge.gateway.transport import build_client
+from apiedge.gateway.transport import build_client, build_client_for_context
 from apiedge.inspector.recorder import CaptureRecorder
 from apiedge.policies.base import (
     BodyTooLargeError,
@@ -169,6 +169,8 @@ class GatewayRuntime:
         self._engine = make_engine(settings.effective_database_url)
         self._factory = make_session_factory(self._engine)
         self.client: httpx.AsyncClient | None = None
+        self.tls_clients: dict[str, httpx.AsyncClient] = {}
+        self._retired_clients: list[httpx.AsyncClient] = []
         self.trusted_proxies: tuple[IPNetwork, ...] = tuple(
             ipaddress.ip_network(c, strict=False) for c in settings.gateway_trusted_proxies
         )
@@ -205,13 +207,44 @@ class GatewayRuntime:
     async def reload(self) -> None:
         try:
             snapshot = await anyio.to_thread.run_sync(
-                load_snapshot, self._factory, self.services, self.secret_box
+                load_snapshot,
+                self._factory,
+                self.services,
+                self.secret_box,
+                self.settings.gateway_ca_bundle,
             )
         except Exception:
             log.exception("gateway configuration reload failed; keeping the previous one")
             return
+        retired, self._retired_clients = self._retired_clients, []
+        self._sync_tls_clients(snapshot)
         self.snapshot = snapshot
         self.version += 1
+        for stale in retired:  # replaced one reload ago: their requests have finished
+            with contextlib.suppress(Exception):
+                await stale.aclose()
+
+    def _sync_tls_clients(self, snapshot: Snapshot) -> None:
+        """One upstream client per distinct TLS profile material; unused ones are closed."""
+        wanted: dict[str, Any] = {}
+        for apis in snapshot.tenants.values():
+            for api in apis:
+                if api.tls is not None and api.tls_context is not None:
+                    wanted.setdefault(api.tls.key, api.tls_context)
+        for key, context in wanted.items():
+            if key not in self.tls_clients:
+                self.tls_clients[key] = build_client_for_context(
+                    self.settings.ssrf_policy(), context, self._resolver
+                )
+        for key in [k for k in self.tls_clients if k not in wanted]:
+            stale = self.tls_clients.pop(key)
+            # In-flight requests may still use it: close once they are done.
+            self._retired_clients.append(stale)
+
+    def client_for(self, api: RuntimeApi) -> httpx.AsyncClient | None:
+        if api.tls is None:
+            return self.client
+        return self.tls_clients.get(api.tls.key)
 
     async def _reloader(self, changed: asyncio.Event) -> None:
         interval = self.settings.gateway_reload_interval_seconds or None
@@ -297,6 +330,9 @@ class GatewayRuntime:
             with contextlib.suppress(Exception):
                 await self.inspector_tick()  # and the last captured exchanges
             await self.client.aclose()
+            for c in [*self.tls_clients.values(), *self._retired_clients]:
+                with contextlib.suppress(Exception):
+                    await c.aclose()
             if self._redis is not None:
                 with contextlib.suppress(Exception):
                     await self._redis.aclose()
@@ -661,6 +697,10 @@ async def _send(
     body: bytes,
 ) -> GatewayResponse:
     assert runtime.client is not None  # noqa: S101  # nosec B101 - set during lifespan
+    client = runtime.client_for(api)
+    if api.tls_unusable or client is None:
+        log.error("API %s: its TLS profile cannot be used", api.api_id)
+        return json_error(503, "tls_profile_unavailable", "The API is not available right now.")
     method = ctx.method
     started = time.perf_counter()
     idempotent = method in IDEMPOTENT
@@ -685,7 +725,7 @@ async def _send(
             extensions={"timeout": httpx.Timeout(api.timeout_seconds).as_dict()},
         )
         try:
-            upstream = await runtime.client.send(upstream_request, stream=True)
+            upstream = await client.send(upstream_request, stream=True)
         except (httpx.ConnectError, httpx.ConnectTimeout):
             # Nothing reached the upstream: safe to try again for every method.
             log.warning("upstream connect failed (api %s, attempt %s)", api.api_id, attempt + 1)

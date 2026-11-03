@@ -5,7 +5,7 @@
 // server checks every call itself.
 import { useState, type FormEvent } from "react";
 import { api } from "../api";
-import { canProduct } from "../access";
+import { can, canProduct } from "../access";
 import { METHODS, emptyForm, formErrors, formFromApi, toBody, type ApiForm } from "../apis";
 import { TRANSITIONS, deletable } from "../products";
 import { ApiKeysPanel } from "./ApiKeys";
@@ -23,6 +23,11 @@ const VERB: Record<Lifecycle, string> = {
 export function ApisPanel({ me, tenantId, product, onClose }: { me: Me; tenantId: number; product: Product; onClose: () => void }) {
   const base = `/tenants/${tenantId}/products/${product.id}/apis`;
   const apis = useLoad(() => api<Api[]>(base), [base]);
+  // TLS profiles to choose from (only listed for users who may read them).
+  const profiles = useLoad(
+    () => (can(me, "tls:read") ? api<TlsProfileRef[]>(`/tenants/${tenantId}/tls/profiles`) : Promise.resolve(null)),
+    [tenantId],
+  );
   const action = useAction();
   const [editing, setEditing] = useState<Api | null>(null);
   const [policiesOf, setPoliciesOf] = useState<Api | null>(null);
@@ -135,6 +140,7 @@ export function ApisPanel({ me, tenantId, product, onClose }: { me: Me; tenantId
           base={base}
           api={editing}
           readOnly={editing.lifecycle === "retired" || retiredProduct || !may("api:update")}
+          profiles={profiles.data ?? null}
           onDone={(changed) => {
             setEditing(null);
             if (changed) apis.reload();
@@ -142,13 +148,18 @@ export function ApisPanel({ me, tenantId, product, onClose }: { me: Me; tenantId
         />
       )}
       {!editing && !policiesOf && !retiredProduct && may("api:create") && (
-        <ApiEditor key="new" base={base} api={null} readOnly={false} onDone={(changed) => changed && apis.reload()} />
+        <ApiEditor key="new" base={base} api={null} readOnly={false} profiles={profiles.data ?? null} onDone={(changed) => changed && apis.reload()} />
       )}
     </>
   );
 }
 
-function ApiEditor(props: { base: string; api: Api | null; readOnly: boolean; onDone: (changed: boolean) => void }) {
+interface TlsProfileRef {
+  id: number;
+  name: string;
+}
+
+function ApiEditor(props: { base: string; api: Api | null; readOnly: boolean; profiles: TlsProfileRef[] | null; onDone: (changed: boolean) => void }) {
   const { api: current, readOnly } = props;
   const [form, setForm] = useState<ApiForm>(current ? formFromApi(current) : emptyForm());
   const [problems, setProblems] = useState<string[]>([]);
@@ -200,6 +211,17 @@ function ApiEditor(props: { base: string; api: Api | null; readOnly: boolean; on
               />
             </label>
             <Field label="Timeout (ms)" value={form.timeout_ms} onChange={(v) => set({ timeout_ms: v })} inputMode="numeric" />
+            {props.profiles && (
+              <label className="field">
+                <span>Upstream TLS profile</span>
+                <select value={form.tls_profile_id} onChange={(e) => set({ tls_profile_id: e.target.value })}>
+                  <option value="">Gateway default</option>
+                  {props.profiles.map((p) => (
+                    <option key={p.id} value={String(p.id)}>{p.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
           <label className="field wide">
             <span>Description</span>

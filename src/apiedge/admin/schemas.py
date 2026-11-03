@@ -337,6 +337,7 @@ class ApiIn(In):
     base_path: BasePath
     description: Description = ""
     timeout_ms: int = Field(default=30000, ge=100, le=300000)
+    tls_profile_id: int | None = Field(default=None, ge=1)  # HTTPS upstreams (T-023)
     upstreams: list[UpstreamIn] = Field(default_factory=list, max_length=20)
     routes: list[RouteIn] = Field(default_factory=list, max_length=200)
 
@@ -350,6 +351,7 @@ class ApiPatch(In):
     base_path: BasePath | None = None
     description: Description | None = None
     timeout_ms: int | None = Field(default=None, ge=100, le=300000)
+    tls_profile_id: int | None = Field(default=None, ge=1)  # explicit null: gateway default
     upstreams: list[UpstreamIn] | None = Field(default=None, max_length=20)
     routes: list[RouteIn] | None = Field(default=None, max_length=200)
 
@@ -379,6 +381,7 @@ class ApiOut(Out):
     gateway_path: str
     description: str
     timeout_ms: int
+    tls_profile_id: int | None
     lifecycle: ProductLifecycle
     upstreams: list[UpstreamOut]
     routes: list[RouteOut]

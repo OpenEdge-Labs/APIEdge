@@ -106,6 +106,11 @@ EXPECTED: dict[tuple[str, str], str] = {
     ("POST", T + "/tls/keystores"): "tenant:tls:manage",
     ("GET", T + "/tls/keystores/{keystore_id}"): "tenant:tls:read",
     ("DELETE", T + "/tls/keystores/{keystore_id}"): "tenant:tls:manage",
+    ("GET", T + "/tls/profiles"): "tenant:tls:read",
+    ("POST", T + "/tls/profiles"): "tenant:tls:manage",
+    ("GET", T + "/tls/profiles/{profile_id}"): "tenant:tls:read",
+    ("PATCH", T + "/tls/profiles/{profile_id}"): "tenant:tls:manage",
+    ("DELETE", T + "/tls/profiles/{profile_id}"): "tenant:tls:manage",
 }
 
 PARAM = re.compile(r"\{(\w+)\}")
@@ -123,6 +128,8 @@ BODIES: dict[tuple[str, str], dict[str, Any]] = {
     ("POST", P + "/api-keys"): {"name": "other"},
     ("POST", T + "/tls/truststores"): {"name": "other", "certificates": _CA.pem()},
     ("PATCH", T + "/tls/truststores/{truststore_id}"): {"description": "changed"},
+    ("POST", T + "/tls/profiles"): {"name": "other"},
+    ("PATCH", T + "/tls/profiles/{profile_id}"): {"min_version": "1.3"},
     ("POST", T + "/tls/keystores"): {
         "name": "other",
         "certificate_chain": _CA.pem(),
@@ -204,6 +211,7 @@ def _seed(world: World) -> dict[str, Any]:
         "key_id": key,
         "truststore_id": truststore,
         "keystore_id": keystore,
+        "profile_id": post("/tls/profiles", {"name": "p"})["id"],
         "role_id": role,
         "user_id": nobody,
         "assignment_id": grant["id"],

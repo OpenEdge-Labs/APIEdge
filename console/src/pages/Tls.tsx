@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { api } from "../api";
 import { can } from "../access";
 import type { Me } from "../types";
+import { profileBody, statusClass } from "../tls";
 import { Card, ErrorBox, Field, Notice, fmtDate, useAction, useLoad } from "../ui";
 
 export interface CertInfo {
@@ -38,9 +39,15 @@ interface Keystore {
   chain: CertInfo[];
 }
 
-/** CSS class for a certificate status badge. */
-export function statusClass(status: CertInfo["status"]): string {
-  return status === "valid" ? "published" : status === "expiring" ? "deprecated" : "retired";
+interface TlsProfile {
+  id: number;
+  name: string;
+  description: string;
+  min_version: "1.2" | "1.3";
+  ciphers: string | null;
+  truststore_id: number | null;
+  keystore_id: number | null;
+  apis: string[];
 }
 
 function Cert({ c }: { c: CertInfo }) {
@@ -69,6 +76,9 @@ export function TlsPage({ me, tenantId }: { me: Me; tenantId: number }) {
   const base = `/tenants/${tenantId}/tls`;
   const stores = useLoad(() => api<Truststore[]>(`${base}/truststores`), [base]);
   const keys = useLoad(() => api<Keystore[]>(`${base}/keystores`), [base]);
+  const profiles = useLoad(() => api<TlsProfile[]>(`${base}/profiles`), [base]);
+  const emptyProfile = { name: "", description: "", min_version: "1.2", ciphers: "", truststore_id: "", keystore_id: "" };
+  const [pf, setPf] = useState(emptyProfile);
   const action = useAction();
   const manage = can(me, "tls:manage");
   const [notice, setNotice] = useState<string | null>(null);
@@ -94,19 +104,31 @@ export function TlsPage({ me, tenantId }: { me: Me; tenantId: number }) {
       keys.reload();
     }
   };
-  const remove = async (kind: "truststores" | "keystores", id: number, name: string) => {
+  const createProfile = async (e: FormEvent) => {
+    e.preventDefault();
+    setNotice(null);
+    if (await action.run(() => api(`${base}/profiles`, { method: "POST", body: profileBody(pf) }))) {
+      setPf(emptyProfile);
+      setNotice("TLS profile created. Choose it for an API under Products > APIs.");
+      profiles.reload();
+    }
+  };
+  const storeName = (id: number | null) => (id === null ? "-" : (stores.data ?? []).find((t) => t.id === id)?.name ?? `#${id}`);
+  const keyName = (id: number | null) => (id === null ? "-" : (keys.data ?? []).find((k) => k.id === id)?.name ?? `#${id}`);
+  const remove = async (kind: "truststores" | "keystores" | "profiles", id: number, name: string) => {
     if (!window.confirm(`Delete "${name}"?`)) return;
     setNotice(null);
     if (await action.run(() => api(`${base}/${kind}/${id}`, { method: "DELETE" }))) {
       setNotice(`"${name}" deleted.`);
       if (kind === "truststores") stores.reload();
-      else keys.reload();
+      else if (kind === "keystores") keys.reload();
+      else profiles.reload();
     }
   };
 
   return (
     <>
-      <ErrorBox error={stores.error || keys.error || action.error} />
+      <ErrorBox error={stores.error || keys.error || profiles.error || action.error} />
       <Notice text={notice} />
       <Card title="Truststores">
         <p className="hint">
@@ -179,6 +201,68 @@ export function TlsPage({ me, tenantId }: { me: Me; tenantId: number }) {
             <TextArea label="Private key (PEM)" value={ks.private_key} onChange={(v) => setKs({ ...ks, private_key: v })} placeholder="-----BEGIN PRIVATE KEY-----" />
             <Field label="Key passphrase (if encrypted)" type="password" autoComplete="off" value={ks.passphrase} onChange={(v) => setKs({ ...ks, passphrase: v })} />
             <button type="submit" className="primary" disabled={action.busy || !ks.name.trim() || !ks.certificate_chain.trim() || !ks.private_key.trim()}>Create keystore</button>
+          </form>
+        )}
+      </Card>
+      <Card title="Upstream TLS profiles">
+        <p className="hint">
+          How the gateway connects to an API's HTTPS upstreams: lowest TLS version, the truststore that verifies the upstream
+          (default: the gateway's CA bundle) and an optional keystore sent as client certificate (upstream mTLS). Certificates
+          and host names are always verified.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Name</th><th>TLS</th><th>Truststore</th><th>Client certificate</th><th>Used by</th><th /></tr>
+          </thead>
+          <tbody>
+            {(profiles.data ?? []).map((p) => (
+              <tr key={p.id}>
+                <td>{p.name}<div className="muted">{p.description}</div></td>
+                <td>{p.min_version}+{p.ciphers ? <div className="muted"><code>{p.ciphers}</code></div> : null}</td>
+                <td>{storeName(p.truststore_id)}</td>
+                <td>{keyName(p.keystore_id)}</td>
+                <td>{p.apis.length ? p.apis.join(", ") : <span className="muted">no APIs</span>}</td>
+                <td className="actions">
+                  {manage && <button className="danger" disabled={action.busy} onClick={() => void remove("profiles", p.id, p.name)}>Delete</button>}
+                </td>
+              </tr>
+            ))}
+            {profiles.data && profiles.data.length === 0 && (
+              <tr><td colSpan={6} className="muted">No TLS profiles yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+        {manage && (
+          <form onSubmit={createProfile}>
+            <div className="row">
+              <Field label="Name" value={pf.name} onChange={(v) => setPf({ ...pf, name: v })} required />
+              <label className="field">
+                <span>Lowest TLS version</span>
+                <select value={pf.min_version} onChange={(e) => setPf({ ...pf, min_version: e.target.value })}>
+                  <option value="1.2">TLS 1.2</option>
+                  <option value="1.3">TLS 1.3</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>Truststore</span>
+                <select value={pf.truststore_id} onChange={(e) => setPf({ ...pf, truststore_id: e.target.value })}>
+                  <option value="">Gateway CA bundle</option>
+                  {(stores.data ?? []).map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>Client certificate</span>
+                <select value={pf.keystore_id} onChange={(e) => setPf({ ...pf, keystore_id: e.target.value })}>
+                  <option value="">None</option>
+                  {(keys.data ?? []).map((k) => <option key={k.id} value={String(k.id)}>{k.name}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="row">
+              <Field label="Description" value={pf.description} onChange={(v) => setPf({ ...pf, description: v })} />
+              <Field label="TLS 1.2 ciphers (OpenSSL syntax, optional)" value={pf.ciphers} onChange={(v) => setPf({ ...pf, ciphers: v })} placeholder="ECDHE+AESGCM" />
+            </div>
+            <button type="submit" className="primary" disabled={action.busy || !pf.name.trim()}>Create TLS profile</button>
           </form>
         )}
       </Card>

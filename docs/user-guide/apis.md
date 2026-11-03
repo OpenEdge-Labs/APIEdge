@@ -11,6 +11,7 @@ An **API** lives inside a [product](products.md). It has a base path where the
 | Base path | Starts with `/`, segments of letters, digits and `- _ . ~` (for example `/orders/v1`). Unique within the tenant. `/api/v1`, `/healthz`, `/readyz`, `/docs`, `/redoc`, `/openapi.json` and `/assets` are reserved. It can only change while the API is a draft |
 | Description | Up to 2000 characters |
 | Timeout | Upstream timeout in milliseconds, 100 to 300000 (default 30000) |
+| Upstream TLS profile | Optional: a TLS profile of the tenant (console **TLS & certificates**) for HTTPS upstreams: lowest TLS version, the truststore that verifies the upstream and a client certificate for upstream mTLS. Empty: the gateway's CA bundle, no client certificate |
 | Upstreams | Up to 20. Each has an `http` or `https` URL and a weight from 1 to 100 (traffic is shared by weight) |
 | Routes | Up to 200. Each has one or more HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS), a path relative to the base path and a description |
 | Lifecycle | `draft` (new APIs), `published`, `deprecated`, `retired` |
@@ -70,7 +71,7 @@ All routes are under `/api/v1/tenants/{tenant_id}/products/{product_id}`.
 | Route | Permission |
 |---|---|
 | `GET /apis` | `api:read` |
-| `POST /apis` `{"name", "base_path", "version"?, "description"?, "timeout_ms"?, "upstreams"?, "routes"?}` | `api:create` |
+| `POST /apis` `{"name", "base_path", "version"?, "description"?, "timeout_ms"?, "tls_profile_id"?, "upstreams"?, "routes"?}` | `api:create` |
 | `GET /apis/{api_id}` | `api:read` |
 | `PATCH /apis/{api_id}` (any of the fields above; `upstreams` and `routes` replace the lists) | `api:update` |
 | `POST /apis/{api_id}/lifecycle` `{"lifecycle"}` | `api:publish` |

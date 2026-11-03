@@ -69,6 +69,16 @@ APIs. With `optional`, APIs without an mTLS policy keep working for clients with
 certificates. Revocation lists (CRL/OCSP) are not checked: remove a compromised certificate's CA
 or pin allowed fingerprints in the policy.
 
+### TLS to upstreams
+
+HTTPS upstreams are always verified (TLS 1.2+, certificate and host name). By default the gateway
+trusts the public CAs or `APIEDGE_GATEWAY_CA_BUNDLE`. Tenants can define **upstream TLS profiles**
+(console **TLS & certificates**): lowest TLS version, TLS 1.2 ciphers, a truststore for the
+upstream's CA and a keystore whose certificate is presented to upstreams that require mTLS; an API
+selects a profile. A profile whose keystore cannot be decrypted makes its APIs answer 503. The
+standard library loads client keys only from files, so the gateway writes the key to a private
+temporary file just while loading it and deletes it at once.
+
 ### Behind a reverse proxy
 
 Keep both ports bound to `127.0.0.1` and put a TLS-terminating reverse proxy or load balancer in

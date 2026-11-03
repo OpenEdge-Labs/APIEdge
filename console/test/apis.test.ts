@@ -57,6 +57,7 @@ test("the body drops empty rows, trims and orders methods", () => {
     base_path: "/orders",
     description: "",
     timeout_ms: 5000,
+    tls_profile_id: null,
     upstreams: [{ url: "https://b.example.com", weight: 3 }],
     routes: [{ methods: ["GET", "PUT"], path: "/x", description: "" }],
   });
@@ -72,4 +73,6 @@ test("an API round-trips through the form", () => {
   assert.equal(body.base_path, "/o");
   assert.deepEqual(body.upstreams, a.upstreams);
   assert.deepEqual(body.routes, a.routes);
+  assert.equal(body.tls_profile_id, null);
+  assert.equal(toBody(formFromApi({ ...a, tls_profile_id: 7 })).tls_profile_id, 7);
 });

@@ -106,6 +106,11 @@ APIEdge Admin API, version `0.1.0.dev0`, OpenAPI `3.1.0`. The machine-readable d
 | `POST /api/v1/tenants/{tenant_id}/tls/keystores` | Create a keystore (certificate chain and private key) |
 | `GET /api/v1/tenants/{tenant_id}/tls/keystores/{keystore_id}` | Get a keystore |
 | `DELETE /api/v1/tenants/{tenant_id}/tls/keystores/{keystore_id}` | Delete a keystore |
+| `GET /api/v1/tenants/{tenant_id}/tls/profiles` | List TLS profiles |
+| `POST /api/v1/tenants/{tenant_id}/tls/profiles` | Create a TLS profile |
+| `GET /api/v1/tenants/{tenant_id}/tls/profiles/{profile_id}` | Get a TLS profile |
+| `PATCH /api/v1/tenants/{tenant_id}/tls/profiles/{profile_id}` | Change a TLS profile (null clears the truststore, keystore or cipher list) |
+| `DELETE /api/v1/tenants/{tenant_id}/tls/profiles/{profile_id}` | Delete a TLS profile |
 
 | system | |
 |---|---|
@@ -1228,6 +1233,88 @@ Delete a keystore.
 | 204 | Successful Response | - |
 | 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
 
+### GET /api/v1/tenants/{tenant_id}/tls/profiles
+
+List TLS profiles.
+
+**Access:** `tls:read` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: array of [TlsProfileOut](#schema-tlsprofileout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### POST /api/v1/tenants/{tenant_id}/tls/profiles
+
+Create a TLS profile.
+
+**Access:** `tls:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+**Request body (required):** <code>application/json</code>: [TlsProfileIn](#schema-tlsprofilein)
+
+| Status | Meaning | Body |
+|---|---|---|
+| 201 | Successful Response | <code>application/json</code>: [TlsProfileOut](#schema-tlsprofileout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### GET /api/v1/tenants/{tenant_id}/tls/profiles/{profile_id}
+
+Get a TLS profile.
+
+**Access:** `tls:read` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `profile_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: [TlsProfileOut](#schema-tlsprofileout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### PATCH /api/v1/tenants/{tenant_id}/tls/profiles/{profile_id}
+
+Change a TLS profile (null clears the truststore, keystore or cipher list).
+
+**Access:** `tls:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `profile_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+**Request body (required):** <code>application/json</code>: [TlsProfilePatch](#schema-tlsprofilepatch)
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: [TlsProfileOut](#schema-tlsprofileout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### DELETE /api/v1/tenants/{tenant_id}/tls/profiles/{profile_id}
+
+Delete a TLS profile.
+
+**Access:** `tls:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `profile_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 204 | Successful Response | - |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
 ## system
 
 ### GET /api/v1/system/settings
@@ -1273,6 +1360,7 @@ Readiness probe (database reachable).
 | `base_path` | string | yes | max length 255; pattern <code>^(/&#91;A-Za-z0-9&#95;.~-&#93;+)+$</code> |
 | `description` | string | no | max length 2000; default <code>""</code> |
 | `timeout_ms` | integer | no | min 100; max 300000; default <code>30000</code> |
+| `tls_profile_id` | integer or null | no |  |
 | `upstreams` | array of [UpstreamIn](#schema-upstreamin) | no | max items 20 |
 | `routes` | array of [RouteIn](#schema-routein) | no | max items 200 |
 
@@ -1344,6 +1432,7 @@ Requires an API key of the API's product (``admin.policies`` issues them).
 | `gateway_path` | string | yes |  |
 | `description` | string | yes |  |
 | `timeout_ms` | integer | yes |  |
+| `tls_profile_id` | integer or null | yes |  |
 | `lifecycle` | string: <code>"draft"</code>, <code>"published"</code>, <code>"deprecated"</code>, <code>"retired"</code> | yes |  |
 | `upstreams` | array of [UpstreamOut](#schema-upstreamout) | yes |  |
 | `routes` | array of [RouteOut](#schema-routeout) | yes |  |
@@ -1359,6 +1448,7 @@ Requires an API key of the API's product (``admin.policies`` issues them).
 | `base_path` | string or null | no |  |
 | `description` | string or null | no |  |
 | `timeout_ms` | integer or null | no |  |
+| `tls_profile_id` | integer or null | no |  |
 | `upstreams` | array of [UpstreamIn](#schema-upstreamin) or null | no |  |
 | `routes` | array of [RouteIn](#schema-routein) or null | no |  |
 
@@ -1928,6 +2018,42 @@ Requires a client certificate issued by a CA of one of the tenant's truststores 
 |---|---|---|---|
 | `name` | string or null | no |  |
 | `is_active` | boolean or null | no |  |
+
+### TlsProfileIn {#schema-tlsprofilein}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `name` | string | yes | pattern <code>^&#91;A-Za-z0-9&#93;&#91;A-Za-z0-9 &#95;.@-&#93;&#123;0,99&#125;$</code> |
+| `description` | string | no | max length 500; default <code>""</code> |
+| `min_version` | string: <code>"1.2"</code>, <code>"1.3"</code> | no | default <code>"1.2"</code> |
+| `ciphers` | string or null | no |  |
+| `truststore_id` | integer or null | no |  |
+| `keystore_id` | integer or null | no |  |
+
+### TlsProfileOut {#schema-tlsprofileout}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | integer | yes |  |
+| `name` | string | yes |  |
+| `description` | string | yes |  |
+| `min_version` | string | yes |  |
+| `ciphers` | string or null | yes |  |
+| `truststore_id` | integer or null | yes |  |
+| `keystore_id` | integer or null | yes |  |
+| `apis` | array of string | yes |  |
+| `created_at` | string (date-time) | yes |  |
+| `updated_at` | string (date-time) | yes |  |
+
+### TlsProfilePatch {#schema-tlsprofilepatch}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `description` | string or null | no |  |
+| `min_version` | string: <code>"1.2"</code>, <code>"1.3"</code> or null | no |  |
+| `ciphers` | string or null | no |  |
+| `truststore_id` | integer or null | no |  |
+| `keystore_id` | integer or null | no |  |
 
 ### TokenOut {#schema-tokenout}
 

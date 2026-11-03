@@ -667,10 +667,39 @@ reference), `.env.example`, `CHANGELOG.md`, `APIProjectTask.md`.
 
 **Tests.** 508 pytest pass locally (15 new: 7 TLS integration incl. real TLS handshakes for
 server TLS, optional and required mTLS, TLS 1.1 and plain HTTP refused; 8 X.509/TLS unit; the
-access matrix now covers 70 operations with 401/403/404 denials). 41 console tests, tsc clean.
+access matrix now covers 70 operations with 401/403/404 denials). 39 console tests, tsc clean.
 ruff, mypy --strict, bandit clean. Live: `apiedge tls self-signed` + `apiedge run` served HTTPS on
 both ports with HSTS and `Secure` cookies; TLS 1.1 and plain HTTP were refused.
 
 **Follow-ups.** Remaining T-023 slices: TLS profiles for upstream connections (upstream mTLS with
 keystores), OAuth 2.0 authorization server, OIDC, JWT generation, LDAP basic auth, HMAC, threat
 protection, WAF and IP reputation, Vault integration, console SSO. No CRL/OCSP checking.
+
+## 2026-11-04 - T-023 Advanced security, slice 1b: upstream TLS profiles
+
+**Summary.** Tenants define TLS profiles for HTTPS upstreams (lowest TLS version, TLS 1.2
+ciphers, a truststore that verifies the upstream instead of the gateway's CA bundle, and a
+keystore whose certificate is presented for upstream mTLS); an API selects one
+(`tls_profile_id`). Admin API `/api/v1/tenants/{id}/tls/profiles` (`tls:read` / `tls:manage`,
+migration 0009), console section on the TLS & certificates page and a profile choice in the API
+form. The gateway resolves profiles per tenant when it loads its configuration, keeps one
+upstream client per distinct profile material (old clients closed on the next reload) and fails
+closed with 503 when a profile cannot be used (missing store, undecryptable key, foreign
+tenant). Verification is always on. Profiles, truststores and keystores in use cannot be
+deleted. The keystore key is written to a private temporary file only while the standard library
+loads it.
+
+**Files.** `src/apiedge/admin/{tls,apis,schemas}.py`, `src/apiedge/db/models.py`,
+`src/apiedge/db/migrations/versions/0009_tls_profiles.py`,
+`src/apiedge/gateway/{app,bus,snapshot,transport}.py`, `src/apiedge/security/tls.py`,
+`console/src/{apis.ts,tls.ts,types.ts,pages/Apis.tsx,pages/Tls.tsx}`, `console/test/*`,
+`src/apiedge/static/`, `tests/integration/{test_tls_profiles,test_route_access_matrix}.py`,
+docs (APIs guide, operations, SECURITY.md, FEATURE_MATRIX.md, API reference), `CHANGELOG.md`,
+`APIProjectTask.md`.
+
+**Tests.** 2 new integration tests (profile CRUD, RBAC, tenant isolation, references in use; the
+gateway against a real HTTPS upstream that requires a client certificate: default client and
+truststore-only profile refused with 502, full profile 200, undecryptable key and foreign profile
+503); the access matrix now covers 75 operations. 41 console tests. ruff, mypy --strict, bandit
+clean; DAST smoke pass 64/64 against a local instance with the CI settings. CI is blocked by the
+GitHub billing limit (see the task note).

@@ -42,7 +42,7 @@ closed without a customer decision or a later task.
 | Container image scan | Grype via `anchore/scan-action` pinned by commit, both image variants (`ci.yml` `image-scan`), gate `scripts/scan-gate.py` | fails on High/Critical unless accepted; results in section 6 |
 | DAST smoke pass | `scripts/dast-smoke.py` against a running production-mode instance (`ci.yml` `dast`) | 64 checks, all passing locally; also runs in CI |
 | DAST baseline | OWASP ZAP baseline (image pinned by digest) against console and gateway (`ci.yml` `dast`), gate `scripts/scan-gate.py` | fails on Medium/High unless accepted; results in section 6 |
-| Access-control review | `tests/integration/test_route_access_matrix.py` over all 70 admin operations | every route classified; 401/403/404 denials verified for each (section 4) |
+| Access-control review | `tests/integration/test_route_access_matrix.py` over all 75 admin operations | every route classified; 401/403/404 denials verified for each (section 4) |
 | Manual review | auth, sessions, CSRF, proxy handling, SSRF, error handling, logging, secrets | F-01 found and fixed; F-02 to F-04 recorded |
 
 ### DAST smoke checks
@@ -88,7 +88,7 @@ closed without a customer decision or a later task.
 
 `tests/integration/test_route_access_matrix.py` enumerates every operation of the admin API from
 the OpenAPI document and compares its declared access (`x-apiedge-access`) with a reviewed table.
-A new route that is not classified fails the suite. For the 70 operations:
+A new route that is not classified fails the suite. For the 75 operations:
 
 | Access | Operations | Denials verified |
 |---|---|---|

@@ -44,7 +44,7 @@ from apiedge.admin.schemas import (
     UpstreamOut,
 )
 from apiedge.config import Settings
-from apiedge.db.models import Api, ApiRoute, ApiUpstream, Product
+from apiedge.db.models import Api, ApiRoute, ApiUpstream, Product, TlsProfile
 from apiedge.security.audit import audit
 from apiedge.security.ssrf import SsrfError, check_url
 
@@ -55,6 +55,16 @@ SSRF_HINT = (
     "to a public address (private, loopback, link-local and cloud metadata addresses are blocked "
     "unless an administrator allows them)"
 )
+
+
+def _tls_profile(caller: TenantCaller, profile_id: int | None) -> int | None:
+    """A TLS profile of the caller's tenant (400 otherwise, without existence disclosure)."""
+    if profile_id is None:
+        return None
+    profile = caller.session.get(TlsProfile, profile_id)
+    if profile is None or profile.tenant_id != caller.tenant_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="TLS profile not found")
+    return profile.id
 
 
 def _out(a: Api, tenant_slug: str) -> ApiOut:
@@ -68,6 +78,7 @@ def _out(a: Api, tenant_slug: str) -> ApiOut:
         gateway_path=f"/{tenant_slug}{a.base_path}",
         description=a.description,
         timeout_ms=a.timeout_ms,
+        tls_profile_id=a.tls_profile_id,
         lifecycle=a.lifecycle,
         upstreams=[UpstreamOut(url=u.url, weight=u.weight) for u in a.upstreams],
         routes=[
@@ -224,6 +235,7 @@ def create_api(
         base_path=body.base_path,
         description=body.description,
         timeout_ms=body.timeout_ms,
+        tls_profile_id=_tls_profile(caller, body.tls_profile_id),
         lifecycle="draft",
     )
     _check_unique(caller, api)
@@ -267,6 +279,8 @@ def update_api(
         value = getattr(body, field)
         if value is not None:
             setattr(api, field, value)
+    if "tls_profile_id" in body.model_fields_set:
+        api.tls_profile_id = _tls_profile(caller, body.tls_profile_id)
     _check_unique(caller, api)
     if body.upstreams is not None:
         if not body.upstreams and api.lifecycle != "draft":

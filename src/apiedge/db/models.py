@@ -253,6 +253,10 @@ class Api(TenantOwned, Base):
     # Ordered policy chain (T-008): JSON list of apiedge.policies.config.PolicySpec documents,
     # secret fields encrypted with the secrets box.
     policies: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    # TLS profile for HTTPS upstream connections (T-023); None: the gateway's default.
+    tls_profile_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tls_profiles.id"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
@@ -535,6 +539,38 @@ class Keystore(TenantOwned, Base):
     key_type: Mapped[str] = mapped_column(String(32), nullable=False)
     fingerprint_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     not_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+
+class TlsProfile(TenantOwned, Base):
+    """How the gateway connects to an API's HTTPS upstreams (T-023, ADR 0013).
+
+    Lowest TLS version, optional TLS 1.2 cipher list, the truststore that verifies the upstream's
+    certificate (default: the gateway's CA bundle) and an optional keystore presented as the
+    client certificate (upstream mTLS). Certificate and host name verification are always on.
+    """
+
+    __tablename__ = "tls_profiles"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="uq_tls_profiles_tenant_id_name"),
+        CheckConstraint("min_version IN ('1.2', '1.3')", name="min_version"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    min_version: Mapped[str] = mapped_column(String(8), nullable=False, default="1.2")
+    ciphers: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    truststore_id: Mapped[int | None] = mapped_column(ForeignKey("truststores.id"), nullable=True)
+    keystore_id: Mapped[int | None] = mapped_column(ForeignKey("keystores.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )

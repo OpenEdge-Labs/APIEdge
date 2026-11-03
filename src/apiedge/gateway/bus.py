@@ -36,6 +36,7 @@ from apiedge.db.models import (
     Keystore,
     Product,
     Tenant,
+    TlsProfile,
     Truststore,
 )
 
@@ -148,7 +149,7 @@ def build_bus(redis_url: str | None) -> ConfigBus:
     return RedisConfigBus(redis_url) if redis_url else ConfigBus()
 
 
-WATCHED = (Tenant, Product, Api, ApiUpstream, ApiRoute, ApiKey, Truststore, Keystore)
+WATCHED = (Tenant, Product, Api, ApiUpstream, ApiRoute, ApiKey, Truststore, Keystore, TlsProfile)
 _CHANGED = "apiedge_gateway_config_changed"
 _INSTALLED = "_apiedge_change_notifier"
 

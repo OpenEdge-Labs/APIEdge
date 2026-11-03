@@ -8,19 +8,24 @@
 | ``POST .../tls/truststores``, ``PATCH``/``DELETE .../{truststore_id}`` | ``tls:manage`` |
 | ``GET .../tls/keystores[/{keystore_id}]`` | ``tls:read`` |
 | ``POST .../tls/keystores``, ``DELETE .../tls/keystores/{keystore_id}`` | ``tls:manage`` |
+| ``GET .../tls/profiles[/{profile_id}]`` | ``tls:read`` |
+| ``POST .../tls/profiles``, ``PATCH``/``DELETE .../tls/profiles/{profile_id}`` | ``tls:manage`` |
 
 Every query runs on a tenant-bound session; another tenant's objects answer 404. Uploaded
 certificates are parsed and re-encoded (only certificates are kept from a PEM bundle). A
 keystore's private key must match its certificate, is stored encrypted with the secrets box
 (bound to tenant and keystore) and is never returned. Truststores used by an ``mtls`` policy
-cannot be deleted.
+cannot be deleted. TLS profiles tell the gateway how to connect to an API's HTTPS upstreams:
+lowest TLS version, TLS 1.2 ciphers, the truststore verifying the upstream and the keystore
+presented as client certificate. Profiles, truststores and keystores in use cannot be deleted.
 """
 
 from __future__ import annotations
 
 import json
+import ssl
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import Field, StringConstraints
@@ -28,9 +33,10 @@ from sqlalchemy import select
 
 from apiedge.admin.deps import TenantCaller, not_found, require
 from apiedge.admin.schemas import In, Out
-from apiedge.db.models import Api, Keystore, Truststore
+from apiedge.db.models import Api, Keystore, TlsProfile, Truststore
 from apiedge.security.audit import audit
 from apiedge.security.crypto import SecretBox
+from apiedge.security.tls import keystore_aad
 from apiedge.security.x509 import (
     CertificateError,
     bundle_pem,
@@ -104,10 +110,6 @@ class KeystoreOut(Out):
     chain: list[CertificateOut]
     created_at: datetime
     updated_at: datetime
-
-
-def keystore_aad(tenant_id: int, keystore_id: int) -> str:
-    return f"keystore:{tenant_id}:{keystore_id}"
 
 
 def _bad(detail: str) -> HTTPException:
@@ -198,6 +200,13 @@ def truststore_users(caller: TenantCaller, truststore_id: int) -> list[str]:
     return names
 
 
+def _profile_users(caller: TenantCaller, column: str, obj_id: int) -> list[str]:
+    stmt = select(TlsProfile.name).where(
+        TlsProfile.tenant_id == caller.tenant_id, getattr(TlsProfile, column) == obj_id
+    )
+    return [f"TLS profile {n}" for n in caller.session.scalars(stmt)]
+
+
 # --------------------------------------------------------------------------- truststores
 
 
@@ -284,11 +293,11 @@ def delete_truststore(
     truststore_id: int, caller: Annotated[TenantCaller, Depends(require("tls:manage"))]
 ) -> Response:
     t = _truststore(caller, truststore_id)
-    users = truststore_users(caller, t.id)
+    users = truststore_users(caller, t.id) + _profile_users(caller, "truststore_id", t.id)
     if users:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            detail=f"the truststore is used by the policies of: {', '.join(sorted(users)[:10])}",
+            detail=f"the truststore is in use by: {', '.join(sorted(users)[:10])}",
         )
     _audit(caller, "truststore.delete", "truststore", t.id, {"name": t.name})
     caller.session.delete(t)
@@ -376,6 +385,12 @@ def delete_keystore(
     keystore_id: int, caller: Annotated[TenantCaller, Depends(require("tls:manage"))]
 ) -> Response:
     k = _keystore(caller, keystore_id)
+    users = _profile_users(caller, "keystore_id", k.id)
+    if users:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"the keystore is in use by: {', '.join(sorted(users)[:10])}",
+        )
     _audit(
         caller,
         "keystore.delete",
@@ -384,5 +399,167 @@ def delete_keystore(
         {"name": k.name, "fingerprint": k.fingerprint_sha256},
     )
     caller.session.delete(k)
+    caller.session.commit()
+    return Response(status_code=204)
+
+
+# --------------------------------------------------------------------------- TLS profiles
+
+Ciphers = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9+:!@=_-]{1,2000}$")]
+
+
+class TlsProfileIn(In):
+    name: Name
+    description: Description = ""
+    min_version: Literal["1.2", "1.3"] = "1.2"
+    ciphers: Ciphers | None = None
+    truststore_id: int | None = Field(default=None, ge=1)
+    keystore_id: int | None = Field(default=None, ge=1)
+
+
+class TlsProfilePatch(In):
+    description: Description | None = None
+    min_version: Literal["1.2", "1.3"] | None = None
+    ciphers: Ciphers | None = None
+    truststore_id: int | None = Field(default=None, ge=1)
+    keystore_id: int | None = Field(default=None, ge=1)
+
+
+class TlsProfileOut(Out):
+    id: int
+    name: str
+    description: str
+    min_version: str
+    ciphers: str | None
+    truststore_id: int | None
+    keystore_id: int | None
+    apis: list[str]
+    created_at: datetime
+    updated_at: datetime
+
+
+def _profile(caller: TenantCaller, profile_id: int) -> TlsProfile:
+    p = caller.session.get(TlsProfile, profile_id)
+    if p is None or p.tenant_id != caller.tenant_id:
+        raise not_found("TLS profile not found")
+    return p
+
+
+def _profile_apis(caller: TenantCaller, profile_id: int) -> list[str]:
+    stmt = select(Api.name).where(
+        Api.tenant_id == caller.tenant_id, Api.tls_profile_id == profile_id
+    )
+    return sorted(caller.session.scalars(stmt))
+
+
+def _profile_out(caller: TenantCaller, p: TlsProfile) -> TlsProfileOut:
+    return TlsProfileOut(
+        id=p.id,
+        name=p.name,
+        description=p.description,
+        min_version=p.min_version,
+        ciphers=p.ciphers,
+        truststore_id=p.truststore_id,
+        keystore_id=p.keystore_id,
+        apis=_profile_apis(caller, p.id),
+        created_at=p.created_at,
+        updated_at=p.updated_at,
+    )
+
+
+def _check_refs(caller: TenantCaller, truststore_id: int | None, keystore_id: int | None) -> None:
+    """Referenced stores must exist in the caller's tenant (400, no existence disclosure)."""
+    if truststore_id is not None:
+        t = caller.session.get(Truststore, truststore_id)
+        if t is None or t.tenant_id != caller.tenant_id:
+            raise _bad(f"truststore {truststore_id} not found")
+    if keystore_id is not None:
+        k = caller.session.get(Keystore, keystore_id)
+        if k is None or k.tenant_id != caller.tenant_id:
+            raise _bad(f"keystore {keystore_id} not found")
+
+
+def _check_ciphers(ciphers: str | None) -> None:
+    if ciphers is None:
+        return
+    try:
+        ssl.create_default_context().set_ciphers(ciphers)
+    except ssl.SSLError as exc:
+        raise _bad("the cipher list selects no usable cipher") from exc
+
+
+@router.get("/profiles", response_model=list[TlsProfileOut], summary="List TLS profiles")
+def list_profiles(
+    caller: Annotated[TenantCaller, Depends(require("tls:read"))],
+) -> list[TlsProfileOut]:
+    stmt = (
+        select(TlsProfile).where(TlsProfile.tenant_id == caller.tenant_id).order_by(TlsProfile.name)
+    )
+    return [_profile_out(caller, p) for p in caller.session.scalars(stmt)]
+
+
+@router.post(
+    "/profiles", response_model=TlsProfileOut, status_code=201, summary="Create a TLS profile"
+)
+def create_profile(
+    body: TlsProfileIn, caller: Annotated[TenantCaller, Depends(require("tls:manage"))]
+) -> TlsProfileOut:
+    _check_refs(caller, body.truststore_id, body.keystore_id)
+    _check_ciphers(body.ciphers)
+    _unique(caller, TlsProfile, body.name)
+    p = TlsProfile(tenant_id=caller.tenant_id, **body.model_dump())
+    caller.session.add(p)
+    caller.session.flush()
+    _audit(caller, "tls_profile.create", "tls_profile", p.id, body.model_dump())
+    caller.session.commit()
+    caller.session.refresh(p)
+    return _profile_out(caller, p)
+
+
+@router.get("/profiles/{profile_id}", response_model=TlsProfileOut, summary="Get a TLS profile")
+def get_profile(
+    profile_id: int, caller: Annotated[TenantCaller, Depends(require("tls:read"))]
+) -> TlsProfileOut:
+    return _profile_out(caller, _profile(caller, profile_id))
+
+
+@router.patch(
+    "/profiles/{profile_id}",
+    response_model=TlsProfileOut,
+    summary="Change a TLS profile (null clears the truststore, keystore or cipher list)",
+)
+def update_profile(
+    profile_id: int,
+    body: TlsProfilePatch,
+    caller: Annotated[TenantCaller, Depends(require("tls:manage"))],
+) -> TlsProfileOut:
+    p = _profile(caller, profile_id)
+    changes = body.model_dump(exclude_unset=True)
+    for required in ("description", "min_version"):
+        if changes.get(required) is None:
+            changes.pop(required, None)
+    _check_refs(caller, changes.get("truststore_id"), changes.get("keystore_id"))
+    _check_ciphers(changes.get("ciphers"))
+    for field, value in changes.items():
+        setattr(p, field, value)
+    _audit(caller, "tls_profile.update", "tls_profile", p.id, {"name": p.name, **changes})
+    caller.session.commit()
+    caller.session.refresh(p)
+    return _profile_out(caller, p)
+
+
+@router.delete("/profiles/{profile_id}", status_code=204, summary="Delete a TLS profile")
+def delete_profile(
+    profile_id: int, caller: Annotated[TenantCaller, Depends(require("tls:manage"))]
+) -> Response:
+    p = _profile(caller, profile_id)
+    apis = _profile_apis(caller, p.id)
+    if apis:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"the TLS profile is used by the APIs: {', '.join(apis[:10])}",
+        )
+    _audit(caller, "tls_profile.delete", "tls_profile", p.id, {"name": p.name})
+    caller.session.delete(p)
     caller.session.commit()
     return Response(status_code=204)

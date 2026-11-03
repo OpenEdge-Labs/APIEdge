@@ -4158,6 +4158,279 @@
         }
       }
     },
+    "/api/v1/tenants/{tenant_id}/tls/profiles": {
+      "get": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "List TLS profiles",
+        "operationId": "list_profiles_api_v1_tenants__tenant_id__tls_profiles_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TlsProfileOut"
+                  },
+                  "title": "Response List Profiles Api V1 Tenants  Tenant Id  Tls Profiles Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:read"
+        }
+      },
+      "post": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "Create a TLS profile",
+        "operationId": "create_profile_api_v1_tenants__tenant_id__tls_profiles_post",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TlsProfileIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TlsProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:manage"
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/tls/profiles/{profile_id}": {
+      "get": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "Get a TLS profile",
+        "operationId": "get_profile_api_v1_tenants__tenant_id__tls_profiles__profile_id__get",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Profile Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TlsProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:read"
+        }
+      },
+      "patch": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "Change a TLS profile (null clears the truststore, keystore or cipher list)",
+        "operationId": "update_profile_api_v1_tenants__tenant_id__tls_profiles__profile_id__patch",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Profile Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TlsProfilePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TlsProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:manage"
+        }
+      },
+      "delete": {
+        "tags": [
+          "tls"
+        ],
+        "summary": "Delete a TLS profile",
+        "operationId": "delete_profile_api_v1_tenants__tenant_id__tls_profiles__profile_id__delete",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Profile Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "tls:manage"
+        }
+      }
+    },
     "/api/v1/system/settings": {
       "get": {
         "tags": [
@@ -4272,6 +4545,18 @@
             "minimum": 100.0,
             "title": "Timeout Ms",
             "default": 30000
+          },
+          "tls_profile_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tls Profile Id"
           },
           "upstreams": {
             "items": {
@@ -4582,6 +4867,17 @@
             "type": "integer",
             "title": "Timeout Ms"
           },
+          "tls_profile_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tls Profile Id"
+          },
           "lifecycle": {
             "type": "string",
             "enum": [
@@ -4628,6 +4924,7 @@
           "gateway_path",
           "description",
           "timeout_ms",
+          "tls_profile_id",
           "lifecycle",
           "upstreams",
           "routes",
@@ -4700,6 +4997,18 @@
               }
             ],
             "title": "Timeout Ms"
+          },
+          "tls_profile_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tls Profile Id"
           },
           "upstreams": {
             "anyOf": [
@@ -7422,6 +7731,226 @@
         "additionalProperties": false,
         "type": "object",
         "title": "TenantPatch"
+      },
+      "TlsProfileIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.@-]{0,99}$",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Description",
+            "default": ""
+          },
+          "min_version": {
+            "type": "string",
+            "enum": [
+              "1.2",
+              "1.3"
+            ],
+            "title": "Min Version",
+            "default": "1.2"
+          },
+          "ciphers": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+:!@=_-]{1,2000}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ciphers"
+          },
+          "truststore_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Truststore Id"
+          },
+          "keystore_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keystore Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "TlsProfileIn"
+      },
+      "TlsProfileOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "min_version": {
+            "type": "string",
+            "title": "Min Version"
+          },
+          "ciphers": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ciphers"
+          },
+          "truststore_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Truststore Id"
+          },
+          "keystore_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keystore Id"
+          },
+          "apis": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Apis"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "min_version",
+          "ciphers",
+          "truststore_id",
+          "keystore_id",
+          "apis",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TlsProfileOut"
+      },
+      "TlsProfilePatch": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "min_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "1.2",
+                  "1.3"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Version"
+          },
+          "ciphers": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+:!@=_-]{1,2000}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ciphers"
+          },
+          "truststore_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Truststore Id"
+          },
+          "keystore_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keystore Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TlsProfilePatch"
       },
       "TokenOut": {
         "properties": {

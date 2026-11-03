@@ -22,17 +22,21 @@ from __future__ import annotations
 
 import logging
 import re
+import ssl
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import timezone
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from apiedge.db.models import Api, ApiKey, Product, Tenant, Truststore
+from apiedge.db.models import Api, ApiKey, Keystore, Product, Tenant, TlsProfile, Truststore
+from apiedge.gateway.transport import UpstreamTls, build_profile_context
 from apiedge.policies.base import Pipeline
 from apiedge.policies.builtin import ApiKeyInfo, PolicyServices, build_pipeline
-from apiedge.security.crypto import SecretBox
+from apiedge.security.crypto import CryptoError, SecretBox
+from apiedge.security.tls import keystore_aad
 from apiedge.security.x509 import Certificate, CertificateError, load_pem_certificates
 
 log = logging.getLogger("apiedge.gateway")
@@ -103,6 +107,11 @@ class RuntimeApi:
     balancer: WeightedBalancer = field(repr=False)
     tenant_id: int = 0
     product_id: int = 0
+    # Upstream TLS profile (T-023): None uses the gateway's default client; ``tls_unusable``
+    # makes the API answer 503 (a profile whose keystore cannot be decrypted, for example).
+    tls: UpstreamTls | None = None
+    tls_context: ssl.SSLContext | None = field(default=None, repr=False)
+    tls_unusable: bool = False
     pipeline: Pipeline = field(default_factory=Pipeline, repr=False)
 
     def remainder(self, path: str) -> str | None:
@@ -156,6 +165,7 @@ def build_runtime_api(
     keys: Mapping[str, ApiKeyInfo] | None = None,
     box: SecretBox | None = None,
     truststores: Mapping[int, tuple[Certificate, ...]] | None = None,
+    profiles: Mapping[int, ResolvedProfile] | None = None,
 ) -> RuntimeApi | None:
     state = _state(api.lifecycle, product_lifecycle)
     if state is None:
@@ -178,7 +188,13 @@ def build_runtime_api(
             box=box,
             truststores=truststores,
         )
+    resolved: ResolvedProfile | None = None
+    if api.tls_profile_id is not None:
+        resolved = (profiles or {}).get(api.tls_profile_id, ResolvedProfile(None, None))
     return RuntimeApi(
+        tls=resolved.tls if resolved else None,
+        tls_context=resolved.context if resolved else None,
+        tls_unusable=resolved is not None and resolved.context is None,
         api_id=api.id,
         tenant_slug=tenant_slug,
         base_path=api.base_path.rstrip("/"),
@@ -218,10 +234,49 @@ def _truststores(session: Session) -> dict[int, dict[int, tuple[Certificate, ...
     return out
 
 
+@dataclass(frozen=True)
+class ResolvedProfile:
+    """A TLS profile with its client context; ``context`` None: unusable (fail closed)."""
+
+    tls: UpstreamTls | None
+    context: ssl.SSLContext | None
+
+
+def _profiles(
+    session: Session, box: SecretBox | None, ca_bundle: Path | None
+) -> dict[int, dict[int, ResolvedProfile]]:
+    """tenant -> {profile id -> resolved profile}: each API only sees its own tenant's."""
+    out: dict[int, dict[int, ResolvedProfile]] = {}
+    cache: dict[str, ssl.SSLContext] = {}
+    for p in session.scalars(select(TlsProfile)):
+        try:
+            ca_pem = chain = key_pem = None
+            if p.truststore_id is not None:
+                store = session.get(Truststore, p.truststore_id)
+                if store is None or store.tenant_id != p.tenant_id:
+                    raise ValueError("truststore missing")
+                ca_pem = store.certificates
+            if p.keystore_id is not None:
+                ks = session.get(Keystore, p.keystore_id)
+                if ks is None or ks.tenant_id != p.tenant_id or box is None:
+                    raise ValueError("keystore missing or secrets key not configured")
+                chain = ks.certificate_chain
+                key_pem = box.decrypt_str(ks.private_key, keystore_aad(ks.tenant_id, ks.id))
+            tls = UpstreamTls.make(p.min_version, p.ciphers, ca_pem, chain, key_pem)
+            if tls.key not in cache:
+                cache[tls.key] = build_profile_context(tls, ca_bundle)
+            out.setdefault(p.tenant_id, {})[p.id] = ResolvedProfile(tls, cache[tls.key])
+        except (ValueError, OSError, CryptoError):  # ssl.SSLError is an OSError
+            log.error("TLS profile %s cannot be used; its APIs answer 503", p.id)
+            out.setdefault(p.tenant_id, {})[p.id] = ResolvedProfile(None, None)
+    return out
+
+
 def load_snapshot(
     factory: sessionmaker[Session],
     services: PolicyServices | None = None,
     box: SecretBox | None = None,
+    ca_bundle: Path | None = None,
 ) -> Snapshot:
     """Read every tenant's servable APIs. Runs in a worker thread (blocking DB access).
 
@@ -233,6 +288,7 @@ def load_snapshot(
         slugs = {t.id: t.slug for t in session.scalars(select(Tenant).where(Tenant.is_active))}
         keys = _active_keys(session) if services is not None else {}
         stores = _truststores(session) if services is not None else {}
+        profiles = _profiles(session, box, ca_bundle)
         rows = session.execute(
             select(Api, Product.lifecycle)
             .join(Product, (Product.id == Api.product_id) & (Product.tenant_id == Api.tenant_id))
@@ -250,6 +306,7 @@ def load_snapshot(
                 keys=keys.get((api.tenant_id, api.product_id), {}),
                 box=box,
                 truststores=stores.get(api.tenant_id, {}),
+                profiles=profiles.get(api.tenant_id, {}),
             )
             if runtime is not None:
                 tenants.setdefault(slug, []).append(runtime)

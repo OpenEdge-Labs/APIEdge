@@ -32,6 +32,11 @@ Scope = MutableMapping[str, Any]
 ASGIApp = Callable[[Scope, Any, Any], Awaitable[None]]
 
 
+def keystore_aad(tenant_id: int, keystore_id: int) -> str:
+    """Associated data binding a keystore's encrypted private key to tenant and keystore."""
+    return f"keystore:{tenant_id}:{keystore_id}"
+
+
 def server_context(
     cert_file: Path,
     key_file: Path,
