@@ -82,6 +82,7 @@ def test_tag_must_match_version() -> None:
 # ---------------------------------------------------------------- bundles
 SAMPLE_TREE = [
     ".github/workflows/ci.yml",
+    ".vscode/settings.json",
     "LOCAL_NOTES.md",
     "LICENSE",
     "NOTICE",

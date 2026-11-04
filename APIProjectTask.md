@@ -259,7 +259,8 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 
 ## Phase 8: Public release
 
-- [ ] **T-031** (P1) Make the GitHub repository public
+- [~] **T-031** (P1) Make the GitHub repository public
+  > Customer decision (2026-11-04): the repository was made public ahead of the other tasks so CI can run on GitHub-hosted runners. Before switching, the full history was scanned for secrets and personal data (none found). The remaining T-031 items (public-project files, branch protection, code scanning, Dependabot, first release) stay open.
   - Do this last, once every other task in this file is `[x]`.
   - Pre-publication checks:
     - scan the full git history for secrets (gitleaks or similar) and fix anything found;
