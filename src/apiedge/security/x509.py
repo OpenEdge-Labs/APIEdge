@@ -334,9 +334,8 @@ def parse_certificate(der: bytes) -> Certificate:
     )
 
 
-PEM_CERT_RE = re.compile(
-    r"-----BEGIN CERTIFICATE-----\s*([A-Za-z0-9+/=\s]+?)\s*-----END CERTIFICATE-----"
-)
+# One character class with no "-" between the markers keeps matching linear (no ReDoS).
+PEM_CERT_RE = re.compile(r"-----BEGIN CERTIFICATE-----([A-Za-z0-9+/=\s]*)-----END CERTIFICATE-----")
 
 
 def der_to_pem(der: bytes) -> str:

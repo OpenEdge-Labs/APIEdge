@@ -171,7 +171,7 @@ def test_client_certificate_from_header_and_scope(chain: dict[str, Any]) -> None
 
     class Obj:
         def getpeercert(self, binary_form: bool = False) -> bytes:
-            return leaf.der
+            return bytes(leaf.der)
 
         def version(self) -> str:
             return "TLSv1.3"
