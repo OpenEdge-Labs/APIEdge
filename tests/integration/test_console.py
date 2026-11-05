@@ -39,7 +39,7 @@ def test_settings_require_authentication(world: World) -> None:
 
 def test_settings_view_never_contains_secrets() -> None:
     s = Settings(
-        database_url="postgresql+psycopg://apiedge:db-pass-123@db/apiedge",
+        database_url="postgresql+pg8000://apiedge:db-pass-123@db/apiedge",
         secret_key=SecretStr("master-key-value"),
         secret_key_previous=[SecretStr("old-key-value")],
         jwt_secret=SecretStr("jwt-signing-value"),

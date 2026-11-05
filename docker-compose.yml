@@ -9,8 +9,7 @@
 #   docker compose logs apiedge     # shows the generated first admin password ONCE
 #
 # Console: http://localhost:8080/   Gateway: http://localhost:8081/<tenant>/<base path>
-# The image is built locally with the optional PostgreSQL driver (see
-# packaging/docker/postgres-driver.txt and docs/installation.md, "Docker").
+# The image is built locally; its PostgreSQL driver is pg8000 from requirements/runtime.lock.
 name: apiedge
 
 services:
@@ -18,8 +17,6 @@ services:
     build:
       context: .
       dockerfile: packaging/docker/Dockerfile
-      args:
-        APIEDGE_WITH_POSTGRES: "1"
     image: apiedge:local
     restart: unless-stopped
     depends_on:
@@ -28,7 +25,7 @@ services:
       valkey:
         condition: service_healthy
     environment:
-      APIEDGE_DATABASE_URL: "postgresql+psycopg://apiedge:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/apiedge"
+      APIEDGE_DATABASE_URL: "postgresql+pg8000://apiedge:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/apiedge"
       APIEDGE_REDIS_URL: "redis://valkey:6379/0"
       APIEDGE_ADMIN_USER: "${APIEDGE_ADMIN_USER:-admin}"
     ports:

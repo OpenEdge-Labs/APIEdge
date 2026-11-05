@@ -727,3 +727,24 @@ architecture, project guide, security verification, ADR 0014, `THIRD_PARTY_LICEN
 format, mypy, bandit, `tests/unit/test_update_locks.py` and `test_build_release.py` on Python
 3.12; the lock generator's own per-target `pip --dry-run --require-hashes` verification passed
 for all 15 targets. Full verification on the GitHub CI matrix.
+
+## 2026-11-06 — T-033 Permissively licensed PostgreSQL driver (from VP-002)
+
+**Summary.** Customer decision on VP-002: pg8000 (BSD-3-Clause, pure Python, with scramp
+(MIT-0) and asn1crypto (MIT)) is the PostgreSQL driver, pinned in `runtime.lock` and declared in
+`pyproject.toml`. psycopg (LGPL-3.0), `packaging/docker/postgres-driver.txt`, the
+`APIEDGE_WITH_POSTGRES` build argument and the `postgres` extra were removed: there is one
+container image, so the CI image scan has one variant. `postgresql://`, `postgres://` and the
+formerly documented `postgresql+psycopg://` URLs are mapped to `postgresql+pg8000://`, so
+existing configurations keep working. Compose, Helm values, installation, configuration,
+upgrade notes, architecture, ADR 0001/0011 (superseded notes), SECURITY.md and the verification
+report (F-05 closed) were updated.
+
+**Files.** `requirements/runtime.{in,lock}`, `pyproject.toml`, `packaging/docker/Dockerfile`,
+`docker-compose.yml`, `packaging/helm/apiedge/values.yaml`, `.github/workflows/ci.yml`,
+`src/apiedge/config.py`, `.env.example`, tests (`test_config`, `test_console`, `test_docs`,
+`test_build_release`), docs, `THIRD_PARTY_LICENSES.md`, `CHANGELOG.md`, `APIProjectTask.md`.
+
+**Tests.** Locally: ruff, ruff format, mypy, bandit, pip-audit (runtime lock, strict), the
+changed unit tests; the lock generator verified all 15 targets. PostgreSQL itself is verified by
+the Release workflow's docker compose smoke test (APIEdge + PostgreSQL 17 + Valkey, sign-in).

@@ -43,7 +43,9 @@ the customer sets up publishing (T-031).
 6. **PostgreSQL driver only in the compose-built image**: `packaging/docker/postgres-driver.txt`
    hash-pins psycopg 3 and is installed only with `--build-arg APIEDGE_WITH_POSTGRES=1`. It is
    not added to `runtime.lock`: that is proposal VP-002, which needs the customer's decision and a
-   license review (psycopg is LGPL-3.0).
+   license review (psycopg is LGPL-3.0). *Superseded in T-033 (2026-11-05): the customer chose
+   pg8000 (BSD-3-Clause, pure Python) in `runtime.lock`; the build argument and
+   `postgres-driver.txt` were removed and there is one image variant.*
 7. **Helm chart**: one replica with `Recreate`, because SQLite and the key file live on a
    ReadWriteOnce volume; secrets only from existing Kubernetes Secrets; restricted pod security.
 8. **Release workflow** (`.github/workflows/release.yml`) runs on `v*` tags, on manual dispatch,

@@ -24,8 +24,6 @@ RUN python -m pip wheel --no-cache-dir --disable-pip-version-check --no-input \
 # ---------------------------------------------------------------- runtime
 FROM ${PYTHON_IMAGE}
 ARG VERSION=dev
-# 1 = also install the hash-pinned PostgreSQL driver (packaging/docker/postgres-driver.txt).
-ARG APIEDGE_WITH_POSTGRES=0
 
 LABEL org.opencontainers.image.title="APIEdge" \
       org.opencontainers.image.description="On-premise, multi-tenant API Gateway with a no-code / low-code web console" \
@@ -45,17 +43,14 @@ RUN groupadd --system --gid 10001 apiedge \
         --shell /usr/sbin/nologin apiedge \
  && install -d -o apiedge -g apiedge -m 0700 /var/lib/apiedge
 
+# runtime.lock includes the PostgreSQL driver (pg8000, pure Python), so one image serves both
+# SQLite and PostgreSQL.
 COPY requirements/build.lock requirements/runtime.lock /tmp/req/
-COPY packaging/docker/postgres-driver.txt /tmp/req/
 RUN python -m venv /opt/apiedge \
  && /opt/apiedge/bin/pip install --no-cache-dir --disable-pip-version-check --no-input \
         --require-hashes -r /tmp/req/build.lock \
  && /opt/apiedge/bin/pip install --no-cache-dir --disable-pip-version-check --no-input \
         --require-hashes -r /tmp/req/runtime.lock \
- && if [ "$APIEDGE_WITH_POSTGRES" = "1" ]; then \
-        /opt/apiedge/bin/pip install --no-cache-dir --disable-pip-version-check --no-input \
-            --require-hashes --no-deps -r /tmp/req/postgres-driver.txt; \
-    fi \
  && rm -rf /tmp/req
 
 COPY --from=build /wheels/ /tmp/wheels/

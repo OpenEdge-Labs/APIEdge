@@ -21,7 +21,7 @@ CONFIG_GUIDE = DOCS / "admin-guide" / "configuration.md"
 NON_SETTINGS = {
     "APIEDGE_ADMIN_USER",  # container entry point
     "APIEDGE_ADMIN_PASSWORD_FILE",  # container entry point
-    "APIEDGE_WITH_POSTGRES",  # Docker build argument
+    "APIEDGE_WITH_POSTGRES",  # former Docker build argument (removed in T-033; history only)
     "APIEDGE_CONSOLE_PORT",  # docker-compose.yml port mapping
     "APIEDGE_GATEWAY_PUBLISH_PORT",  # docker-compose.yml port mapping
     "APIEDGE_RELEASE_GPG_KEY",  # release workflow secret

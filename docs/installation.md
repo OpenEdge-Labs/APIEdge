@@ -166,10 +166,10 @@ read-only root filesystem and no Linux capabilities. Back up both volumes: `post
 database) and `apiedge-data` (the secrets key, without which encrypted secrets cannot be read).
 `docker compose down` stops the stack and keeps the data; `down -v` deletes it.
 
-The compose file builds the image with `--build-arg APIEDGE_WITH_POSTGRES=1`, which adds the
-PostgreSQL driver (psycopg 3, hash-pinned in `packaging/docker/postgres-driver.txt`). The driver is
-not part of the default image or of the one-click installer yet: adding it to the runtime lock is
-proposal VP-002, which needs a license review (psycopg is LGPL-3.0). The default image uses SQLite.
+The PostgreSQL driver is pg8000 (pure Python, BSD-3-Clause), part of `requirements/runtime.lock`,
+so the same image, wheel and one-click install work with SQLite (the default) and PostgreSQL. Use
+`APIEDGE_DATABASE_URL=postgresql+pg8000://user:password@host:5432/apiedge`; `postgresql://` URLs
+select the same driver.
 
 ## 11. Kubernetes (Helm)
 
@@ -188,7 +188,7 @@ Useful values (see `values.yaml`):
 |---|---|
 | `admin.existingSecret` | Secret with the first admin password (key `password`) instead of a generated one |
 | `secretKey.existingSecret` | Secret with the secrets master key (key `secret-key`); recommended |
-| `database.existingSecret` / `redis.existingSecret` | Secrets with `APIEDGE_DATABASE_URL` / `APIEDGE_REDIS_URL` (keys `database-url`, `redis-url`). PostgreSQL needs an image built with `APIEDGE_WITH_POSTGRES=1` |
+| `database.existingSecret` / `redis.existingSecret` | Secrets with `APIEDGE_DATABASE_URL` / `APIEDGE_REDIS_URL` (keys `database-url`, `redis-url`). PostgreSQL URLs look like `postgresql+pg8000://user:password@host:5432/apiedge` |
 | `persistence.*` | the data volume (1 GiB ReadWriteOnce by default; kept on `helm uninstall`) |
 | `ingress.*` | Ingress hosts for the console (`consoleHost`) and the gateway (`gatewayHost`), with TLS |
 | `env` | extra non-secret `APIEDGE_*` settings |

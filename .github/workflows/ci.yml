@@ -210,22 +210,12 @@ jobs:
           retention-days: 14
 
   image-scan:
-    name: Container image scan (${{ matrix.variant }})
+    name: Container image scan
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - variant: default
-            postgres: "0"
-          - variant: postgres
-            postgres: "1"
     steps:
       - uses: actions/checkout@v4
       - name: Build the image
-        run: |
-          docker build -f packaging/docker/Dockerfile \
-            --build-arg APIEDGE_WITH_POSTGRES=${{ matrix.postgres }} -t apiedge:scan .
+        run: docker build -f packaging/docker/Dockerfile -t apiedge:scan .
       - name: Grype scan (gate below decides)
         id: grype
         # anchore/scan-action v7.4.2, pinned by commit
@@ -240,7 +230,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: grype-${{ matrix.variant }}
+          name: grype
           path: ${{ steps.grype.outputs.json }}
           if-no-files-found: warn
           retention-days: 14

@@ -31,8 +31,8 @@ secretKey:
   key: secret-key
 
 # External database / Redis URLs, read from Secrets because they may contain passwords.
-# Empty: SQLite on the data volume / in-process fallbacks. PostgreSQL needs an image built with
-# --build-arg APIEDGE_WITH_POSTGRES=1 (see docs/installation.md).
+# Empty: SQLite on the data volume / in-process fallbacks. PostgreSQL URLs use the pg8000 driver
+# of the image: postgresql+pg8000://user:password@host:5432/apiedge.
 database:
   existingSecret: ""
   key: database-url

@@ -196,11 +196,12 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   - Depends on: T-019
   > Customer decision (2026-11-05): VP-001 accepted; Python 3.10 is end of life since October 2026.
 
-- [ ] **T-033** (P2) Permissively licensed PostgreSQL driver (from VP-002)
+- [~] **T-033** (P2) Permissively licensed PostgreSQL driver (from VP-002)
   - Use pg8000 (BSD-3-Clause, pure Python) as the PostgreSQL driver in `runtime.lock` (`postgresql+pg8000://` URLs) and remove psycopg (LGPL-3.0) from the Docker image and `packaging/docker/postgres-driver.txt`; update compose, the documentation, `docs/SECURITY.md` (close the F-05 license finding) and `THIRD_PARTY_LICENSES.md`.
   - Verify PostgreSQL through the compose smoke job of the Release workflow.
   - Depends on: T-016
   > Customer decision (2026-11-05): VP-002 resolved in favour of pg8000.
+  > Delivered (awaiting the Release workflow's compose smoke test on GitHub): pg8000 1.31.6 (with scramp, asn1crypto, python-dateutil, tzdata; all permissive) in `runtime.lock` and `pyproject.toml`; psycopg, `packaging/docker/postgres-driver.txt`, the `APIEDGE_WITH_POSTGRES` build argument and the `postgres` extra removed, so there is one image and the CI image scan has one variant. `postgresql://`, `postgres://` and `postgresql+psycopg://` URLs select pg8000, so existing configurations keep working. F-05 closed. Try: `docker compose up -d --build` with `POSTGRES_PASSWORD` set.
 
 - [ ] **T-034** (P1) Secrets re-encryption command (from VP-008)
   - Add `apiedge rotate-secrets`: re-encrypt every value encrypted at rest (MFA secrets, policy secrets, keystore keys, stored captures and other encrypted columns) with the current master key, so an old key can be removed from `APIEDGE_SECRET_KEY_PREVIOUS` after a rotation. Report what was re-encrypted, be safe to re-run, and document the rotation procedure.

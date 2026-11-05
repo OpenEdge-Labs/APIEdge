@@ -36,11 +36,9 @@ dependencies = [
     "pycryptodome>=4.1,<5",
     "pyjwt>=2.15,<3",
     "pyotp>=2.10,<3",
+    # PostgreSQL driver (pure Python, BSD-3-Clause); SQLite needs nothing extra.
+    "pg8000>=1.31,<2",
 ]
-
-[project.optional-dependencies]
-# Optional PostgreSQL driver (not part of the default hash lock yet).
-postgres = ["psycopg[binary]>=3.2,<4"]
 
 [project.urls]
 Homepage = "https://github.com/OpenEdge-Labs/APIEdge"

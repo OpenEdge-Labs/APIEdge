@@ -39,8 +39,11 @@ The first release has not been tagged yet. Notes for pre-release builds:
 * **Python 3.11 or newer is required** (T-032). Python 3.10 is no longer supported; supported
   versions are 3.11, 3.12 and 3.13. On a host with only 3.10, install a newer Python first and
   run the installer again: it recreates the virtual environment with the new interpreter.
-* The PostgreSQL driver is only in the container image built with
-  `APIEDGE_WITH_POSTGRES=1` (see the [Installation Guide](installation.md#10-docker-and-docker-compose)).
+* **PostgreSQL driver** (T-033): APIEdge now ships pg8000 (pure Python, BSD-3-Clause) in every
+  installation and image instead of psycopg in a special image build; the build argument
+  `APIEDGE_WITH_POSTGRES` is gone. Existing `postgresql+psycopg://`, `postgresql://` and
+  `postgres://` URLs keep working: they select pg8000. Rebuild compose stacks
+  (`docker compose up -d --build`).
 * Forwarded headers (T-018): the gateway now honours `X-Forwarded-For` / `X-Forwarded-Proto`
   only from `APIEDGE_GATEWAY_TRUSTED_PROXIES`; before, 127.0.0.1 was trusted implicitly. If a
   reverse proxy on the same host fronts the gateway, add `127.0.0.1` to that setting. The console

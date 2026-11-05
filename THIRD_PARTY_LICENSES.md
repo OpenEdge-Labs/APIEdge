@@ -13,6 +13,7 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | anyio | 4.16.0 | MIT | runtime | https://github.com/agronholm/anyio |
 | argon2-cffi | 25.1.0 | MIT | runtime | https://pypi.org/project/argon2-cffi/ |
 | argon2-cffi-bindings | 25.1.0 | MIT | runtime | https://pypi.org/project/argon2-cffi-bindings/ |
+| asn1crypto | 1.5.1 | MIT License | runtime | https://github.com/wbond/asn1crypto |
 | ast_serialize | 0.13.1 | MIT | development / install tooling | https://github.com/mypyc/ast_serialize |
 | async-timeout | 5.0.1 | Apache Software License | runtime | https://github.com/aio-libs/async-timeout |
 | bandit | 1.9.4 | Apache-2.0 | development / install tooling | https://bandit.readthedocs.io/ |
@@ -50,6 +51,7 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | packageurl-python | 0.17.6 | MIT License | development / install tooling | https://github.com/package-url/packageurl-python |
 | packaging | 26.3 | Apache-2.0 OR BSD-2-Clause | development / install tooling | https://github.com/pypa/packaging |
 | pathspec | 1.1.1 | Mozilla Public License 2.0 (MPL 2.0) | development / install tooling | https://github.com/cpburnz/python-pathspec |
+| pg8000 | 1.31.6 | BSD License | runtime | https://codeberg.org/tlocke/pg8000 |
 | pip | 26.3 | MIT | development / install tooling | https://pip.pypa.io/ |
 | pip-requirements-parser | 32.0.1 | MIT | development / install tooling | https://github.com/nexB/pip-requirements-parser |
 | pip_api | 0.0.35 | Apache Software License | development / install tooling | https://pypi.org/project/pip-api/ |
@@ -69,6 +71,7 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | pyparsing | 3.3.3 | MIT | development / install tooling | https://github.com/pyparsing/pyparsing/ |
 | pytest | 9.2.0 | MIT | development / install tooling | https://docs.pytest.org/en/latest/ |
 | pytest-asyncio | 1.4.1 | Apache-2.0 | development / install tooling | https://github.com/pytest-dev/pytest-asyncio |
+| python-dateutil | 4.0.0 | BSD-3-Clause | runtime | https://github.com/dateutil/dateutil |
 | python-discovery | 1.9.4 | MIT | development / install tooling | https://github.com/tox-dev/python-discovery |
 | python-dotenv | 1.2.4 | BSD-3-Clause | runtime | https://github.com/theskumar/python-dotenv |
 | PyYAML | 6.0.3 | MIT License | development / install tooling | https://pyyaml.org/ |
@@ -76,6 +79,7 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | requests | 2.34.2 | Apache Software License | development / install tooling | https://github.com/psf/requests |
 | rich | 15.0.0 | MIT License | development / install tooling | https://github.com/Textualize/rich |
 | ruff | 0.17.3 | MIT | development / install tooling | https://docs.astral.sh/ruff |
+| scramp | 1.5.0 | MIT-0 | runtime | https://codeberg.org/tlocke/scramp |
 | setuptools | 84.2.1 | MIT | development / install tooling | https://github.com/pypa/setuptools |
 | sortedcontainers | 2.4.0 | Apache Software License | development / install tooling | http://www.grantjenks.com/docs/sortedcontainers/ |
 | SQLAlchemy | 2.0.55 | MIT | runtime | https://www.sqlalchemy.org |
@@ -85,6 +89,7 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | tomli_w | 1.2.0 | MIT License | development / install tooling | https://github.com/hukkin/tomli-w |
 | typing-inspection | 0.4.5 | MIT | runtime | https://github.com/pydantic/typing-inspection |
 | typing_extensions | 4.16.0 | PSF-2.0 | runtime | https://github.com/python/typing_extensions |
+| tzdata | 2026.6 | Apache-2.0 | runtime | https://github.com/python/tzdata |
 | urllib3 | 2.8.0 | MIT | development / install tooling | https://pypi.org/project/urllib3/ |
 | uvicorn | 0.54.0 | BSD-3-Clause | runtime | https://uvicorn.dev/ |
 | virtualenv | 21.15.5 | MIT | development / install tooling | https://github.com/pypa/virtualenv |

@@ -24,3 +24,5 @@ redis==8.1.0
 # redis needs this backport on python_full_version < "3.11.3"; listed explicitly because the lock
 # generator resolves on a newer interpreter that would skip it.
 async-timeout==5.0.1 ; python_full_version < "3.11.3"
+# PostgreSQL driver (T-033): pure Python, BSD-3-Clause; URLs use postgresql+pg8000://.
+pg8000==1.31.6

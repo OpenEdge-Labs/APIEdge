@@ -343,11 +343,17 @@ def test_dockerfile_is_pinned_hash_locked_and_non_root() -> None:
     assert "HEALTHCHECK" in text
 
 
-def test_postgres_driver_list_is_fully_hashed() -> None:
-    text = (ROOT / "packaging" / "docker" / "postgres-driver.txt").read_text(encoding="utf-8")
-    pins = re.findall(r"^([a-z-]+)==\S+ \\$", text, re.M)
-    assert pins == ["psycopg", "psycopg-binary"]
-    assert len(re.findall(r"--hash=sha256:[0-9a-f]{64}", text)) >= 3
+def test_postgres_driver_is_in_the_runtime_lock() -> None:
+    """pg8000 (BSD-3-Clause, pure Python) is locked; no LGPL driver in any image (T-033)."""
+    lock = (ROOT / "requirements" / "runtime.lock").read_text(encoding="utf-8")
+    assert re.search(r"^pg8000==\S+ \\$", lock, re.M)
+    assert "psycopg" not in lock
+    assert not (ROOT / "packaging" / "docker" / "postgres-driver.txt").exists()
+    assert "APIEDGE_WITH_POSTGRES" not in (ROOT / "packaging" / "docker" / "Dockerfile").read_text(
+        encoding="utf-8"
+    )
+    compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "postgresql+pg8000://" in compose
 
 
 def test_dockerignore_is_an_allow_list() -> None:

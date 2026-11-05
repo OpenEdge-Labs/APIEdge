@@ -21,4 +21,5 @@ PostgreSQL optional, and a console shipped as static files inside the Python pac
 ## Consequences
 Small dependency surface; SQLite-specific behaviour is isolated in `apiedge.db.base`.
 PostgreSQL needs the optional `psycopg` driver (`pip install apiedge[postgres]`), which is not in the
-default lock yet.
+default lock yet. *Superseded in T-033 (2026-11-05): the PostgreSQL driver is pg8000, part of
+`runtime.lock`.*

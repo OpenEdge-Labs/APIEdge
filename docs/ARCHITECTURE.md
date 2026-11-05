@@ -46,7 +46,7 @@ API consumers ──────► :8081/<tenant>/<api base>  gateway ──►
 * SQLAlchemy 2.x ORM, Alembic migrations only (`apiedge migrate`, run automatically by `apiedge run`,
   `init` and `create-admin`). Migrations use `render_as_batch` so they also work on SQLite.
 * Default database: SQLite file `apiedge.db` in the data directory (WAL mode, foreign keys on).
-  PostgreSQL: set `APIEDGE_DATABASE_URL=postgresql+psycopg://...` and install the `postgres` extra.
+  PostgreSQL: set `APIEDGE_DATABASE_URL=postgresql+pg8000://...` (pg8000 is in the runtime lock).
 * Schema (migrations 0001-0007): `tenants`; `users` (one tenant each, or platform SuperAdmin with
   `tenant_id` NULL; lockout, MFA and `token_version` columns); `permissions` (catalog);
   `roles` (built-in global or per tenant) and `role_permissions`; `role_assignments` (tenant or

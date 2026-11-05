@@ -7,7 +7,7 @@ directory (see `.env.example`). Command-line options `--data-dir` and `--databas
 |---|---|---|
 | `APIEDGE_ENV` | `production` | `development` enables the interactive API docs at `/api/docs` |
 | `APIEDGE_DATA_DIR` | OS user data dir | Holds the SQLite database and the installer venv |
-| `APIEDGE_DATABASE_URL` | SQLite in the data dir | PostgreSQL: `postgresql+psycopg://user:pass@host/db` (install `apiedge[postgres]`) |
+| `APIEDGE_DATABASE_URL` | SQLite in the data dir | PostgreSQL: `postgresql+pg8000://user:pass@host/db` (pg8000 is installed with APIEdge; `postgresql://` selects it too) |
 | `APIEDGE_HOST` | `127.0.0.1` | Set `0.0.0.0` to accept remote connections (enable native TLS below, or put a TLS-terminating proxy in front; see [operations](operations.md#exposing-apiedge-on-the-network-tls)) |
 | `APIEDGE_PORT` | `8080` | |
 | `APIEDGE_LOG_LEVEL` | `info` | `critical`, `error`, `warning`, `info`, `debug` |

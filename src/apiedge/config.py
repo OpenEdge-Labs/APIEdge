@@ -30,6 +30,10 @@ def default_data_dir() -> Path:
     return user_data_path(APP_NAME, appauthor=APP_NAME)
 
 
+# URL schemes that mean "PostgreSQL with the bundled driver" (pg8000).
+PG_ALIASES = frozenset({"postgres", "postgresql", "postgresql+psycopg"})
+
+
 class Settings(BaseSettings):
     """All APIEdge settings. Document every new field in ``.env.example``."""
 
@@ -256,8 +260,15 @@ class Settings(BaseSettings):
 
     @property
     def effective_database_url(self) -> str:
-        """SQLite in the data dir by default; PostgreSQL via ``postgresql+psycopg://...``."""
+        """SQLite in the data dir by default; PostgreSQL via ``postgresql+pg8000://...``.
+
+        ``postgresql://``, ``postgres://`` and the formerly documented ``postgresql+psycopg://``
+        select pg8000, the PostgreSQL driver APIEdge ships (T-033).
+        """
         if self.database_url:
+            scheme, sep, rest = self.database_url.partition("://")
+            if sep and scheme.lower() in PG_ALIASES:
+                return f"postgresql+pg8000://{rest}"
             return self.database_url
         return f"sqlite:///{(self.data_dir / 'apiedge.db').as_posix()}"
 

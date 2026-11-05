@@ -16,8 +16,13 @@ def test_default_database_is_sqlite_in_data_dir(tmp_path: Path) -> None:
 
 
 def test_database_url_override() -> None:
-    s = Settings(database_url="postgresql+psycopg://u:p@db/apiedge")
-    assert s.effective_database_url.startswith("postgresql+psycopg://")
+    s = Settings(database_url="postgresql+pg8000://u:p@db/apiedge")
+    assert s.effective_database_url == "postgresql+pg8000://u:p@db/apiedge"
+    for alias in ("postgresql", "postgres", "postgresql+psycopg", "PostgreSQL"):
+        s = Settings(database_url=f"{alias}://u:p@db/apiedge")
+        assert s.effective_database_url == "postgresql+pg8000://u:p@db/apiedge", alias
+    other = Settings(database_url="sqlite:////srv/apiedge.db")
+    assert other.effective_database_url == "sqlite:////srv/apiedge.db"
 
 
 def test_env_prefix(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

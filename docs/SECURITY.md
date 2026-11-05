@@ -55,7 +55,7 @@ The pre-release verification (T-018), with findings, severities and resolutions,
 | No server/version disclosure (`server_header=False`, minimal `/healthz`) | `cli.py`, `app.py` | `tests/integration/test_app.py` |
 | Access-control matrix (T-018): every admin operation's declared access is compared with a reviewed table (unclassified routes fail); 401 without credentials, 403 without the permission, 404 across tenants, 403 for tenant admins on platform routes, and product-scoped grants refused on other products (real ids, valid bodies) | `src/apiedge/admin/deps.py` (`annotate_access`) | `tests/integration/test_route_access_matrix.py` |
 | Forwarded headers (T-018, F-01): `X-Forwarded-For` / `-Proto` honoured only from configured proxies, per listener (`APIEDGE_TRUSTED_PROXIES` for the console, default `127.0.0.1`; `APIEDGE_GATEWAY_TRUSTED_PROXIES` for the gateway, default none) | `src/apiedge/cli.py` (`proxy_options`), `config.py` | `tests/unit/test_proxy_trust.py`, DAST throttle check |
-| DAST (T-018): smoke pass over headers, CSP, CORS, cookie flags, CSRF, body limits, error documents, SSRF guard and login throttling against a running instance; OWASP ZAP baseline on console and gateway; Grype scan of both container image variants | `scripts/dast-smoke.py`, `scripts/scan-gate.py` | CI `dast` and `image-scan` jobs, `tests/unit/test_scan_gate.py` |
+| DAST (T-018): smoke pass over headers, CSP, CORS, cookie flags, CSRF, body limits, error documents, SSRF guard and login throttling against a running instance; OWASP ZAP baseline on console and gateway; Grype scan of the container image | `scripts/dast-smoke.py`, `scripts/scan-gate.py` | CI `dast` and `image-scan` jobs, `tests/unit/test_scan_gate.py` |
 | Hash-locked dependencies, license gate | `requirements/*.lock`, `scripts/check-licenses.py` | CI `quality` job |
 | Release integrity (T-016): wheel content check (console and migrations present, no third-party code), installer bundles built only from git-tracked files, CycloneDX SBOM, SHA256SUMS verified on every OS before use, optional GPG signature; publishing is opt-in and draft-only | `scripts/build-release.py`, `.github/workflows/release.yml` | `tests/unit/test_build_release.py`, `release.yml` jobs |
 | Container hardening (T-016): base images pinned by digest, dependencies installed with `--require-hashes`, allow-list `.dockerignore`, non-root user 10001, read-only root filesystem and dropped capabilities in compose and Helm, ports published on localhost only, no default passwords (compose refuses to start without `POSTGRES_PASSWORD`), first admin password from a secret file or generated once | `packaging/docker/`, `docker-compose.yml`, `packaging/helm/apiedge/` | `test_build_release.py::test_dockerfile_*`, `::test_compose_*`, `release.yml` (`docker`, `helm`) |
@@ -153,7 +153,7 @@ days after acceptance, so every acceptance is reviewed again. Target is `console
 for ZAP and the package name for Grype.
 
 All rows below come from the first Grype run (CI 41479170443): High findings in Debian 13 packages of
-the pinned `python:3.12-slim` base image, the same in both image variants, for which Debian has no
+the pinned `python:3.12-slim` base image (one image variant since T-033), for which Debian has no
 fixed version (status `wont-fix` or `not-fixed`). No Python package and no Critical finding was
 reported. None is reachable from network input to APIEdge; the image runs as uid 10001 with a
 read-only root filesystem and dropped capabilities (compose, Helm). Each row is reviewed again by
