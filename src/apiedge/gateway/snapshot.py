@@ -25,7 +25,7 @@ import re
 import ssl
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import timezone
+from datetime import UTC
 from pathlib import Path
 
 from sqlalchemy import select
@@ -215,7 +215,7 @@ def _active_keys(session: Session) -> dict[tuple[int, int], dict[str, ApiKeyInfo
     for k in session.scalars(select(ApiKey).where(ApiKey.revoked_at.is_(None))):
         expires = k.expires_at
         if expires is not None and expires.tzinfo is None:
-            expires = expires.replace(tzinfo=timezone.utc)  # SQLite drops the offset
+            expires = expires.replace(tzinfo=UTC)  # SQLite drops the offset
         info = ApiKeyInfo(k.id, k.name, k.prefix, expires)
         keys.setdefault((k.tenant_id, k.product_id), {})[k.key_hash] = info
     return keys

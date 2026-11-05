@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import base64
 import ssl
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -19,7 +19,7 @@ from apiedge.config import Settings
 from apiedge.security import x509
 from apiedge.security.tls import cert_from_header, cert_from_scope, tls_extension
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 @pytest.fixture(scope="module")

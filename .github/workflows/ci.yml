@@ -38,7 +38,7 @@ jobs:
         run: .venv/bin/pip-audit --strict --disable-pip --require-hashes -r requirements/runtime.lock
       - name: pip-audit dev lock (documented dev-only exceptions)
         run: |
-          IGNORES=$(grep -v '^#' requirements/audit-ignore-dev.txt | sed 's/^/--ignore-vuln /' | tr '\n' ' ')
+          IGNORES=$({ grep -v '^#' requirements/audit-ignore-dev.txt || true; } | sed 's/^/--ignore-vuln /' | tr '\n' ' ')
           .venv/bin/pip-audit --strict --disable-pip --require-hashes \
             -r requirements/runtime.lock -r requirements/dev.lock $IGNORES
       - name: License gate (no GPL / AGPL / SSPL)
@@ -51,7 +51,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
-        python: ["3.10", "3.11", "3.12"]
+        python: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

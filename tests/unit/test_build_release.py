@@ -12,7 +12,7 @@ import re
 import shutil
 import subprocess
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
 
@@ -273,7 +273,7 @@ def test_sbom_is_valid_cyclonedx() -> None:
             "certifi": "Mozilla Public License 2.0 (MPL 2.0)",
         },
         [{"name": "@scope/lib", "version": "1.0.0", "license": "MIT", "sha512": "ab"}],
-        timestamp=datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC),
     )
     assert br.validate_sbom(sbom) == []
     assert sbom["metadata"]["timestamp"] == "2026-01-02T03:04:05Z"

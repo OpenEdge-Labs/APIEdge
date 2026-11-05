@@ -189,6 +189,23 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   > Delivered: `docs/security-verification.md` (findings F-01 to F-11 with severities and resolutions; verdicts for every OWASP Top 10, API Top 10 and ASVS L2 chapter). CI now runs a DAST smoke pass (`scripts/dast-smoke.py`, 64 checks) and an OWASP ZAP baseline against the running console and gateway, and a Grype scan of both container images; `scripts/scan-gate.py` fails on ZAP Medium/High and Grype High/Critical unless accepted in `docs/SECURITY.md` with a justification and a review date (at most 180 days). `tests/integration/test_route_access_matrix.py` checks 401/403/404 denials on all 61 admin operations. Fixed: forwarded headers trusted from 127.0.0.1 (F-01, new `APIEDGE_TRUSTED_PROXIES`), missing COEP header (F-10). No critical finding; no high finding in APIEdge code or Python/npm dependencies. Try: `pytest tests/integration/test_route_access_matrix.py`, or `python scripts/dast-smoke.py --password-file <file>` against a disposable instance.
   > Vendor decision: 18 High CVEs in Debian base-image packages have no fixed version upstream; each was reviewed as unreachable and accepted with review date 2027-01-31 rather than failing every build. Semgrep was not added because its CLI is LGPL-2.1 (CodeQL and bandit cover SAST). The console keeps trusting 127.0.0.1 as a proxy by default for compatibility; the gateway no longer does (see upgrade notes). Open items: native TLS (T-023), MFA enforcement (VP-009), psycopg LGPL-3.0 in the PostgreSQL image (VP-002), re-encryption (VP-008).
   > Done: CI 41480270095 and CodeQL 41480270195 green on 9413970; Release 41479170250 green on 650565e.
+  > Customer decision (2026-11-05): the 18 accepted base-image CVE rows stay accepted until their review date 2027-01-31.
+
+- [~] **T-032** (P1) Supported Python range 3.11-3.13 (from VP-001)
+  - Move the supported Python range from 3.10-3.12 to 3.11-3.13: `pyproject.toml`, hash locks for every OS x Python 3.11-3.13, the CI test matrix, the installer checks and the documentation.
+  - Depends on: T-019
+  > Customer decision (2026-11-05): VP-001 accepted; Python 3.10 is end of life since October 2026.
+
+- [ ] **T-033** (P2) Permissively licensed PostgreSQL driver (from VP-002)
+  - Use pg8000 (BSD-3-Clause, pure Python) as the PostgreSQL driver in `runtime.lock` (`postgresql+pg8000://` URLs) and remove psycopg (LGPL-3.0) from the Docker image and `packaging/docker/postgres-driver.txt`; update compose, the documentation, `docs/SECURITY.md` (close the F-05 license finding) and `THIRD_PARTY_LICENSES.md`.
+  - Verify PostgreSQL through the compose smoke job of the Release workflow.
+  - Depends on: T-016
+  > Customer decision (2026-11-05): VP-002 resolved in favour of pg8000.
+
+- [ ] **T-034** (P1) Secrets re-encryption command (from VP-008)
+  - Add `apiedge rotate-secrets`: re-encrypt every value encrypted at rest (MFA secrets, policy secrets, keystore keys, stored captures and other encrypted columns) with the current master key, so an old key can be removed from `APIEDGE_SECRET_KEY_PREVIOUS` after a rotation. Report what was re-encrypted, be safe to re-run, and document the rotation procedure.
+  - Depends on: T-002
+  > Customer decision (2026-11-05): VP-008 accepted as P1.
 
 ## Phase 7: Enterprise feature parity (IBM API Connect / DataPower and leading gateways)
 
@@ -216,7 +233,7 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   - Add management of TLS profiles, keystores and truststores, and secrets-vault integration (HashiCorp Vault).
   - Add console SSO (OIDC, SAML, LDAP).
   - Depends on: T-008
-  > CI pending: GitHub Actions is blocked by the account's billing/spending limit, so commits 7a552a8 (slice 1) and the slice 1b commit still await CI, CodeQL and Release runs. Both slices were verified locally (full pytest, ruff, mypy --strict, bandit, console tests, DAST smoke pass 64/64).
+  > Verified: slices 1 and 1b (with the follow-up fixes for linear PEM matching and the runtime image's Debian security updates) are green on GitHub: CI 42071664370 and CodeQL 42071664315 on 4a17892.
   > Vendor decision: delivered in slices, each committed separately. Listener certificates are operator files set in `APIEDGE_TLS_*` / `APIEDGE_GATEWAY_TLS_*` (platform configuration); keystores and truststores are tenant data. X.509 handling is our own bounded DER reader on the already-locked pycryptodome, because `cryptography` cannot be locked for every supported platform (ADR 0013). An `mtls` policy always checks the client certificate against a truststore of the API's own tenant, on top of the listener's platform CA bundle, so one tenant's client certificates cannot open another tenant's APIs. Revocation (CRL/OCSP) is not checked.
   > In progress - slice 1 delivered: native TLS on the console and gateway listeners (closes F-02), `apiedge tls self-signed`, tenant truststores and keystores (admin API `/tenants/{id}/tls/...`, permissions `tls:read` / `tls:manage`, console page TLS & certificates), the `mtls` client-certificate policy (gateway listener or trusted proxy header). Try: `apiedge tls self-signed --out-dir tls`, set `APIEDGE_TLS_CERT_FILE` / `APIEDGE_TLS_KEY_FILE` (and the `APIEDGE_GATEWAY_TLS_*` pair), `apiedge run`, open https://localhost:8080/. Slice 1b delivered: upstream TLS profiles (`/tenants/{id}/tls/profiles`, migration 0009; console TLS & certificates and the API form's Upstream TLS profile) with tenant truststores and keystore client certificates for upstream mTLS. Remaining: OAuth 2.0 authorization server, OIDC, JWT generation, basic auth with LDAP/AD, HMAC signatures, JSON/XML threat protection, WAF rules, bot and IP reputation, HashiCorp Vault integration, console SSO.
 
@@ -257,6 +274,36 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
   - Add an LLM provider proxy, token-based rate limits and quotas, a prompt guard with PII redaction, a semantic cache, and model routing and fallback.
   - Depends on: T-025
 
+- [ ] **T-035** (P2) MFA enforcement policy (from VP-009)
+  - Require TOTP enrolment for SuperAdmins by default (platform setting, configurable), and optionally for all users of a tenant (tenant setting), with a grace period at first sign-in. Closes finding F-03.
+  - Depends on: T-003
+  > Customer decision (2026-11-05): VP-009 accepted; MFA is required for SuperAdmin by default and the requirement is configurable.
+
+- [ ] **T-036** (P2) Custom domains and host-based routing (from VP-003)
+  - Let a tenant attach its own host names to APIs, with a TLS certificate per domain (SNI), in addition to `/<tenant slug><base path>` on the shared listener.
+  - Depends on: T-023
+  > Customer decision (2026-11-05): VP-003 accepted as P2.
+
+- [ ] **T-037** (P2) Upstream authentication (from VP-004)
+  - Inject backend credentials (basic, static bearer, OAuth 2.0 client-credentials tokens fetched and cached by the gateway, signed requests) from encrypted secrets, so backend credentials never travel in client requests or plain transform headers.
+  - Depends on: T-008
+  > Customer decision (2026-11-05): VP-004 accepted as P2.
+
+- [ ] **T-038** (P3) Custom policy plug-in SDK (from VP-005)
+  - A documented SDK for packaged custom Python policies, installed by an administrator, versioned and listed in the flow builder; complements the sandboxed script policy of T-010.
+  - Depends on: T-009, T-010
+  > Customer decision (2026-11-05): VP-005 accepted as P3.
+
+- [ ] **T-039** (P3) HTTP/2 between clients and the gateway (from VP-006)
+  - Serve HTTP/2 on the gateway listener (the current ASGI server speaks HTTP/1.1); prerequisite for native gRPC in T-024.
+  - Depends on: T-007
+  > Customer decision (2026-11-05): VP-006 accepted as P3.
+
+- [ ] **T-040** (P3) Kubernetes ingress / Gateway API and a Terraform provider (from VP-007)
+  - Kubernetes ingress controller or Gateway API support, and a Terraform provider for the admin API, beyond the Helm chart of T-016.
+  - Depends on: T-016, T-026
+  > Customer decision (2026-11-05): VP-007 accepted as P3.
+
 ## Phase 8: Public release
 
 - [~] **T-031** (P1) Make the GitHub repository public
@@ -284,11 +331,20 @@ Tasks for the APIEdge development team (APVendor). Add new tasks at the bottom o
 The development team writes suggested improvements here. Move one into a phase above to approve it.
 
 - **VP-001** (P1, proposed 2026-10-31) Move the supported Python range to 3.11-3.13. Python 3.10 reached end of life in October 2026, and it blocks security fixes (for example filelock 4.2.1 needs Python 3.11 or newer). The customer would need to update `docs/PROJECT_GUIDE.md`, which currently says "Python 3.10-3.12".
+  > Customer decision (2026-11-05): accepted; moved to T-032.
 - **VP-002** (P2, proposed 2026-10-31) Add the PostgreSQL driver (`psycopg[binary]`) to the hash-locked runtime set, or to an optional `postgres.lock`, so the installer can set up PostgreSQL deployments without unpinned downloads.
+  > Customer decision (2026-11-05): resolved with pg8000 (BSD-3-Clause) in runtime.lock instead of psycopg (LGPL-3.0); moved to T-033.
 - **VP-003** (P2, proposed 2026-11-02, from T-020) Custom domains and host-based routing: let a tenant attach its own host names to APIs, with a TLS certificate per domain (SNI), instead of only `/<tenant slug><base path>` on the shared listener.
+  > Customer decision (2026-11-05): accepted (P2); moved to T-036.
 - **VP-004** (P1, proposed 2026-11-02, from T-020) Upstream authentication: inject backend credentials (basic, static bearer, OAuth 2.0 client-credentials tokens fetched and cached by the gateway, signed requests) from encrypted secrets, so backend credentials never live in client requests or plain transform headers.
+  > Customer decision (2026-11-05): accepted (P2); moved to T-037.
 - **VP-005** (P3, proposed 2026-11-02, from T-020) A documented plug-in SDK for packaged custom Python policies (installed by an administrator, versioned, listed in the flow builder), complementing the sandboxed script policy of T-010.
+  > Customer decision (2026-11-05): accepted (P3); moved to T-038.
 - **VP-006** (P2, proposed 2026-11-02, from T-020) HTTP/2 between clients and the gateway (the current ASGI server speaks HTTP/1.1). Native gRPC in T-024 needs it.
+  > Customer decision (2026-11-05): accepted (P3); moved to T-039.
 - **VP-007** (P3, proposed 2026-11-02, from T-020) Kubernetes ingress controller / Gateway API support and a Terraform provider for the admin API, beyond the Helm chart of T-016.
+  > Customer decision (2026-11-05): accepted (P3); moved to T-040.
 - **VP-008** (P1, proposed 2026-11-02, from T-017) A secrets-key re-encryption command (`apiedge rotate-secrets`): re-encrypt MFA secrets, policy secrets and stored captures with the current master key, so an old key can be removed from `APIEDGE_SECRET_KEY_PREVIOUS` after a rotation. Today the old key must be kept as long as data encrypted with it exists.
+  > Customer decision (2026-11-05): accepted (P1); moved to T-034.
 - **VP-009** (P2, proposed 2026-11-02, from T-018) An MFA enforcement policy: require TOTP enrolment for SuperAdmins (platform setting) and optionally for all users of a tenant (tenant setting), with a grace period at first sign-in. Today MFA is optional for every account (finding F-03 in `docs/security-verification.md`). Changes the sign-in flow, so it needs a customer decision.
+  > Customer decision (2026-11-05): accepted; MFA required for SuperAdmin by default, configurable; moved to T-035.

@@ -9,7 +9,7 @@ Sessions bound to a tenant (``apiedge.db.tenancy``) filter those models automati
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     BigInteger,
@@ -30,7 +30,7 @@ from apiedge.db.base import Base
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class TenantOwned:

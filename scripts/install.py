@@ -5,7 +5,7 @@
 
 Uses only the Python standard library. Steps:
 
-  1. check Python (3.10 - 3.12)
+  1. check Python (3.11 - 3.13)
   2. create (or repair) a virtual environment
   3. install hash-locked dependencies from PyPI  (requirements/*.lock, --require-hashes)
   4. install APIEdge itself from this checkout
@@ -38,12 +38,12 @@ import urllib.error
 import urllib.request
 import venv
 import webbrowser
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePath
 from typing import TextIO
 
-MIN_PY = (3, 10)
-MAX_PY = (3, 12)
+MIN_PY = (3, 11)
+MAX_PY = (3, 13)
 APP = "APIEdge"
 ROOT = Path(__file__).resolve().parent.parent
 REQ = ROOT / "requirements"
@@ -76,7 +76,7 @@ def open_log(data_dir: Path) -> Path:
     data_dir.mkdir(parents=True, exist_ok=True)
     path = data_dir / "install.log"
     _LOG = path.open("a", encoding="utf-8")
-    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    stamp = datetime.now(UTC).isoformat(timespec="seconds")
     _LOG.write(f"\n===== {stamp} install.py {redact(' '.join(sys.argv[1:]))}\n")
     return path
 

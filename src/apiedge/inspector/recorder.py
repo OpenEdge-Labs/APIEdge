@@ -22,7 +22,7 @@ import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode, urlsplit
 
@@ -44,7 +44,7 @@ _DELETE_CHUNK = 500
 
 def aware(value: datetime) -> datetime:
     """SQLite returns naive datetimes; every stored datetime is UTC."""
-    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 
 def session_end(row: CaptureSession) -> datetime:
@@ -232,7 +232,7 @@ class CaptureRecorder:
         return written
 
     def load(self, factory: sessionmaker[Session]) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         by_api: dict[int, list[ActiveCapture]] = defaultdict(list)
         with factory() as s:  # platform scope: every tenant's sessions
             for row in s.scalars(select(CaptureSession).where(CaptureSession.stopped_at.is_(None))):
@@ -291,7 +291,7 @@ class CaptureRecorder:
                         product_id=row.product_id,
                         api_id=row.api_id,
                         request_id=item.request_id[:128],
-                        started_at=datetime.fromtimestamp(item.started_at, timezone.utc),
+                        started_at=datetime.fromtimestamp(item.started_at, UTC),
                         method=item.method,
                         path=item.path,
                         route=item.route,

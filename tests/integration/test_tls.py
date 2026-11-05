@@ -13,7 +13,7 @@ import threading
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -78,7 +78,7 @@ def pki() -> Pki:
         ca_key,
         purposes=("client",),
         days=1,
-        not_before=datetime.now(timezone.utc) - timedelta(days=10),
+        not_before=datetime.now(UTC) - timedelta(days=10),
     )
     server_only, _ = leaf("web", ca, ca_key, purposes=("server",))
     server, server_key = leaf(

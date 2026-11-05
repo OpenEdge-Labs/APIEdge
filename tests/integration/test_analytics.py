@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
@@ -45,7 +45,7 @@ def _window() -> dict[str, str]:
     Ending the window two minutes ahead (still a 60-second step) makes the tests independent of
     where the clock is within the minute.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return {
         "start": (now - timedelta(minutes=58)).isoformat(),
         "end": (now + timedelta(minutes=2)).isoformat(),
@@ -150,7 +150,7 @@ def test_traffic_is_recorded_and_summarized(env: Env, upstreams: dict[str, Upstr
         assert nobody["totals"]["requests"] == 0
         anonymous = client.get(base, params={**win, "consumer": ""}, headers=h).json()
         assert anonymous["totals"]["requests"] == 6
-        past = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+        past = (datetime.now(UTC) - timedelta(days=2)).isoformat()
         r = client.get(base, params={"end": past}, headers=h)
         assert r.json()["totals"]["requests"] == 0
 
@@ -221,7 +221,7 @@ def test_time_range_validation(env: Env) -> None:
     with TestClient(create_app(env.settings)) as client:
         h = _login(client, "alice")
         url = f"/api/v1/tenants/{env.tenant_a}/analytics/summary"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         bad = [
             {"start": now.isoformat(), "end": (now - timedelta(minutes=1)).isoformat()},
             {"start": (now - timedelta(days=32)).isoformat(), "end": now.isoformat()},

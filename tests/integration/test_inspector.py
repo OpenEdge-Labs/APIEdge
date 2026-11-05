@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -296,9 +296,7 @@ def test_route_consumer_stop_and_expiry(world: World, upstreams: dict[str, Upstr
         loaded = [c for c in runtime.inspector.active if c.id == timed["id"]]
         assert loaded
         with w.session() as s:
-            s.get(CaptureSession, timed["id"]).expires_at = datetime.now(timezone.utc) - timedelta(
-                seconds=1
-            )
+            s.get(CaptureSession, timed["id"]).expires_at = datetime.now(UTC) - timedelta(seconds=1)
             s.commit()
         reload_sessions(gw)
         assert not any(c.id == timed["id"] for c in runtime.inspector.active)
@@ -320,9 +318,7 @@ def test_retention_and_delete(world: World, upstreams: dict[str, Upstream]) -> N
         flush(gw)
         assert len(exchanges(w, dev)) == 2
         with w.session() as s:
-            s.get(CaptureSession, old["id"]).stopped_at = datetime.now(timezone.utc) - timedelta(
-                hours=25
-            )
+            s.get(CaptureSession, old["id"]).stopped_at = datetime.now(UTC) - timedelta(hours=25)
             s.commit()
         runtime = gw.app.state.runtime  # type: ignore[attr-defined]
         assert runtime.inspector.purge(runtime.session_factory, 24) == 1

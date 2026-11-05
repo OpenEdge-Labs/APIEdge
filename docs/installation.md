@@ -1,7 +1,7 @@
 # Installation Guide
 
 APIEdge runs on **Windows, macOS and Linux** (x86_64 and arm64). The only prerequisite is
-**Python 3.10, 3.11 or 3.12**. The installer downloads the dependencies from PyPI; every file is checked
+**Python 3.11, 3.12 or 3.13**. The installer downloads the dependencies from PyPI; every file is checked
 against the sha256 hashes in `requirements/*.lock`. Node.js is **not** needed: the web console is
 prebuilt and included.
 

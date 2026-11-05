@@ -108,7 +108,7 @@ permission (403) -> bind_tenant(session) -> handler -> audit() -> commit
 ## 7. Cross-platform
 
 Pure `pathlib`, no shell calls from Python (installer subprocesses use argument lists). CI runs the
-test suite on Windows, Linux and macOS × Python 3.10–3.12, and runs each OS's one-click installer.
+test suite on Windows, Linux and macOS × Python 3.11–3.13, and runs each OS's one-click installer.
 
 ## Web console (T-004)
 

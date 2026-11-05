@@ -15,7 +15,6 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | argon2-cffi-bindings | 25.1.0 | MIT | runtime | https://pypi.org/project/argon2-cffi-bindings/ |
 | ast_serialize | 0.13.1 | MIT | development / install tooling | https://github.com/mypyc/ast_serialize |
 | async-timeout | 5.0.1 | Apache Software License | runtime | https://github.com/aio-libs/async-timeout |
-| backports.asyncio.runner | 1.2.0 | Python Software Foundation License | development / install tooling | https://github.com/samypr100/backports.asyncio.runner |
 | bandit | 1.9.4 | Apache-2.0 | development / install tooling | https://bandit.readthedocs.io/ |
 | boolean.py | 5.0 | BSD-2-Clause | development / install tooling | https://github.com/bastikr/boolean.py |
 | CacheControl | 0.14.4 | Apache-2.0 | development / install tooling | https://pypi.org/project/CacheControl/ |
@@ -28,9 +27,8 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | cyclonedx-python-lib | 11.12.0 | Apache Software License | development / install tooling | https://github.com/CycloneDX/cyclonedx-python-lib/#readme |
 | defusedxml | 0.7.1 | Python Software Foundation License | development / install tooling | https://github.com/tiran/defusedxml |
 | distlib | 0.4.4 | Python Software Foundation License | development / install tooling | https://github.com/pypa/distlib |
-| exceptiongroup | 1.3.1 | MIT License | runtime | https://github.com/agronholm/exceptiongroup |
 | fastapi | 0.162.0 | MIT | runtime | https://github.com/fastapi/fastapi |
-| filelock | 4.1.0 | MIT | development / install tooling | https://github.com/tox-dev/py-filelock |
+| filelock | 4.2.9 | MIT | development / install tooling | https://github.com/tox-dev/filelock |
 | greenlet | 3.5.6 | MIT AND PSF-2.0 | runtime | https://greenlet.readthedocs.io |
 | h11 | 0.16.0 | MIT License | runtime | https://github.com/python-hyper/h11 |
 | httpcore | 1.0.9 | BSD-3-Clause | runtime | https://www.encode.io/httpcore/ |
@@ -46,32 +44,32 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | mdurl | 0.1.2 | MIT License | development / install tooling | https://github.com/executablebooks/mdurl |
 | msgpack | 1.2.4 | Apache-2.0 | development / install tooling | https://msgpack.org/ |
 | mypy | 2.4.1 | MIT | development / install tooling | https://www.mypy-lang.org/ |
-| mypy_extensions | 1.1.0 | MIT | development / install tooling | https://github.com/python/mypy_extensions |
+| mypy_extensions | 1.2.0 | MIT | development / install tooling | https://github.com/python/mypy_extensions |
 | nodeenv | 1.12.0 | BSD License | development / install tooling | https://github.com/ekalinin/nodeenv |
 | opentelemetry-api | 1.45.2 | Apache-2.0 | runtime | https://github.com/open-telemetry/opentelemetry-python/tree/main/opentelemetry-api |
 | packageurl-python | 0.17.6 | MIT License | development / install tooling | https://github.com/package-url/packageurl-python |
 | packaging | 26.3 | Apache-2.0 OR BSD-2-Clause | development / install tooling | https://github.com/pypa/packaging |
 | pathspec | 1.1.1 | Mozilla Public License 2.0 (MPL 2.0) | development / install tooling | https://github.com/cpburnz/python-pathspec |
-| pip | 26.2.2 | MIT | development / install tooling | https://pip.pypa.io/ |
+| pip | 26.3 | MIT | development / install tooling | https://pip.pypa.io/ |
+| pip-requirements-parser | 32.0.1 | MIT | development / install tooling | https://github.com/nexB/pip-requirements-parser |
 | pip_api | 0.0.35 | Apache Software License | development / install tooling | https://pypi.org/project/pip-api/ |
 | pip_audit | 2.10.1 | Apache Software License | development / install tooling | https://pypi.org/project/pip-audit/ |
-| pip-requirements-parser | 32.0.1 | MIT | development / install tooling | https://github.com/nexB/pip-requirements-parser |
 | platformdirs | 4.12.4 | MIT | runtime | https://github.com/tox-dev/platformdirs |
 | pluggy | 1.7.0 | MIT License | development / install tooling | https://github.com/pytest-dev/pluggy |
 | pre_commit | 4.6.2 | MIT | development / install tooling | https://github.com/pre-commit/pre-commit |
 | py-serializable | 2.1.0 | Apache Software License | development / install tooling | https://github.com/madpah/serializable#readme |
-| pycparser | 3.11 | BSD-3-Clause | runtime | https://github.com/eliben/pycparser |
+| pycparser | 3.12 | BSD-3-Clause | runtime | https://github.com/eliben/pycparser |
 | pycryptodome | 4.1.0 | BSD-2-Clause AND Unlicense AND MIT | runtime | https://www.pycryptodome.org |
 | pydantic | 2.14.2 | MIT | runtime | https://github.com/pydantic/pydantic |
-| pydantic_core | 2.50.2 | MIT | runtime | https://github.com/pydantic/pydantic |
 | pydantic-settings | 2.15.0 | MIT | runtime | https://github.com/pydantic/pydantic-settings |
+| pydantic_core | 2.50.2 | MIT | runtime | https://github.com/pydantic/pydantic |
 | Pygments | 2.21.0 | BSD-2-Clause | development / install tooling | https://pygments.org |
 | PyJWT | 2.15.1 | MIT | runtime | https://github.com/jpadilla/pyjwt |
 | PyOTP | 2.10.0 | MIT | runtime | https://github.com/pyauth/pyotp |
 | pyparsing | 3.3.3 | MIT | development / install tooling | https://github.com/pyparsing/pyparsing/ |
 | pytest | 9.2.0 | MIT | development / install tooling | https://docs.pytest.org/en/latest/ |
 | pytest-asyncio | 1.4.1 | Apache-2.0 | development / install tooling | https://github.com/pytest-dev/pytest-asyncio |
-| python-discovery | 1.9.0 | MIT | development / install tooling | https://github.com/tox-dev/python-discovery |
+| python-discovery | 1.9.4 | MIT | development / install tooling | https://github.com/tox-dev/python-discovery |
 | python-dotenv | 1.2.4 | BSD-3-Clause | runtime | https://github.com/theskumar/python-dotenv |
 | PyYAML | 6.0.3 | MIT License | development / install tooling | https://pyyaml.org/ |
 | redis | 8.1.0 | MIT | runtime | https://github.com/redis/redis-py |
@@ -81,15 +79,15 @@ Packages are downloaded from PyPI / npm at install time and are not committed.
 | setuptools | 84.2.1 | MIT | development / install tooling | https://github.com/pypa/setuptools |
 | sortedcontainers | 2.4.0 | Apache Software License | development / install tooling | http://www.grantjenks.com/docs/sortedcontainers/ |
 | SQLAlchemy | 2.0.55 | MIT | runtime | https://www.sqlalchemy.org |
-| starlette | 1.7.0 | BSD-3-Clause | runtime | https://github.com/Kludex/starlette |
-| stevedore | 5.8.0 | Apache-2.0 | development / install tooling | https://docs.openstack.org/stevedore |
-| tomli | 2.5.0 | MIT | runtime | https://github.com/hukkin/tomli |
+| starlette | 1.10.0 | BSD-3-Clause | runtime | https://github.com/Kludex/starlette |
+| stevedore | 5.9.1 | Apache-2.0 | development / install tooling | https://docs.openstack.org/stevedore |
+| tomli | 2.5.0 | MIT | development / install tooling | https://github.com/hukkin/tomli |
 | tomli_w | 1.2.0 | MIT License | development / install tooling | https://github.com/hukkin/tomli-w |
+| typing-inspection | 0.4.5 | MIT | runtime | https://github.com/pydantic/typing-inspection |
 | typing_extensions | 4.16.0 | PSF-2.0 | runtime | https://github.com/python/typing_extensions |
-| typing-inspection | 0.4.4 | MIT | runtime | https://github.com/pydantic/typing-inspection |
 | urllib3 | 2.8.0 | MIT | development / install tooling | https://pypi.org/project/urllib3/ |
 | uvicorn | 0.54.0 | BSD-3-Clause | runtime | https://uvicorn.dev/ |
-| virtualenv | 21.15.2 | MIT | development / install tooling | https://github.com/pypa/virtualenv |
+| virtualenv | 21.15.5 | MIT | development / install tooling | https://github.com/pypa/virtualenv |
 | wheel | 0.48.0 | MIT | development / install tooling | https://github.com/pypa/wheel |
 
 ## Console npm packages (development only; the built console is committed)
@@ -183,17 +181,16 @@ separate environment); never installed with APIEdge.
 | colorama | 0.4.6 | BSD License | https://github.com/tartley/colorama |
 | ghp-import | 2.1.0 | Apache Software License | https://github.com/c-w/ghp-import |
 | Jinja2 | 3.1.6 | BSD License | https://github.com/pallets/jinja/ |
-| Markdown | 3.10.3 | BSD-3-Clause | https://Python-Markdown.github.io/ |
+| Markdown | 3.11.2 | BSD-3-Clause | https://Python-Markdown.github.io/ |
 | MarkupSafe | 3.0.4 | BSD-3-Clause | https://github.com/pallets/markupsafe/ |
 | mergedeep | 1.3.4 | MIT License | https://github.com/clarketm/mergedeep |
 | mkdocs | 1.6.1 | BSD-2-Clause | https://github.com/mkdocs/mkdocs |
 | mkdocs-get-deps | 0.2.2 | MIT | https://github.com/mkdocs/get-deps |
 | packaging | 26.3 | Apache-2.0 OR BSD-2-Clause | https://github.com/pypa/packaging |
 | pathspec | 1.1.1 | Mozilla Public License 2.0 (MPL 2.0) | https://github.com/cpburnz/python-pathspec |
-| platformdirs | 4.12.4 | MIT | https://github.com/tox-dev/platformdirs |
-| python-dateutil | 3.0.0 | BSD License; Apache Software License | https://github.com/dateutil/dateutil |
+| platformdirs | 4.14.5 | MIT | https://github.com/tox-dev/platformdirs |
+| python-dateutil | 4.0.0 | BSD-3-Clause | https://github.com/dateutil/dateutil |
 | PyYAML | 6.0.3 | MIT License | https://pyyaml.org/ |
 | pyyaml_env_tag | 1.1 | MIT | https://github.com/waylan/pyyaml-env-tag |
-| six | 1.17.0 | MIT License | https://github.com/benjaminp/six |
 | tzdata | 2026.6 | Apache-2.0 | https://github.com/python/tzdata |
-| watchdog | 6.0.0 | Apache Software License | https://github.com/gorakhargosh/watchdog |
+| watchdog | 7.1.0 | Apache-2.0 | https://github.com/gorakhargosh/watchdog |

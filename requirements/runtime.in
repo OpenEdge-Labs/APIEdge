@@ -21,3 +21,6 @@ pyjwt==2.15.1
 pyotp==2.10.0
 # Gateway config change events across processes (T-007). Redis itself stays optional.
 redis==8.1.0
+# redis needs this backport on python_full_version < "3.11.3"; listed explicitly because the lock
+# generator resolves on a newer interpreter that would skip it.
+async-timeout==5.0.1 ; python_full_version < "3.11.3"

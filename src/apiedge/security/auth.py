@@ -21,7 +21,7 @@ import time
 import uuid
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
@@ -49,7 +49,7 @@ class AuthError(Exception):
 def _aware(dt: datetime | None) -> datetime | None:
     """SQLite returns naive datetimes; treat them as UTC."""
     if dt is not None and dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
+        return dt.replace(tzinfo=UTC)
     return dt
 
 

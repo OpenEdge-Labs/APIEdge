@@ -32,7 +32,7 @@ import logging
 import time
 import uuid
 from collections.abc import AsyncIterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 from urllib.parse import quote
 
@@ -225,7 +225,7 @@ def _capture_out(caller: TenantCaller, rows: list[CaptureSession]) -> list[Captu
                 .group_by(CapturedExchange.session_id)
             )
         }
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return [
         CaptureOut(
             id=r.id,
@@ -368,7 +368,7 @@ def start_session(
         errors.append("route: not a route of this API")
     if errors:
         raise HTTPException(422, detail=errors)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     active = [
         r
         for r in caller.session.scalars(
@@ -428,7 +428,7 @@ def stop_session(
 ) -> CaptureOut:
     row = _session_row(caller, session_id, CAPTURE)
     if row.stopped_at is None:
-        row.stopped_at = min(datetime.now(timezone.utc), aware(row.expires_at))
+        row.stopped_at = min(datetime.now(UTC), aware(row.expires_at))
         audit(
             caller.session,
             "inspector.capture.stop",

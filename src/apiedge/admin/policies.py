@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import json
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -207,7 +207,7 @@ class ApiKeyIn(In):
             return None
         if v.tzinfo is None:
             raise ValueError("include a time zone (for example 2027-01-01T00:00:00Z)")
-        if v <= datetime.now(timezone.utc):
+        if v <= datetime.now(UTC):
             raise ValueError("the expiry must be in the future")
         return v
 
@@ -229,7 +229,7 @@ class ApiKeyCreated(ApiKeyOut):
 
 def _aware(value: datetime | None) -> datetime | None:
     if value is not None and value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)  # SQLite drops the offset
+        return value.replace(tzinfo=UTC)  # SQLite drops the offset
     return value
 
 
@@ -237,7 +237,7 @@ def _key_out(k: ApiKey) -> ApiKeyOut:
     expires = _aware(k.expires_at)
     if k.revoked_at is not None:
         state = "revoked"
-    elif expires is not None and expires <= datetime.now(timezone.utc):
+    elif expires is not None and expires <= datetime.now(UTC):
         state = "expired"
     else:
         state = "active"
@@ -343,7 +343,7 @@ def revoke_key(
     if key is None or key.tenant_id != caller.tenant_id or key.product_id != product.id:
         raise not_found("API key not found")
     if key.revoked_at is None:
-        key.revoked_at = datetime.now(timezone.utc)
+        key.revoked_at = datetime.now(UTC)
         _key_audit(caller, "apikey.revoke", key)
         caller.session.commit()
         caller.session.refresh(key)

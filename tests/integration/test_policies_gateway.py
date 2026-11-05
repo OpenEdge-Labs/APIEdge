@@ -15,7 +15,7 @@ import hashlib
 import hmac
 import json
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -82,7 +82,7 @@ def add_key(
     plain = f"ak_test_{name}_{hashlib.sha256(name.encode()).hexdigest()[:20]}"
     with _session(env) as s:
         api = s.get(Api, api_id)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         s.add(
             ApiKey(
                 tenant_id=api.tenant_id,

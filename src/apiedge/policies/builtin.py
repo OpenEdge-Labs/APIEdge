@@ -25,7 +25,7 @@ import re
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import TypeAdapter, ValidationError
@@ -136,7 +136,7 @@ class ApiKeyAuth(Policy):
             )
         info = self.keys.get(hash_api_key(value)) if len(value) <= 256 else None
         expires = info.expires_at if info is not None else None
-        if expires is not None and expires <= datetime.now(timezone.utc):
+        if expires is not None and expires <= datetime.now(UTC):
             info = None
         if info is None:
             return (

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -87,7 +87,7 @@ class SummaryOut(BaseModel):
 
 
 def _utc(value: datetime) -> datetime:
-    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 
 def _filters(
@@ -98,7 +98,7 @@ def _filters(
     api_id: int | None,
     consumer: str | None,
 ) -> tuple[Filters, datetime, datetime]:
-    end_ = _utc(end) if end else datetime.now(timezone.utc)
+    end_ = _utc(end) if end else datetime.now(UTC)
     start_ = _utc(start) if start else end_ - DEFAULT_RANGE
     if start_ >= end_:
         raise HTTPException(UNPROCESSABLE, detail="start must be before end")
@@ -223,7 +223,7 @@ def analytics_export(
         writer.writerow(
             csv_cell(v)
             for v in (
-                datetime.fromtimestamp(int(t), timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                datetime.fromtimestamp(int(t), UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 prod,
                 product_names.get(int(prod), ""),
                 api,

@@ -6,7 +6,7 @@
 
 ## Quick start
 
-You need **Python 3.10, 3.11 or 3.12**. The installer downloads everything else from PyPI and checks each file against pinned sha256 hashes. No Node.js is needed.
+You need **Python 3.11, 3.12 or 3.13**. The installer downloads everything else from PyPI and checks each file against pinned sha256 hashes. No Node.js is needed.
 
 ```
 git clone https://github.com/OpenEdge-Labs/APIEdge.git

@@ -38,10 +38,11 @@ import re
 import shutil
 import subprocess  # nosec B404 - runs git/pip/helm with argument lists, never a shell
 import sys
+import tomllib
 import uuid
 import zipfile
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -91,17 +92,12 @@ class ReleaseError(RuntimeError):
 
 # ---------------------------------------------------------------- versions
 def project_version(pyproject: Path = ROOT / "pyproject.toml") -> str:
-    """Read ``[project] version`` without tomllib (Python 3.10 has none)."""
-    in_project = False
-    for line in pyproject.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if stripped.startswith("["):
-            in_project = stripped == "[project]"
-        elif in_project:
-            m = re.match(r'^version\s*=\s*"([^"]+)"', stripped)
-            if m:
-                return m.group(1)
-    raise ReleaseError("no [project] version in pyproject.toml")
+    """Read ``[project] version`` from pyproject.toml."""
+    data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    version = data.get("project", {}).get("version")
+    if not isinstance(version, str) or not version:
+        raise ReleaseError("no [project] version in pyproject.toml")
+    return version
 
 
 def check_tag(version: str, tag: str | None) -> None:
@@ -152,7 +148,7 @@ def _zip_time() -> tuple[int, int, int, int, int, int]:
     """Fixed member timestamps (SOURCE_DATE_EPOCH when set) for reproducible archives."""
     epoch = os.environ.get("SOURCE_DATE_EPOCH")
     if epoch and epoch.isdigit():
-        dt = datetime.fromtimestamp(max(int(epoch), 315532800), tz=timezone.utc)
+        dt = datetime.fromtimestamp(max(int(epoch), 315532800), tz=UTC)
         return (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
     return (1980, 1, 1, 0, 0, 0)
 
@@ -314,7 +310,7 @@ def build_sbom(
     timestamp: datetime | None = None,
 ) -> dict[str, Any]:
     """A CycloneDX 1.5 JSON SBOM of what an installed APIEdge release runs."""
-    ts = (timestamp or datetime.now(timezone.utc)).replace(microsecond=0)
+    ts = (timestamp or datetime.now(UTC)).replace(microsecond=0)
     components: list[dict[str, Any]] = []
     for name, ver in python_pins:
         comp: dict[str, Any] = {

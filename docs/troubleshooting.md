@@ -11,7 +11,7 @@ failing response: it appears in the matching log lines.
 
 | Symptom | Cause and fix |
 |---|---|
-| "APIEdge needs Python 3.10, 3.11 or 3.12" | Install one of them (the message shows the python.org link and the winget, Homebrew or package-manager command for your OS; on Linux include the `venv` module) and run the installer again |
+| "APIEdge needs Python 3.11, 3.12 or 3.13" | Install one of them (the message shows the python.org link and the winget, Homebrew or package-manager command for your OS; on Linux include the `venv` module) and run the installer again |
 | `THESE PACKAGES DO NOT MATCH THE HASHES` | A proxy or mirror changed the files. Use a mirror that serves the original PyPI files (`--index-url`), or fix the proxy. Hash checking cannot be turned off |
 | Downloads fail behind a corporate proxy | `--proxy http://proxy:3128`, or `HTTPS_PROXY`; for a TLS-inspecting proxy also set `PIP_CERT` to its CA bundle |
 | macOS: "install.command cannot be opened" | Right-click it and choose **Open** the first time (Gatekeeper) |

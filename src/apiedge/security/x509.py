@@ -22,7 +22,7 @@ import re
 import secrets
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from Crypto.Hash import SHA256, SHA384, SHA512  # nosec B413 - pycryptodome (maintained)
@@ -130,7 +130,7 @@ def _time(data: bytes, node: _Node) -> datetime:
             raise CertificateError("invalid certificate time")
     except ValueError as exc:
         raise CertificateError("invalid certificate time") from exc
-    return moment.replace(tzinfo=timezone.utc)
+    return moment.replace(tzinfo=UTC)
 
 
 _NAME_KEYS = {
@@ -428,7 +428,7 @@ def verify_chain(
     A leaf that is itself one of the anchors is accepted (certificate pinning). Every
     certificate on the path must be within its validity period; issuers must be CAs.
     """
-    moment = now or datetime.now(timezone.utc)
+    moment = now or datetime.now(UTC)
     if not leaf.valid_at(moment):
         return "expired" if moment > leaf.not_after else "not yet valid"
     if purpose is not None and leaf.extended_key_usage is not None:
@@ -531,7 +531,7 @@ def _enc_oid(oid: str) -> bytes:
 
 
 def _enc_time(moment: datetime) -> bytes:
-    moment = moment.astimezone(timezone.utc)
+    moment = moment.astimezone(UTC)
     if moment.year < 2050:
         return _tlv(0x17, moment.strftime("%y%m%d%H%M%SZ").encode())
     return _tlv(0x18, moment.strftime("%Y%m%d%H%M%SZ").encode())
@@ -576,7 +576,7 @@ def build_certificate(
     if (issuer is None) != (issuer_key is None):
         raise ValueError("give both the issuer certificate and its key, or neither")
     signer = issuer_key or subject_key
-    start = (not_before or datetime.now(timezone.utc) - timedelta(minutes=5)).replace(microsecond=0)
+    start = (not_before or datetime.now(UTC) - timedelta(minutes=5)).replace(microsecond=0)
     spki = bytes(subject_key.public_key().export_key(format="DER"))
     if isinstance(signer, RSA.RsaKey):
         sig_oid, sig_alg = (
@@ -627,7 +627,7 @@ def build_certificate(
 
 def describe(cert: Certificate, now: datetime | None = None) -> dict[str, Any]:
     """A JSON-safe summary for the admin API and the console."""
-    moment = now or datetime.now(timezone.utc)
+    moment = now or datetime.now(UTC)
     if moment > cert.not_after:
         state = "expired"
     elif moment < cert.not_before:

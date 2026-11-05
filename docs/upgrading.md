@@ -36,6 +36,9 @@ The first release has not been tagged yet. Notes for pre-release builds:
 
 * **No upgrade path is promised between pre-release builds** before 0.1.0, although every schema
   change so far is a forward migration (0001 to 0007) and data has been preserved.
+* **Python 3.11 or newer is required** (T-032). Python 3.10 is no longer supported; supported
+  versions are 3.11, 3.12 and 3.13. On a host with only 3.10, install a newer Python first and
+  run the installer again: it recreates the virtual environment with the new interpreter.
 * The PostgreSQL driver is only in the container image built with
   `APIEDGE_WITH_POSTGRES=1` (see the [Installation Guide](installation.md#10-docker-and-docker-compose)).
 * Forwarded headers (T-018): the gateway now honours `X-Forwarded-For` / `X-Forwarded-Proto`

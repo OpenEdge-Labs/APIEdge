@@ -81,7 +81,7 @@ APIEdge must offer the capabilities of IBM API Connect / DataPower Gateway and o
 
 | Layer | Choice |
 |-------|--------|
-| Language | Python 3.10+ (type-hinted, `mypy --strict` on core packages) |
+| Language | Python 3.11–3.13 (type-hinted, `mypy --strict` on core packages) |
 | Admin API + gateway | **FastAPI** on Uvicorn; gateway proxying via `httpx` (async) |
 | Validation / settings | Pydantic v2, pydantic-settings |
 | Database | SQLAlchemy 2.x + Alembic migrations. **SQLite by default** (zero-dependency install), **PostgreSQL** supported for production |
@@ -147,7 +147,7 @@ src/apiedge/static/      prebuilt web console (our own code, committed), so user
 
 The installer must:
 
-1. Detect the OS and CPU and check for Python 3.10 or newer. If Python is missing, print clear OS-specific instructions and a download link, or offer to install it (winget on Windows, Homebrew on macOS, the system package manager on Linux) with the user's consent.
+1. Detect the OS and CPU and check for Python 3.11 to 3.13. If Python is missing, print clear OS-specific instructions and a download link, or offer to install it (winget on Windows, Homebrew on macOS, the system package manager on Linux) with the user's consent.
 2. Create an isolated virtual environment in the OS data directory, then run `pip install --require-hashes -r requirements/runtime.lock` followed by APIEdge itself.
 3. Run database migrations and create the first admin, either by prompting or by generating a password that is shown once and must be changed at first login.
 4. Optionally register a background service (a Windows service, systemd or launchd) and a desktop or start-menu shortcut.

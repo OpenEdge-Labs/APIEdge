@@ -47,16 +47,16 @@ def test_all_targets_need_no_marker() -> None:
 
 
 def test_python_prefix_marker() -> None:
-    sel = _targets(lambda t: t[1] == "3.10")
+    sel = _targets(lambda t: t[1] == "3.11")
     marker = ul.render_marker(sel)
-    assert marker == 'python_version < "3.11"'
+    assert marker == 'python_version < "3.12"'
     assert _selects_exactly(marker, sel)
 
 
 def test_python_suffix_marker() -> None:
-    sel = _targets(lambda t: t[1] != "3.10")
+    sel = _targets(lambda t: t[1] != "3.11")
     marker = ul.render_marker(sel)
-    assert marker == 'python_version >= "3.11"'
+    assert marker == 'python_version >= "3.12"'
     assert _selects_exactly(marker, sel)
 
 
@@ -77,24 +77,31 @@ def test_mixed_marker_is_exact() -> None:
 def test_graph_walk_evaluates_markers_and_extras_per_target() -> None:
     dists = {
         "app": ul.Dist(
-            "app", "1", [Requirement("lib[x]"), Requirement('bp; python_version < "3.11"')]
+            "app", "1", [Requirement("lib[x]"), Requirement('bp; python_version < "3.12"')]
         ),
         "lib": ul.Dist("lib", "1", [Requirement('opt; extra == "x"'), Requirement("base")]),
         "opt": ul.Dist("opt", "1", []),
         "base": ul.Dist("base", "1", []),
         "bp": ul.Dist("bp", "1", []),
     }
-    win310 = next(t for t in ul.TARGETS if t[0].label == "win_amd64" and t[1] == "3.10")
+    win311 = next(t for t in ul.TARGETS if t[0].label == "win_amd64" and t[1] == "3.11")
     lin312 = next(t for t in ul.TARGETS if t[0].label == "linux_x86_64" and t[1] == "3.12")
     roots = [Requirement("app")]
-    assert ul.needed_for(win310, roots, dists) == {"app", "lib", "opt", "base", "bp"}
+    assert ul.needed_for(win311, roots, dists) == {"app", "lib", "opt", "base", "bp"}
     assert ul.needed_for(lin312, roots, dists) == {"app", "lib", "opt", "base"}
 
 
-def test_committed_locks_have_markers_for_backports() -> None:
-    text = (ROOT / "requirements" / "dev.lock").read_text(encoding="utf-8")
-    line = next(ln for ln in text.splitlines() if ln.startswith("backports-asyncio-runner=="))
-    assert 'python_version < "3.11"' in line
+def test_supported_pythons_match_pyproject() -> None:
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    lo, hi = ul.PYTHONS[0], ul.PYTHONS[-1]
+    nxt = f"3.{int(hi.split('.')[1]) + 1}"
+    assert f'requires-python = ">={lo},<{nxt}"' in text
+
+
+def test_committed_locks_carry_no_marker_for_unsupported_pythons() -> None:
+    for name in ("runtime.lock", "dev.lock", "build.lock", "docs.lock"):
+        text = (ROOT / "requirements" / name).read_text(encoding="utf-8")
+        assert 'python_version < "3.11"' not in text, name
 
 
 def test_full_version_boundaries_from_markers() -> None:
@@ -110,7 +117,7 @@ def test_python_full_version_marker_is_carried() -> None:
     """redis needs async-timeout for python_full_version < "3.11.3", not just < "3.11"."""
     try:
         ul.configure_pythons({"3.11.3"})
-        assert ul.PY_POINTS == ("3.10", "3.11", "3.11.3", "3.12")
+        assert ul.PY_POINTS == ("3.11", "3.11.3", "3.12", "3.13")
         dists = {
             "redis": ul.Dist(
                 "redis", "1", [Requirement('async-timeout; python_full_version < "3.11.3"')]
@@ -123,7 +130,8 @@ def test_python_full_version_marker_is_carried() -> None:
         assert marker == 'python_full_version < "3.11.3"'
         assert _selects_exactly(marker, sel)
         # whole-minor selections keep the readable python_version form
-        assert ul.render_marker(_targets(lambda t: t[1] == "3.10")) == 'python_version < "3.11"'
+        whole_311 = _targets(lambda t: ul.minor_of(t[1]) == "3.11")
+        assert ul.render_marker(whole_311) == 'python_version < "3.12"'
         assert Marker(marker).evaluate({"python_full_version": "3.11.2", "python_version": "3.11"})
         assert not Marker(marker).evaluate(
             {"python_full_version": "3.11.3", "python_version": "3.11"}

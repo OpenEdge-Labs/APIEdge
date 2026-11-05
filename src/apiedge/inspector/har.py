@@ -10,7 +10,7 @@ allows for custom data.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qsl
 
@@ -39,7 +39,7 @@ def entry(data: dict[str, Any], request_id: str) -> dict[str, Any]:
     total = float(timings.get("total_ms") or 0.0)
     wait = timings.get("upstream_ms")
     wait_ms = float(wait) if wait is not None else total
-    started = datetime.fromtimestamp(float(data.get("started_at") or 0), timezone.utc)
+    started = datetime.fromtimestamp(float(data.get("started_at") or 0), UTC)
     request: dict[str, Any] = {
         "method": req.get("method", ""),
         "url": req.get("url", ""),

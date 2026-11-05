@@ -703,3 +703,27 @@ truststore-only profile refused with 502, full profile 200, undecryptable key an
 503); the access matrix now covers 75 operations. 41 console tests. ruff, mypy --strict, bandit
 clean; DAST smoke pass 64/64 against a local instance with the CI settings. CI is blocked by the
 GitHub billing limit (see the task note).
+
+## 2026-11-05 — T-032 Supported Python range 3.11-3.13 (from VP-001)
+
+**Summary.** The customer accepted VP-001 (Python 3.10 is end of life). Supported interpreters
+are now CPython 3.11, 3.12 and 3.13: `pyproject.toml` (`requires-python >=3.11,<3.14`, ruff
+`py311`, mypy `3.11`), the hash locks regenerated for 15 targets (Windows x86_64, Linux
+x86_64/aarch64, macOS x86_64/arm64 x 3.11-3.13), the CI test matrix (3 OSs x 3.11/3.12/3.13),
+the release wheel smoke test (3.11 and 3.13) and the installer checks (`install.ps1`,
+`install.sh`, `install.py`). Code uses `datetime.UTC` and `tomllib` directly. The lock generator
+now resolves root pins without their markers, so a backport pinned for an older Python than the
+maintainer's interpreter (`async-timeout` for `python_full_version < "3.11.3"`) stays in the lock.
+The 3.10-only backports left the locks; filelock moved to 4.2.9, which closes the 17 dev-only
+advisories (F-07) and empties `requirements/audit-ignore-dev.txt`. ADR 0014.
+
+**Files.** `pyproject.toml`, `requirements/*`, `scripts/{update-locks,install,build-release}.py`,
+`scripts/install.{ps1,sh}`, `.github/workflows/{ci,release}.yml`, source files with `UTC`
+imports, `tests/unit/test_update_locks.py`, README, installation, troubleshooting, upgrading,
+architecture, project guide, security verification, ADR 0014, `THIRD_PARTY_LICENSES.md`,
+`CHANGELOG.md`, `APIProjectTask.md` (customer decisions of 2026-11-05 and tasks T-032 to T-040).
+
+**Tests.** Locally only targeted checks (the customer runs the full suite on GitHub): ruff, ruff
+format, mypy, bandit, `tests/unit/test_update_locks.py` and `test_build_release.py` on Python
+3.12; the lock generator's own per-target `pip --dry-run --require-hashes` verification passed
+for all 15 targets. Full verification on the GitHub CI matrix.

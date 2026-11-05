@@ -14,7 +14,7 @@ The permission catalog and built-in roles below are a frozen copy of
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import sqlalchemy as sa
 from alembic import op
@@ -256,7 +256,7 @@ def upgrade() -> None:
     op.create_index(op.f("ix_audit_log_created_at"), "audit_log", ["created_at"])
 
     # Seed the catalog and the built-in (global, read-only) roles.
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     op.bulk_insert(perms, [{"name": n, "description": d} for n, d in PERMISSIONS])
     op.bulk_insert(
         roles,
