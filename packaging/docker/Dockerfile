@@ -34,6 +34,12 @@ LABEL org.opencontainers.image.title="APIEdge" \
       org.opencontainers.image.source="https://github.com/OpenEdge-Labs/APIEdge" \
       org.opencontainers.image.version="${VERSION}"
 
+# Pick up Debian security fixes released after the pinned base image (the image scan in CI
+# fails on fixable High/Critical findings).
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
+
 RUN groupadd --system --gid 10001 apiedge \
  && useradd --system --uid 10001 --gid apiedge --home-dir /var/lib/apiedge \
         --shell /usr/sbin/nologin apiedge \
