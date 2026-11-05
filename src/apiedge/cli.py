@@ -1,6 +1,7 @@
 # Copyright 2026 OpenEdge Labs
 # SPDX-License-Identifier: Apache-2.0
-"""``apiedge`` command-line interface: init, migrate, run, create-admin, version."""
+"""``apiedge`` command-line interface: init, migrate, run, create-admin, rotate-secrets, tls,
+version."""
 
 from __future__ import annotations
 
@@ -276,6 +277,60 @@ def cmd_create_admin(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_rotate_secrets(args: argparse.Namespace) -> int:
+    """Re-encrypt every stored secret with the current master key (T-034)."""
+    from apiedge.db.base import make_engine, make_session_factory, run_migrations
+    from apiedge.security.crypto import load_secret_box
+    from apiedge.security.rotation import rotate_secrets
+
+    settings = _settings(args)
+    box = load_secret_box(settings)
+    if box is None:
+        print(
+            "error: no secrets master key (set APIEDGE_SECRET_KEY or run `apiedge init`)",
+            file=sys.stderr,
+        )
+        return EXIT_ERROR
+    if not args.dry_run:
+        run_migrations(settings.effective_database_url)
+    engine = make_engine(settings.effective_database_url)
+    try:
+        with make_session_factory(engine)() as session:
+            report = rotate_secrets(session, box, dry_run=args.dry_run)
+    finally:
+        engine.dispose()
+
+    verb = "would re-encrypt" if args.dry_run else "re-encrypted"
+    print(
+        f"current key id: {report.key_id}"
+        + ("  (dry run - nothing written)" if args.dry_run else "")
+    )
+    for name, c in report.categories.items():
+        line = f"  {name:<24} checked {c.checked:>6}  {verb} {c.rotated:>6}"
+        if c.failed:
+            line += f"  undecryptable {c.failed}"
+        if c.conflicts:
+            line += f"  changed meanwhile {c.conflicts}"
+        print(line)
+    for ref in report.failures[:50]:
+        print(f"  cannot decrypt: {ref}", file=sys.stderr)
+    if len(report.failures) > 50:
+        print(f"  ... and {len(report.failures) - 50} more", file=sys.stderr)
+    if not report.ok:
+        print(
+            "error: some secrets were not re-encrypted - keep APIEDGE_SECRET_KEY_PREVIOUS "
+            "(undecryptable tokens need a key that is not configured; re-run for rows that "
+            "changed meanwhile)",
+            file=sys.stderr,
+        )
+        return EXIT_ERROR
+    if args.dry_run:
+        print(f"{report.remaining} secret(s) still use an old key")
+    else:
+        print("all stored secrets use the current key; APIEDGE_SECRET_KEY_PREVIOUS can be removed")
+    return EXIT_OK
+
+
 def cmd_tls_self_signed(args: argparse.Namespace) -> int:
     """Write a self-signed certificate and key for trying TLS (not for production)."""
     import ipaddress
@@ -383,6 +438,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="succeed without changes if the user already exists",
     )
     s.set_defaults(func=cmd_create_admin)
+
+    s = sub.add_parser(
+        "rotate-secrets",
+        parents=[common],
+        help="re-encrypt stored secrets with the current key (after a key rotation)",
+    )
+    s.add_argument("--dry-run", action="store_true", help="only report what would be re-encrypted")
+    s.set_defaults(func=cmd_rotate_secrets)
 
     s = sub.add_parser("tls", help="TLS helpers")
     tls = s.add_subparsers(dest="tls_command", required=True)

@@ -202,6 +202,9 @@ See the [configuration guide](admin-guide/configuration.md) and `.env.example`. 
 **Back up the secrets key** (`<data dir>/secret.key` or `APIEDGE_SECRET_KEY`). Without it,
 encrypted secrets cannot be recovered. To rotate: set the new key as `APIEDGE_SECRET_KEY`, list the
 old one in `APIEDGE_SECRET_KEY_PREVIOUS`. New data is encrypted with the new key and old data stays
-readable. There is no re-encryption command yet (proposal VP-008), so the old key must stay in
-`APIEDGE_SECRET_KEY_PREVIOUS` while data encrypted with it exists (MFA secrets, policy secrets,
-captured traffic). See [operations](admin-guide/operations.md#the-secrets-key).
+readable. Then run `apiedge rotate-secrets` (T-034): it re-encrypts every
+stored secret (MFA secrets, policy secrets, keystore and OAuth signing keys, captured traffic)
+with the new key, keeping each token's associated data, so the old key can be removed. It is
+idempotent, writes each row with a compare-and-set update (a row changed meanwhile is skipped,
+never overwritten), never deletes undecryptable tokens and never prints values. Tests:
+`tests/integration/test_rotate_secrets.py`. See [operations](admin-guide/operations.md#the-secrets-key).

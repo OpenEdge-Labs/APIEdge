@@ -27,7 +27,7 @@ directory (see `.env.example`). Command-line options `--data-dir` and `--databas
 | `APIEDGE_MAX_REQUEST_BODY_BYTES` | `2097152` (2 MiB) | Larger request bodies get `413` |
 | `APIEDGE_HSTS_MAX_AGE` | `31536000` | HSTS max-age, sent only on HTTPS requests; `0` disables |
 | `APIEDGE_SECRET_KEY` | unset | Base64url 32-byte master key for secrets encryption. If unset, `<data dir>/secret.key` (created by `apiedge init`) is used. **Back it up** |
-| `APIEDGE_SECRET_KEY_PREVIOUS` | empty | Comma-separated old keys still accepted for decryption during rotation |
+| `APIEDGE_SECRET_KEY_PREVIOUS` | empty | Comma-separated old keys still accepted for decryption during rotation; remove them after `apiedge rotate-secrets` |
 | `APIEDGE_SECRET_KEY_FILE` | `<data dir>/secret.key` | Alternative key file location |
 | `APIEDGE_SSRF_ALLOW_PRIVATE` | `false` | Allow private, loopback and link-local upstreams (on-prem). Cloud metadata stays blocked |
 | `APIEDGE_SSRF_ALLOW_CIDRS` | empty | Comma-separated CIDRs always allowed as upstreams (preferred over `ALLOW_PRIVATE`) |
@@ -72,6 +72,7 @@ directory (see `.env.example`). Command-line options `--data-dir` and `--databas
 | `apiedge migrate` | Apply database migrations (idempotent) |
 | `apiedge run [--host H] [--port P] [--open]` | Start the console, admin API and gateway (migrates first) |
 | `apiedge create-admin [--username U] [--generate-password \| --password-stdin] [--if-missing]` | Create a SuperAdmin. The password is Argon2id-hashed. A generated password is printed once |
+| `apiedge rotate-secrets [--dry-run]` | Re-encrypt every stored secret with the current key after a key rotation, so `APIEDGE_SECRET_KEY_PREVIOUS` can be removed. Exit code 1 if anything is left on an old key ([procedure](operations.md#the-secrets-key)) |
 | `apiedge tls self-signed [--out-dir D] [--host NAME]... [--days N] [--force]` | Write a self-signed EC P-256 certificate and key (`apiedge-cert.pem`, `apiedge-key.pem`, key file mode 0600) for trying TLS. Use a certificate from your CA in production |
 | `apiedge version` | Print the version |
 

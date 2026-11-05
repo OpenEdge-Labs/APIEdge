@@ -141,11 +141,23 @@ supported.
   readable only by the owner where the OS supports it. Or provide it with `APIEDGE_SECRET_KEY`
   (base64url-encoded 32 bytes) or `APIEDGE_SECRET_KEY_FILE`; in Kubernetes use the chart's
   `secretKey.existingSecret`.
-* **Rotation:** set the new key as `APIEDGE_SECRET_KEY` and list the old key in
-  `APIEDGE_SECRET_KEY_PREVIOUS`. New data is encrypted with the new key; existing data stays
-  readable with the old one. There is no re-encryption command yet, so **keep the old key in
-  `APIEDGE_SECRET_KEY_PREVIOUS` for as long as data encrypted with it exists**. Rotating the key
-  also ends all console sessions (unless `APIEDGE_JWT_SECRET` is set).
+* **Rotation** (for example yearly, or at once if the key may have leaked):
+  1. Back up the database and the current key.
+  2. Generate a new key (`python -c "import secrets,base64;print(base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b'=').decode())"`),
+     set it as `APIEDGE_SECRET_KEY` (or write it to the key file) and list the old key in
+     `APIEDGE_SECRET_KEY_PREVIOUS`. Restart APIEdge (every node). New data is now encrypted with
+     the new key; existing data stays readable with the old one.
+  3. Run `apiedge rotate-secrets` (same environment as `apiedge run`). It re-encrypts every
+     stored secret with the new key: user MFA secrets, policy secrets, keystore private keys,
+     OAuth signing keys and captured traffic. It prints a count per kind and never prints
+     values. `--dry-run` only reports. It is safe to re-run and to run while APIEdge serves
+     traffic: a row changed meanwhile is skipped and reported, so run it again.
+  4. When it ends with "APIEDGE_SECRET_KEY_PREVIOUS can be removed" (exit code 0), remove the old
+     key from `APIEDGE_SECRET_KEY_PREVIOUS` and restart. If it reports secrets it cannot decrypt
+     (exit code 1), they were encrypted with a key that is not configured: keep looking for
+     that key, or delete and recreate the listed objects; the command never deletes anything.
+
+  Rotating the key also ends all console sessions (unless `APIEDGE_JWT_SECRET` is set).
 
 ## Logs
 

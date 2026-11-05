@@ -778,3 +778,22 @@ reference), `.env.example`, `CHANGELOG.md`, `APIProjectTask.md`.
 **Tests.** Locally on Python 3.12: the new OAuth unit (6) and integration (6) tests, the access
 matrix, migrations and RBAC tests; 46 console tests; ruff, ruff format, mypy --strict, bandit.
 The full suite runs on GitHub CI.
+
+## 2026-11-06 — T-034: secrets re-encryption command
+
+**Summary.** `apiedge rotate-secrets [--dry-run]` re-encrypts every secrets-box token that is not
+under the current primary key: user TOTP secrets, secret fields of API policy chains, keystore
+private keys, OAuth signing keys and captured exchanges. Associated data is unchanged, so every
+token stays bound to its row. Rows are read in id-keyed batches and written with compare-and-set
+updates (`WHERE column = <old token>`), so the command is idempotent, resumable and safe while
+APIEdge serves traffic. Tokens that cannot be decrypted are reported by row reference and kept.
+Closes finding F-06 (VP-008). Also recorded the customer decision on VP-010.
+
+**Files.** `src/apiedge/security/rotation.py`, `src/apiedge/cli.py`,
+`tests/integration/test_rotate_secrets.py`, `docs/admin-guide/{operations,configuration}.md`,
+`docs/SECURITY.md`, `docs/security-verification.md`, `.env.example`, `CHANGELOG.md`,
+`APIProjectTask.md`.
+
+**Tests.** Locally on Python 3.12: `test_rotate_secrets.py` (5: full rotation and idempotence,
+undecryptable tokens kept, token moved between rows rejected, concurrent change skipped, missing
+key) and `test_cli.py`; ruff, ruff format, mypy --strict, bandit. Full suite on GitHub CI.
