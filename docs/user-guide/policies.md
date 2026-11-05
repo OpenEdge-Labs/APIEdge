@@ -58,6 +58,7 @@ Requires a signed JSON Web Token, by default as `Authorization: Bearer <token>`.
 | Setting | Meaning |
 |---|---|
 | Allowed algorithms | The only accepted `alg` values. Use HS256/384/512 (shared secret) **or** RS*, PS*, ES* (public key or JWKS), never both; `none` is never accepted |
+| Built-in issuer | Accept tokens of this tenant's own [OAuth 2.0 / OIDC server](oauth.md): its keys and issuer are used, so choose only RS256 and leave the secret, public key, JWKS URL and issuer empty |
 | Shared secret | For HS*: at least 32 bytes. Stored encrypted and never shown again; leave the field empty to keep the stored secret |
 | Public key | For RS*/PS*/ES*: a PEM public key (RSA keys need at least 2048 bits) |
 | JWKS URL | For RS*/PS*/ES*: an `https` URL of the issuer's key set. It must pass the [SSRF guard](../SECURITY.md) and is fetched through it; keys are cached (default 300 s) and refreshed when a token names an unknown `kid` (at most every 30 s) |

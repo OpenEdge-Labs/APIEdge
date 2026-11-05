@@ -269,6 +269,8 @@ RESERVED_PREFIXES: tuple[str, ...] = (
     "/redoc",
     "/openapi.json",
     "/assets",
+    # The tenant's OAuth 2.0 / OIDC endpoints on the gateway (T-023): /<tenant slug>/oauth2/...
+    "/oauth2",
 )
 
 

@@ -128,6 +128,10 @@ class Settings(BaseSettings):
     # Reverse proxies / load balancers in front of the gateway (CIDRs). Only when the direct peer
     # is one of them is X-Forwarded-For used to find the client address (IP filter, rate limits).
     gateway_trusted_proxies: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    # --- OAuth 2.0 / OIDC authorization server (T-023, ADR 0015).
+    # Public base URL of the gateway as clients reach it, e.g. https://api.example.com. Each
+    # tenant's issuer is <this>/<tenant slug>/oauth2. Default: http(s)://localhost:<gateway port>.
+    gateway_public_url: str | None = Field(default=None, max_length=500)
     # Memory for the response cache policy, per gateway process (0 = caching off).
     gateway_cache_max_bytes: int = Field(default=64 * 1024 * 1024, ge=0, le=16 * 1024**3)
     # Fixed windows kept in memory by the rate-limit policy (without Redis, or as its fallback).
@@ -204,6 +208,19 @@ class Settings(BaseSettings):
             ipaddress.ip_network(cidr, strict=False)  # raises ValueError if invalid
         return v
 
+    @field_validator("gateway_public_url")
+    @classmethod
+    def _public_url(cls, v: str | None) -> str | None:
+        if v is None or not v.strip():
+            return None
+        v = v.strip().rstrip("/")
+        parts = urlsplit(v)
+        if parts.scheme not in ("http", "https") or not parts.hostname:
+            raise ValueError("must be an http(s) URL such as https://api.example.com")
+        if parts.query or parts.fragment or parts.username or parts.password:
+            raise ValueError("must not contain credentials, a query or a fragment")
+        return v
+
     @field_validator("metrics_token")
     @classmethod
     def _check_metrics_token(cls, v: SecretStr | None) -> SecretStr | None:
@@ -257,6 +274,14 @@ class Settings(BaseSettings):
     @property
     def effective_secret_key_file(self) -> Path:
         return self.secret_key_file or (self.data_dir / "secret.key")
+
+    @property
+    def effective_gateway_public_url(self) -> str:
+        """Base URL of the gateway for clients (issuer URLs of the OAuth server)."""
+        if self.gateway_public_url:
+            return self.gateway_public_url
+        scheme = "https" if self.gateway_tls_cert_file is not None else "http"
+        return f"{scheme}://localhost:{self.gateway_port}"
 
     @property
     def effective_database_url(self) -> str:

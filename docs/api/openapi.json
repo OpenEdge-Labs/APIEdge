@@ -4431,6 +4431,527 @@
         }
       }
     },
+    "/api/v1/tenants/{tenant_id}/oauth/server": {
+      "get": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "The tenant's OAuth / OIDC endpoints",
+        "operationId": "get_server_api_v1_tenants__tenant_id__oauth_server_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "oauth:read"
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/oauth/clients": {
+      "get": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "List OAuth clients",
+        "operationId": "list_clients_api_v1_tenants__tenant_id__oauth_clients_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClientOut"
+                  },
+                  "title": "Response List Clients Api V1 Tenants  Tenant Id  Oauth Clients Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "oauth:read"
+        }
+      },
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Register an OAuth client (the secret is shown once)",
+        "operationId": "create_client_api_v1_tenants__tenant_id__oauth_clients_post",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "oauth:manage"
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/oauth/clients/{client_pk}": {
+      "get": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Get an OAuth client",
+        "operationId": "get_client_api_v1_tenants__tenant_id__oauth_clients__client_pk__get",
+        "parameters": [
+          {
+            "name": "client_pk",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Client Pk"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "oauth:read"
+        }
+      },
+      "patch": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Change an OAuth client",
+        "operationId": "update_client_api_v1_tenants__tenant_id__oauth_clients__client_pk__patch",
+        "parameters": [
+          {
+            "name": "client_pk",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Client Pk"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "oauth:manage"
+        }
+      },
+      "delete": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Delete an OAuth client",
+        "operationId": "delete_client_api_v1_tenants__tenant_id__oauth_clients__client_pk__delete",
+        "parameters": [
+          {
+            "name": "client_pk",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Client Pk"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "oauth:manage"
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/oauth/clients/{client_pk}/secret": {
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Rotate a confidential client's secret (shown once)",
+        "operationId": "rotate_secret_api_v1_tenants__tenant_id__oauth_clients__client_pk__secret_post",
+        "parameters": [
+          {
+            "name": "client_pk",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Client Pk"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "oauth:manage"
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/oauth/keys": {
+      "get": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "List token signing keys",
+        "operationId": "list_keys_api_v1_tenants__tenant_id__oauth_keys_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KeyOut"
+                  },
+                  "title": "Response List Keys Api V1 Tenants  Tenant Id  Oauth Keys Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "oauth:read"
+        }
+      },
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Rotate the signing key (the previous key stays published until deleted)",
+        "operationId": "rotate_key_api_v1_tenants__tenant_id__oauth_keys_post",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "oauth:manage"
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/oauth/keys/{signing_key_id}": {
+      "delete": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Delete a retired signing key",
+        "operationId": "delete_key_api_v1_tenants__tenant_id__oauth_keys__signing_key_id__delete",
+        "parameters": [
+          {
+            "name": "signing_key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Signing Key Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "oauth:manage"
+        }
+      }
+    },
     "/api/v1/system/settings": {
       "get": {
         "tags": [
@@ -5631,6 +6152,441 @@
         ],
         "title": "ChangePasswordIn"
       },
+      "ClientCreated": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "client_type": {
+            "type": "string",
+            "title": "Client Type"
+          },
+          "secret_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secret Prefix"
+          },
+          "grant_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Grant Types"
+          },
+          "redirect_uris": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Redirect Uris"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes"
+          },
+          "audiences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Audiences"
+          },
+          "access_token_ttl": {
+            "type": "integer",
+            "title": "Access Token Ttl"
+          },
+          "refresh_token_ttl": {
+            "type": "integer",
+            "title": "Refresh Token Ttl"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "client_id",
+          "name",
+          "description",
+          "client_type",
+          "secret_prefix",
+          "grant_types",
+          "redirect_uris",
+          "scopes",
+          "audiences",
+          "access_token_ttl",
+          "refresh_token_ttl",
+          "enabled",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ClientCreated"
+      },
+      "ClientIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.@-]{0,99}$",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Description",
+            "default": ""
+          },
+          "client_type": {
+            "type": "string",
+            "enum": [
+              "confidential",
+              "public"
+            ],
+            "title": "Client Type",
+            "default": "confidential"
+          },
+          "grant_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "client_credentials",
+                "authorization_code",
+                "refresh_token"
+              ]
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Grant Types"
+          },
+          "redirect_uris": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Redirect Uris"
+          },
+          "scopes": {
+            "items": {
+              "type": "string",
+              "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]{1,100}$"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Scopes"
+          },
+          "audiences": {
+            "items": {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Audiences"
+          },
+          "access_token_ttl": {
+            "type": "integer",
+            "maximum": 86400.0,
+            "minimum": 60.0,
+            "title": "Access Token Ttl",
+            "default": 600
+          },
+          "refresh_token_ttl": {
+            "type": "integer",
+            "maximum": 7776000.0,
+            "minimum": 300.0,
+            "title": "Refresh Token Ttl",
+            "default": 86400
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "grant_types"
+        ],
+        "title": "ClientIn"
+      },
+      "ClientOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "client_type": {
+            "type": "string",
+            "title": "Client Type"
+          },
+          "secret_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secret Prefix"
+          },
+          "grant_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Grant Types"
+          },
+          "redirect_uris": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Redirect Uris"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes"
+          },
+          "audiences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Audiences"
+          },
+          "access_token_ttl": {
+            "type": "integer",
+            "title": "Access Token Ttl"
+          },
+          "refresh_token_ttl": {
+            "type": "integer",
+            "title": "Refresh Token Ttl"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "client_id",
+          "name",
+          "description",
+          "client_type",
+          "secret_prefix",
+          "grant_types",
+          "redirect_uris",
+          "scopes",
+          "audiences",
+          "access_token_ttl",
+          "refresh_token_ttl",
+          "enabled",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ClientOut"
+      },
+      "ClientUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "grant_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "client_credentials",
+                    "authorization_code",
+                    "refresh_token"
+                  ]
+                },
+                "type": "array",
+                "maxItems": 3,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Types"
+          },
+          "redirect_uris": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Uris"
+          },
+          "scopes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]{1,100}$"
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scopes"
+          },
+          "audiences": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "minLength": 1
+                },
+                "type": "array",
+                "maxItems": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audiences"
+          },
+          "access_token_ttl": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 86400.0,
+                "minimum": 60.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Token Ttl"
+          },
+          "refresh_token_ttl": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 7776000.0,
+                "minimum": 300.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token Ttl"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ClientUpdate"
+      },
       "CorsConfig": {
         "properties": {
           "allow_origins": {
@@ -6116,6 +7072,11 @@
             "type": "boolean",
             "title": "Hide Credentials",
             "default": false
+          },
+          "builtin_issuer": {
+            "type": "boolean",
+            "title": "Builtin Issuer",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -6176,6 +7137,59 @@
           "config"
         ],
         "title": "JwtPolicy"
+      },
+      "KeyOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "kid": {
+            "type": "string",
+            "title": "Kid"
+          },
+          "algorithm": {
+            "type": "string",
+            "title": "Algorithm"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "retired_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired At"
+          },
+          "public_jwk": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Public Jwk"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kid",
+          "algorithm",
+          "status",
+          "created_at",
+          "retired_at",
+          "public_jwk"
+        ],
+        "title": "KeyOut"
       },
       "KeystoreIn": {
         "properties": {
@@ -7542,6 +8556,94 @@
           "description"
         ],
         "title": "RouteOut"
+      },
+      "SecretOut": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "type": "string",
+            "title": "Client Secret"
+          },
+          "secret_prefix": {
+            "type": "string",
+            "title": "Secret Prefix"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_id",
+          "client_secret",
+          "secret_prefix"
+        ],
+        "title": "SecretOut"
+      },
+      "ServerOut": {
+        "properties": {
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "discovery_url": {
+            "type": "string",
+            "title": "Discovery Url"
+          },
+          "authorization_endpoint": {
+            "type": "string",
+            "title": "Authorization Endpoint"
+          },
+          "token_endpoint": {
+            "type": "string",
+            "title": "Token Endpoint"
+          },
+          "jwks_uri": {
+            "type": "string",
+            "title": "Jwks Uri"
+          },
+          "introspection_endpoint": {
+            "type": "string",
+            "title": "Introspection Endpoint"
+          },
+          "revocation_endpoint": {
+            "type": "string",
+            "title": "Revocation Endpoint"
+          },
+          "userinfo_endpoint": {
+            "type": "string",
+            "title": "Userinfo Endpoint"
+          },
+          "active_key_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Key Id"
+          },
+          "user_registry": {
+            "type": "string",
+            "title": "User Registry"
+          }
+        },
+        "type": "object",
+        "required": [
+          "issuer",
+          "discovery_url",
+          "authorization_endpoint",
+          "token_endpoint",
+          "jwks_uri",
+          "introspection_endpoint",
+          "revocation_endpoint",
+          "userinfo_endpoint",
+          "active_key_id",
+          "user_registry"
+        ],
+        "title": "ServerOut"
       },
       "SettingOut": {
         "properties": {

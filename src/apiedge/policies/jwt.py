@@ -303,6 +303,14 @@ class JwksCache:
             return entry.keys
 
 
+@dataclass(frozen=True)
+class IssuerKeys:
+    """A tenant's built-in OAuth server as the gateway sees it (T-023): issuer and JWKS."""
+
+    issuer: str
+    keys: tuple[VerifyKey, ...]
+
+
 class JwtVerifier:
     """Verifies tokens for one ``jwt`` policy."""
 
@@ -319,7 +327,9 @@ class JwtVerifier:
         audiences: frozenset[str],
         require_exp: bool,
         leeway: int,
+        issuer_source: Callable[[], IssuerKeys | None] | None = None,
     ) -> None:
+        self.issuer_source = issuer_source
         self.algorithms = algorithms
         self.secret = secret
         self.public_key = public_key
@@ -340,6 +350,14 @@ class JwtVerifier:
         return usable[0] if usable else None
 
     async def _asym_key(self, token: Token) -> VerifyKey:
+        if self.issuer_source is not None:
+            source = self.issuer_source()
+            if source is None or not source.keys:
+                raise KeysUnavailableError("the built-in issuer has no signing keys")
+            key = self._pick(list(source.keys), token)
+            if key is None:
+                raise JwtError("no matching key")
+            return key
         if self.public_key is not None:
             if not self.public_key.fits(token.alg):
                 raise JwtError("key does not fit the algorithm")
@@ -355,6 +373,27 @@ class JwtVerifier:
             raise JwtError("no matching key")
         return key
 
+    def verify_builtin(self, raw: str, now: float | None = None) -> dict[str, Any]:
+        """Synchronous verification against the built-in issuer's keys (no network access)."""
+        token = parse_token(raw, self.algorithms)
+        source = self.issuer_source() if self.issuer_source is not None else None
+        if source is None or not source.keys:
+            raise KeysUnavailableError("the built-in issuer has no signing keys")
+        key = self._pick(list(source.keys), token)
+        if key is None:
+            raise JwtError("no matching key")
+        if not _verify_signature(token.alg, token.signing_input, token.signature, key):
+            raise JwtError("invalid signature")
+        check_claims(
+            token.claims,
+            issuer=source.issuer,
+            audiences=self.audiences,
+            require_exp=self.require_exp,
+            leeway=self.leeway,
+            now=now,
+        )
+        return token.claims
+
     async def verify(self, raw: str, now: float | None = None) -> dict[str, Any]:
         token = parse_token(raw, self.algorithms)
         if token.alg in _HMAC:
@@ -367,9 +406,15 @@ class JwtVerifier:
             key = await self._asym_key(token)
             if not _verify_signature(token.alg, token.signing_input, token.signature, key):
                 raise JwtError("invalid signature")
+        issuer = self.issuer
+        if self.issuer_source is not None:
+            source = self.issuer_source()
+            issuer = source.issuer if source is not None else None
+            if issuer is None:
+                raise KeysUnavailableError("the built-in issuer is unavailable")
         check_claims(
             token.claims,
-            issuer=self.issuer,
+            issuer=issuer,
             audiences=self.audiences,
             require_exp=self.require_exp,
             leeway=self.leeway,

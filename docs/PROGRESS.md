@@ -748,3 +748,33 @@ report (F-05 closed) were updated.
 **Tests.** Locally: ruff, ruff format, mypy, bandit, pip-audit (runtime lock, strict), the
 changed unit tests; the lock generator verified all 15 targets. PostgreSQL itself is verified by
 the Release workflow's docker compose smoke test (APIEdge + PostgreSQL 17 + Valkey, sign-in).
+
+## 2026-11-06 — T-023 slice 2: OAuth 2.0 authorization server, OIDC and JWT generation
+
+**Summary.** Each tenant gets an OAuth 2.0 authorization server and OpenID Connect provider,
+served by the gateway under `/<tenant slug>/oauth2/` (discovery, JWKS, authorize, token,
+introspect, revoke, userinfo). Grants: client credentials (confidential clients), authorization
+code with mandatory PKCE S256, and refresh tokens that rotate on every use; a reused code or
+refresh token revokes the whole sign-in family (audited). Codes and refresh tokens are claimed
+atomically, so two concurrent uses cannot both succeed. Access tokens are RS256 JWTs
+(`at+jwt`), ID tokens carry nonce, auth_time and profile/email claims by scope. Per-tenant RSA
+signing keys are stored encrypted (bound to tenant and kid), rotated from the console and kept
+in the JWKS while retired. End users sign in with the tenant's console users through the new
+`UserRegistry` interface (password, lockout and TOTP shared with the console sign-in). Admin API
+`/api/v1/tenants/{id}/oauth/{server,clients,keys}` with `oauth:read` / `oauth:manage`
+(migration 0010 seeds both permissions), console page OAuth & OIDC, and a Built-in issuer option
+on the JWT policy, fed by the gateway's configuration reload. New setting
+`APIEDGE_GATEWAY_PUBLIC_URL`; `/oauth2` is a reserved API base path. ADR 0015. LDAP is proposed
+as VP-010 because the only maintained pure-Python LDAP client is LGPL-3.0.
+
+**Files.** `src/apiedge/{security/oauth.py,security/user_registry.py,gateway/oauth_server.py,
+admin/oauth.py}`, migration `0010_oauth_server.py`, `db/models.py`, `gateway/{app,bus}.py`,
+`policies/{jwt,builtin,config}.py`, `security/rbac.py`, `admin/schemas.py`, `config.py`,
+console (`oauth.ts`, `pages/OAuth.tsx`, access, App, policies, tests) and `static/`, tests
+(`tests/integration/test_oauth.py`, `tests/unit/test_oauth.py`, access matrix +10 operations),
+docs (OAuth guide, policies guide, configuration, ADR 0015, SECURITY.md, FEATURE_MATRIX.md, API
+reference), `.env.example`, `CHANGELOG.md`, `APIProjectTask.md`.
+
+**Tests.** Locally on Python 3.12: the new OAuth unit (6) and integration (6) tests, the access
+matrix, migrations and RBAC tests; 46 console tests; ruff, ruff format, mypy --strict, bandit.
+The full suite runs on GitHub CI.

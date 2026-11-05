@@ -577,3 +577,126 @@ class TlsProfile(TenantOwned, Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
     )
+
+
+# --------------------------------------------------------------------------- OAuth 2.0 / OIDC
+
+
+class OAuthSigningKey(TenantOwned, Base):
+    """A tenant's token signing key (T-023, ADR 0015). The private key is stored only encrypted
+    with the secrets box; retired keys stay in the JWKS until deleted, so tokens they signed
+    keep validating until they expire."""
+
+    __tablename__ = "oauth_signing_keys"
+    __table_args__ = (CheckConstraint("status IN ('active', 'retired')", name="status"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    kid: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    algorithm: Mapped[str] = mapped_column(String(16), nullable=False, default="RS256")
+    private_key: Mapped[str] = mapped_column(Text, nullable=False)  # secrets-box token
+    public_jwk: Mapped[str] = mapped_column(Text, nullable=False)  # JSON
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class OAuthClient(TenantOwned, Base):
+    """An OAuth 2.0 client registered with a tenant's authorization server. Only the SHA-256
+    of the client secret is stored (public clients have none and must use PKCE)."""
+
+    __tablename__ = "oauth_clients"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="uq_oauth_clients_tenant_id_name"),
+        CheckConstraint("client_type IN ('confidential', 'public')", name="client_type"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    client_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    client_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    secret_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    secret_prefix: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    redirect_uris: Mapped[str] = mapped_column(Text, nullable=False, default="[]")  # JSON
+    grant_types: Mapped[str] = mapped_column(Text, nullable=False, default="[]")  # JSON
+    scopes: Mapped[str] = mapped_column(Text, nullable=False, default="[]")  # JSON
+    audiences: Mapped[str] = mapped_column(Text, nullable=False, default="[]")  # JSON
+    access_token_ttl: Mapped[int] = mapped_column(Integer, nullable=False, default=600)
+    refresh_token_ttl: Mapped[int] = mapped_column(Integer, nullable=False, default=86400)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+
+class OAuthCode(TenantOwned, Base):
+    """A one-time authorization code (hash only), bound to client, redirect URI and PKCE."""
+
+    __tablename__ = "oauth_codes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    client_pk: Mapped[int] = mapped_column(
+        ForeignKey("oauth_clients.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    code_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    redirect_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    scope: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    code_challenge: Mapped[str] = mapped_column(String(64), nullable=False)
+    nonce: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    family_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    auth_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class OAuthRefreshToken(TenantOwned, Base):
+    """A rotating refresh token (hash only). Presenting a used token revokes its family."""
+
+    __tablename__ = "oauth_refresh_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    client_pk: Mapped[int] = mapped_column(
+        ForeignKey("oauth_clients.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    family_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    scope: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    auth_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+
+class OAuthRevokedToken(TenantOwned, Base):
+    """A revoked access token's ``jti``, kept until the token would have expired."""
+
+    __tablename__ = "oauth_revoked_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    jti: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -50,12 +50,12 @@ priorities and are not a procurement comparison.
 |------|-----:|--------:|--------:|---------:|
 | Lifecycle and governance | 4 | 2 | 5 | 0 |
 | Console, administration and access control | 5 | 0 | 1 | 0 |
-| Policy pipeline and assembly | 3 | 1 | 8 | 1 |
-| Security | 4 | 4 | 8 | 1 |
-| Protocols | 1 | 0 | 6 | 1 |
-| Traffic management | 5 | 3 | 7 | 1 |
+| Policy pipeline and assembly | 3 | 1 | 9 | 0 |
+| Security | 6 | 5 | 6 | 0 |
+| Protocols | 1 | 0 | 7 | 0 |
+| Traffic management | 5 | 3 | 8 | 0 |
 | Consumers and monetization | 0 | 1 | 4 | 0 |
-| Operations and deployment | 5 | 2 | 3 | 1 |
+| Operations and deployment | 5 | 2 | 4 | 0 |
 | Observability | 4 | 0 | 4 | 0 |
 | Testing | 0 | 1 | 2 | 0 |
 | AI gateway | 0 | 0 | 5 | 0 |
@@ -103,7 +103,7 @@ priorities and are not a procurement comparison.
 | XSLT and JSON-to-XML conversion | Y | P | Y | Y | - | Y | Y | Y | Y | **Planned** | T-022 | |
 | Request routing to another backend by rule (invoke, proxy) | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Planned** | T-022 | Today each API proxies to its own weighted upstreams |
 | Low-code scripted policies in a sandbox | Y | Y | Y | Y | P | Y | Y | Y | Y | **Planned** | T-010 | Restricted Python in an isolated worker |
-| Packaged custom policy plug-ins (SDK) | P | Y | P | - | P | Y | Y | Y | Y | **Proposed** | VP-005 | |
+| Packaged custom policy plug-ins (SDK) | P | Y | P | - | P | Y | Y | Y | Y | **Planned** | T-038 | |
 
 ## Security
 
@@ -115,9 +115,9 @@ priorities and are not a procurement comparison.
 | CORS | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Done** | T-008 | |
 | Upstream TLS | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Partial** | T-007, T-023 | Upstream certificates are always verified, with an optional CA bundle; per-API TLS profiles with tenant truststores and client certificates (upstream mTLS) delivered in T-023 slice 1b |
 | Secrets protection | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Partial** | T-002, T-023 | Secrets are AES-256-GCM encrypted at rest with key rotation; vault integration is T-023 |
-| OAuth 2.0 authorization server (client credentials, code with PKCE, refresh, introspection, revocation) | Y | Y | Y | P | P | P | Y | Y | Y | **Planned** | T-023 | |
-| OpenID Connect | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Planned** | T-023 | |
-| JWT generation | Y | Y | Y | P | - | Y | Y | Y | Y | **Planned** | T-023 | |
+| OAuth 2.0 authorization server (client credentials, code with PKCE, refresh, introspection, revocation) | Y | Y | Y | P | P | P | Y | Y | Y | **Done** | T-023 | Per tenant, served by the gateway under `/<tenant>/oauth2/`; PKCE S256 mandatory; rotating refresh tokens with reuse detection |
+| OpenID Connect | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Partial** | T-023 | Provider side done (discovery, JWKS, ID tokens, userinfo; tenant console users sign in). Console SSO with an external OIDC provider still planned |
+| JWT generation | Y | Y | Y | P | - | Y | Y | Y | Y | **Done** | T-023 | RS256 access and ID tokens with per-tenant keys, rotation and JWKS; validated by the `jwt` policy's built-in issuer |
 | Basic authentication with LDAP or Active Directory | Y | Y | P | P | P | Y | Y | Y | Y | **Planned** | T-023 | |
 | Mutual TLS client authentication | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Partial** | T-023 | Delivered in the first T-023 slice (Done when T-023 closes): `mtls` policy against tenant truststores; client certificates from the gateway's TLS listener or a trusted proxy header. No CRL/OCSP |
 | HMAC request signatures | Y | Y | P | P | - | P | P | Y | Y | **Planned** | T-023 | |
@@ -125,7 +125,7 @@ priorities and are not a procurement comparison.
 | WAF rules, bot detection and IP reputation | Y | P | P | P | Y | P | P | - | P | **Planned** | T-023 | |
 | Gateway and console TLS termination with keystores | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Partial** | T-023 | Delivered in the first T-023 slice (Done when T-023 closes): native TLS 1.2+/1.3 on both listeners from PEM files; tenant keystores and truststores managed in the console and admin API |
 | Secrets vault integration | Y | Y | P | Y | Y | Y | Y | Y | Y | **Planned** | T-023 | |
-| Upstream (backend) authentication and credential injection | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Proposed** | VP-004 | |
+| Upstream (backend) authentication and credential injection | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Planned** | T-037 | |
 
 ## Protocols
 
@@ -138,7 +138,7 @@ priorities and are not a procurement comparison.
 | WebSocket | Y | Y | P | Y | Y | Y | Y | Y | Y | **Planned** | T-024 | |
 | Server-Sent Events | Y | Y | Y | Y | P | Y | Y | Y | Y | **Planned** | T-024 | Responses are streamed today, but SSE is not yet a tested, supported mode |
 | Event and async APIs (Kafka, MQTT, AMQP, IBM MQ; AsyncAPI) | Y | Y | P | P | P | Y | Y | P | Y | **Planned** | T-024 | |
-| HTTP/2 to clients | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Proposed** | VP-006 | Also a prerequisite for native gRPC (T-024) |
+| HTTP/2 to clients | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Planned** | T-039 | Also a prerequisite for native gRPC (T-024) |
 
 ## Traffic management
 
@@ -159,7 +159,7 @@ priorities and are not a procurement comparison.
 | Service discovery (DNS SRV, Consul, Kubernetes) | P | Y | P | P | P | Y | Y | Y | Y | **Planned** | T-025 | |
 | Response compression | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Planned** | T-025 | |
 | Spike arrest and concurrency limits | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Planned** | T-025 | |
-| Custom domains and host-based routing with per-domain certificates | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Proposed** | VP-003 | Today every API is reached under `/<tenant slug><base path>` on one listener |
+| Custom domains and host-based routing with per-domain certificates | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Planned** | T-036 | Today every API is reached under `/<tenant slug><base path>` on one listener |
 
 ## Consumers and monetization
 
@@ -185,7 +185,7 @@ priorities and are not a procurement comparison.
 | Container image and Docker Compose | Y | Y | Y | Y | - | Y | Y | Y | Y | **Done** | T-016 | Multi-arch (amd64, arm64) non-root image built in CI; compose with PostgreSQL and Valkey. Not pushed to a registry yet (T-031) |
 | Kubernetes Helm chart | Y | Y | Y | Y | - | Y | Y | Y | Y | **Done** | T-016 | Single replica; multi-replica HA is T-026 |
 | Signed releases, SBOM and checksums | Y | Y | Y | Y | - | Y | Y | Y | Y | **Partial** | T-016, T-031 | CycloneDX SBOM and SHA256SUMS on every release build; the GPG signature step is ready but needs the customer's signing key |
-| Kubernetes ingress controller / Gateway API and a Terraform provider | P | Y | P | Y | Y | P | Y | Y | Y | **Proposed** | VP-007 | |
+| Kubernetes ingress controller / Gateway API and a Terraform provider | P | Y | P | Y | Y | P | Y | Y | Y | **Planned** | T-040 | |
 
 ## Observability
 
@@ -234,16 +234,17 @@ mapped to OWASP items in `docs/SECURITY.md`.
 
 ## Gaps proposed as new tasks
 
-Capabilities that the reference gateways offer and that no task in `APIProjectTask.md` covers
-yet are proposed to the customer as Vendor Proposals:
+Capabilities that the reference gateways offer and that no task in `APIProjectTask.md` covered
+were proposed to the customer as Vendor Proposals. The customer accepted all of them on
+2026-11-05; they are now tasks:
 
 | Proposal | Capability |
 |---|---|
-| VP-003 | Custom domains and host-based routing, with per-domain TLS certificates (SNI) |
-| VP-004 | Upstream authentication: inject backend credentials (basic, bearer, OAuth client-credentials tokens, signed requests) from encrypted secrets |
-| VP-005 | A documented plug-in SDK for packaged custom Python policies |
-| VP-006 | HTTP/2 between clients and the gateway |
-| VP-007 | Kubernetes ingress controller / Gateway API support and a Terraform provider |
+| VP-003 (T-036) | Custom domains and host-based routing, with per-domain TLS certificates (SNI) |
+| VP-004 (T-037) | Upstream authentication: inject backend credentials (basic, bearer, OAuth client-credentials tokens, signed requests) from encrypted secrets |
+| VP-005 (T-038) | A documented plug-in SDK for packaged custom Python policies |
+| VP-006 (T-039) | HTTP/2 between clients and the gateway |
+| VP-007 (T-040) | Kubernetes ingress controller / Gateway API support and a Terraform provider |
 
 ## Maintaining this matrix
 

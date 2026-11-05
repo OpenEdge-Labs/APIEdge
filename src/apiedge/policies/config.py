@@ -153,6 +153,9 @@ class JwtConfig(_Strict):
     header: HeaderName = "authorization"  # "Bearer <token>" in Authorization, else raw
     consumer_claim: Annotated[str, StringConstraints(min_length=1, max_length=64)] = "sub"
     hide_credentials: bool = False
+    # Validate tokens of the tenant's own OAuth 2.0 / OIDC server (T-023): its JWKS and issuer
+    # are used; no key, JWKS URL or issuer may be configured.
+    builtin_issuer: bool = False
 
     @field_validator("algorithms")
     @classmethod
@@ -170,6 +173,15 @@ class JwtConfig(_Strict):
     def _keys(self) -> JwtConfig:
         hmac = [a for a in self.algorithms if a in HMAC_ALGS]
         asym = [a for a in self.algorithms if a in ASYM_ALGS]
+        if self.builtin_issuer:
+            if self.algorithms != ["RS256"]:
+                raise ValueError("the built-in issuer signs with RS256 only")
+            if self.secret or self.public_key or self.jwks_url or self.issuer:
+                raise ValueError(
+                    "the built-in issuer brings its own keys and issuer: leave the secret, "
+                    "public key, JWKS URL and issuer empty"
+                )
+            return self
         if hmac and asym:
             # Mixing them invites algorithm-confusion attacks (a public key used as HMAC key).
             raise ValueError("do not mix HS* with RS*/PS*/ES* algorithms in one policy")

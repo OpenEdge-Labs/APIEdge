@@ -111,6 +111,16 @@ EXPECTED: dict[tuple[str, str], str] = {
     ("GET", T + "/tls/profiles/{profile_id}"): "tenant:tls:read",
     ("PATCH", T + "/tls/profiles/{profile_id}"): "tenant:tls:manage",
     ("DELETE", T + "/tls/profiles/{profile_id}"): "tenant:tls:manage",
+    ("GET", T + "/oauth/server"): "tenant:oauth:read",
+    ("GET", T + "/oauth/clients"): "tenant:oauth:read",
+    ("POST", T + "/oauth/clients"): "tenant:oauth:manage",
+    ("GET", T + "/oauth/clients/{client_pk}"): "tenant:oauth:read",
+    ("PATCH", T + "/oauth/clients/{client_pk}"): "tenant:oauth:manage",
+    ("DELETE", T + "/oauth/clients/{client_pk}"): "tenant:oauth:manage",
+    ("POST", T + "/oauth/clients/{client_pk}/secret"): "tenant:oauth:manage",
+    ("GET", T + "/oauth/keys"): "tenant:oauth:read",
+    ("POST", T + "/oauth/keys"): "tenant:oauth:manage",
+    ("DELETE", T + "/oauth/keys/{signing_key_id}"): "tenant:oauth:manage",
 }
 
 PARAM = re.compile(r"\{(\w+)\}")
@@ -130,6 +140,8 @@ BODIES: dict[tuple[str, str], dict[str, Any]] = {
     ("PATCH", T + "/tls/truststores/{truststore_id}"): {"description": "changed"},
     ("POST", T + "/tls/profiles"): {"name": "other"},
     ("PATCH", T + "/tls/profiles/{profile_id}"): {"min_version": "1.3"},
+    ("POST", T + "/oauth/clients"): {"name": "other", "grant_types": ["client_credentials"]},
+    ("PATCH", T + "/oauth/clients/{client_pk}"): {"description": "changed"},
     ("POST", T + "/tls/keystores"): {
         "name": "other",
         "certificate_chain": _CA.pem(),
@@ -195,6 +207,11 @@ def _seed(world: World) -> dict[str, Any]:
             "private_key": x509.private_key_pem(_CA_KEY),
         },
     )["id"]
+    oauth_client = post("/oauth/clients", {"name": "m", "grant_types": ["client_credentials"]})
+    rotated = post("/oauth/keys", {})  # the first client created the first key
+    retired = [
+        k for k in c.get(base + "/oauth/keys", headers=admin).json() if k["id"] != rotated["id"]
+    ]
     role = post("/roles", {"name": "Custom", "permissions": ["product:read"]})["id"]
     roles = {r["name"]: r["id"] for r in c.get(base + "/roles", headers=admin).json()}
     nobody = post(
@@ -215,6 +232,8 @@ def _seed(world: World) -> dict[str, Any]:
         "role_id": role,
         "user_id": nobody,
         "assignment_id": grant["id"],
+        "client_pk": oauth_client["id"],
+        "signing_key_id": retired[0]["id"],
     }
     return {"ids": ids, "x": x, "admin": admin}
 

@@ -83,6 +83,7 @@ export const POLICY_TYPES: { type: PolicyType; label: string; summary: string; f
     summary: "Requires a signed JSON Web Token (bearer token) and checks its claims.",
     fields: [
       { key: "algorithms", label: "Allowed algorithms", kind: "multi", options: JWT_ALGS, hint: "Use HS* (shared secret) or RS/PS/ES (public key or JWKS), not both." },
+      { key: "builtin_issuer", label: "Built-in issuer: tokens of this tenant's OAuth server (RS256; leave keys, JWKS and issuer empty)", kind: "bool" },
       { key: "secret", label: "Shared secret (HS*, at least 32 bytes)", kind: "secret" },
       { key: "public_key", label: "Public key (PEM)", kind: "textarea", placeholder: "-----BEGIN PUBLIC KEY-----" },
       { key: "jwks_url", label: "JWKS URL (https)", kind: "text", placeholder: "https://idp.example.com/.well-known/jwks.json" },
@@ -322,6 +323,11 @@ export function configErrors(type: PolicyType, config: Record<string, unknown>, 
     const hs = algs.filter((a) => HMAC.has(a));
     if (!algs.length) errors.push(`${label}: choose at least one algorithm.`);
     if (hs.length && hs.length !== algs.length) errors.push(`${label}: do not mix HS* with RS*/PS*/ES* algorithms.`);
+    if (config.builtin_issuer) {
+      if (algs.length !== 1 || algs[0] !== "RS256") errors.push(`${label}: the built-in issuer signs with RS256 only.`);
+      if (config.secret || config.public_key || config.jwks_url || config.issuer) errors.push(`${label}: with the built-in issuer, leave the secret, public key, JWKS URL and issuer empty.`);
+      return errors;
+    }
     if (!hs.length && algs.length && !config.public_key && !config.jwks_url) errors.push(`${label}: give a public key or a JWKS URL.`);
     if (config.public_key && config.jwks_url) errors.push(`${label}: give either a public key or a JWKS URL, not both.`);
     if (typeof config.jwks_url === "string" && !config.jwks_url.toLowerCase().startsWith("https://")) errors.push(`${label}: the JWKS URL must use https.`);

@@ -112,6 +112,19 @@ APIEdge Admin API, version `0.1.0.dev0`, OpenAPI `3.1.0`. The machine-readable d
 | `PATCH /api/v1/tenants/{tenant_id}/tls/profiles/{profile_id}` | Change a TLS profile (null clears the truststore, keystore or cipher list) |
 | `DELETE /api/v1/tenants/{tenant_id}/tls/profiles/{profile_id}` | Delete a TLS profile |
 
+| oauth | |
+|---|---|
+| `GET /api/v1/tenants/{tenant_id}/oauth/server` | The tenant's OAuth / OIDC endpoints |
+| `GET /api/v1/tenants/{tenant_id}/oauth/clients` | List OAuth clients |
+| `POST /api/v1/tenants/{tenant_id}/oauth/clients` | Register an OAuth client (the secret is shown once) |
+| `GET /api/v1/tenants/{tenant_id}/oauth/clients/{client_pk}` | Get an OAuth client |
+| `PATCH /api/v1/tenants/{tenant_id}/oauth/clients/{client_pk}` | Change an OAuth client |
+| `DELETE /api/v1/tenants/{tenant_id}/oauth/clients/{client_pk}` | Delete an OAuth client |
+| `POST /api/v1/tenants/{tenant_id}/oauth/clients/{client_pk}/secret` | Rotate a confidential client's secret (shown once) |
+| `GET /api/v1/tenants/{tenant_id}/oauth/keys` | List token signing keys |
+| `POST /api/v1/tenants/{tenant_id}/oauth/keys` | Rotate the signing key (the previous key stays published until deleted) |
+| `DELETE /api/v1/tenants/{tenant_id}/oauth/keys/{signing_key_id}` | Delete a retired signing key |
+
 | system | |
 |---|---|
 | `GET /api/v1/system/settings` | Effective settings (no secrets) |
@@ -1315,6 +1328,167 @@ Delete a TLS profile.
 | 204 | Successful Response | - |
 | 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
 
+## oauth
+
+### GET /api/v1/tenants/{tenant_id}/oauth/server
+
+The tenant's OAuth / OIDC endpoints.
+
+**Access:** `oauth:read` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: [ServerOut](#schema-serverout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### GET /api/v1/tenants/{tenant_id}/oauth/clients
+
+List OAuth clients.
+
+**Access:** `oauth:read` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: array of [ClientOut](#schema-clientout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### POST /api/v1/tenants/{tenant_id}/oauth/clients
+
+Register an OAuth client (the secret is shown once).
+
+**Access:** `oauth:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+**Request body (required):** <code>application/json</code>: [ClientIn](#schema-clientin)
+
+| Status | Meaning | Body |
+|---|---|---|
+| 201 | Successful Response | <code>application/json</code>: [ClientCreated](#schema-clientcreated) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### GET /api/v1/tenants/{tenant_id}/oauth/clients/{client_pk}
+
+Get an OAuth client.
+
+**Access:** `oauth:read` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `client_pk` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: [ClientOut](#schema-clientout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### PATCH /api/v1/tenants/{tenant_id}/oauth/clients/{client_pk}
+
+Change an OAuth client.
+
+**Access:** `oauth:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `client_pk` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+**Request body (required):** <code>application/json</code>: [ClientUpdate](#schema-clientupdate)
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: [ClientOut](#schema-clientout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### DELETE /api/v1/tenants/{tenant_id}/oauth/clients/{client_pk}
+
+Delete an OAuth client.
+
+**Access:** `oauth:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `client_pk` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 204 | Successful Response | - |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### POST /api/v1/tenants/{tenant_id}/oauth/clients/{client_pk}/secret
+
+Rotate a confidential client's secret (shown once).
+
+**Access:** `oauth:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `client_pk` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: [SecretOut](#schema-secretout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### GET /api/v1/tenants/{tenant_id}/oauth/keys
+
+List token signing keys.
+
+**Access:** `oauth:read` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: array of [KeyOut](#schema-keyout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### POST /api/v1/tenants/{tenant_id}/oauth/keys
+
+Rotate the signing key (the previous key stays published until deleted).
+
+**Access:** `oauth:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 201 | Successful Response | <code>application/json</code>: [KeyOut](#schema-keyout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### DELETE /api/v1/tenants/{tenant_id}/oauth/keys/{signing_key_id}
+
+Delete a retired signing key.
+
+**Access:** `oauth:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `signing_key_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 204 | Successful Response | - |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
 ## system
 
 ### GET /api/v1/system/settings
@@ -1564,6 +1738,75 @@ Requires an API key of the API's product (``admin.policies`` issues them).
 | `current_password` | string | yes | min length 1; max length 256 |
 | `new_password` | string | yes | min length 1; max length 256 |
 
+### ClientCreated {#schema-clientcreated}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | integer | yes |  |
+| `client_id` | string | yes |  |
+| `name` | string | yes |  |
+| `description` | string | yes |  |
+| `client_type` | string | yes |  |
+| `secret_prefix` | string or null | yes |  |
+| `grant_types` | array of string | yes |  |
+| `redirect_uris` | array of string | yes |  |
+| `scopes` | array of string | yes |  |
+| `audiences` | array of string | yes |  |
+| `access_token_ttl` | integer | yes |  |
+| `refresh_token_ttl` | integer | yes |  |
+| `enabled` | boolean | yes |  |
+| `created_at` | string (date-time) | yes |  |
+| `updated_at` | string (date-time) | yes |  |
+| `client_secret` | string or null | no |  |
+
+### ClientIn {#schema-clientin}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `name` | string | yes | pattern <code>^&#91;A-Za-z0-9&#93;&#91;A-Za-z0-9 &#95;.@-&#93;&#123;0,99&#125;$</code> |
+| `description` | string | no | max length 500; default <code>""</code> |
+| `client_type` | string: <code>"confidential"</code>, <code>"public"</code> | no | default <code>"confidential"</code> |
+| `grant_types` | array of string: <code>"client&#95;credentials"</code>, <code>"authorization&#95;code"</code>, <code>"refresh&#95;token"</code> | yes | min items 1; max items 3 |
+| `redirect_uris` | array of string | no | max items 20 |
+| `scopes` | array of string | no | max items 50 |
+| `audiences` | array of string | no | max items 10 |
+| `access_token_ttl` | integer | no | min 60; max 86400; default <code>600</code> |
+| `refresh_token_ttl` | integer | no | min 300; max 7776000; default <code>86400</code> |
+| `enabled` | boolean | no | default <code>true</code> |
+
+### ClientOut {#schema-clientout}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | integer | yes |  |
+| `client_id` | string | yes |  |
+| `name` | string | yes |  |
+| `description` | string | yes |  |
+| `client_type` | string | yes |  |
+| `secret_prefix` | string or null | yes |  |
+| `grant_types` | array of string | yes |  |
+| `redirect_uris` | array of string | yes |  |
+| `scopes` | array of string | yes |  |
+| `audiences` | array of string | yes |  |
+| `access_token_ttl` | integer | yes |  |
+| `refresh_token_ttl` | integer | yes |  |
+| `enabled` | boolean | yes |  |
+| `created_at` | string (date-time) | yes |  |
+| `updated_at` | string (date-time) | yes |  |
+
+### ClientUpdate {#schema-clientupdate}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `description` | string or null | no |  |
+| `grant_types` | array of string: <code>"client&#95;credentials"</code>, <code>"authorization&#95;code"</code>, <code>"refresh&#95;token"</code> or null | no |  |
+| `redirect_uris` | array of string or null | no |  |
+| `scopes` | array of string or null | no |  |
+| `audiences` | array of string or null | no |  |
+| `access_token_ttl` | integer or null | no |  |
+| `refresh_token_ttl` | integer or null | no |  |
+| `enabled` | boolean or null | no |  |
+
 ### CorsConfig {#schema-corsconfig}
 
 | Field | Type | Required | Notes |
@@ -1664,6 +1907,7 @@ Requires an API key of the API's product (``admin.policies`` issues them).
 | `header` | string | no | pattern <code>^&#91;!#$%&amp;'&#42;+.^&#95;&#96;&#124;~0-9A-Za-z-&#93;&#123;1,100&#125;$</code>; default <code>"authorization"</code> |
 | `consumer_claim` | string | no | min length 1; max length 64; default <code>"sub"</code> |
 | `hide_credentials` | boolean | no | default <code>false</code> |
+| `builtin_issuer` | boolean | no | default <code>false</code> |
 
 ### JwtPolicy {#schema-jwtpolicy}
 
@@ -1675,6 +1919,18 @@ Requires an API key of the API's product (``admin.policies`` issues them).
 | `routes` | array of string | no | max items 200 |
 | `type` | <code>"jwt"</code> | yes |  |
 | `config` | [JwtConfig](#schema-jwtconfig) | yes |  |
+
+### KeyOut {#schema-keyout}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | integer | yes |  |
+| `kid` | string | yes |  |
+| `algorithm` | string | yes |  |
+| `status` | string | yes |  |
+| `created_at` | string (date-time) | yes |  |
+| `retired_at` | string (date-time) or null | yes |  |
+| `public_jwk` | object | yes |  |
 
 ### KeystoreIn {#schema-keystorein}
 
@@ -1966,6 +2222,29 @@ Requires a client certificate issued by a CA of one of the tenant's truststores 
 | `methods` | array of string | yes |  |
 | `path` | string | yes |  |
 | `description` | string | yes |  |
+
+### SecretOut {#schema-secretout}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `client_id` | string | yes |  |
+| `client_secret` | string | yes |  |
+| `secret_prefix` | string | yes |  |
+
+### ServerOut {#schema-serverout}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `issuer` | string | yes |  |
+| `discovery_url` | string | yes |  |
+| `authorization_endpoint` | string | yes |  |
+| `token_endpoint` | string | yes |  |
+| `jwks_uri` | string | yes |  |
+| `introspection_endpoint` | string | yes |  |
+| `revocation_endpoint` | string | yes |  |
+| `userinfo_endpoint` | string | yes |  |
+| `active_key_id` | string or null | yes |  |
+| `user_registry` | string | yes |  |
 
 ### SettingOut {#schema-settingout}
 

@@ -24,7 +24,7 @@ import math
 import re
 import time
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
@@ -55,6 +55,7 @@ from apiedge.policies.config import (
     is_policy_id,
 )
 from apiedge.policies.jwt import (
+    IssuerKeys,
     JwksCache,
     JwtError,
     JwtVerifier,
@@ -93,6 +94,8 @@ class PolicyServices:
     limiter: Limiter
     cache: ResponseCache
     jwks: JwksCache
+    # tenant id -> its built-in OAuth server's issuer and public keys; replaced on every reload.
+    issuers: dict[int, IssuerKeys] = field(default_factory=dict)
 
 
 def hash_api_key(key: str) -> str:
@@ -759,6 +762,7 @@ def build_policy(
             audiences=frozenset(cfg.audiences),
             require_exp=cfg.require_exp,
             leeway=cfg.leeway_seconds,
+            issuer_source=(lambda: services.issuers.get(tenant_id)) if cfg.builtin_issuer else None,
         )
         return JwtAuth(pid, routes, cfg, verifier)
     if spec.type == "rate-limit":

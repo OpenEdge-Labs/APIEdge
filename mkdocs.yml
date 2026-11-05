@@ -55,6 +55,7 @@ nav:
       - APIs: user-guide/apis.md
       - Policies: user-guide/policies.md
       - Calling APIs through the gateway: user-guide/gateway.md
+      - OAuth 2.0 and OpenID Connect: user-guide/oauth.md
       - Low-code (status): user-guide/low-code.md
   - Packet Inspector Guide: user-guide/inspector.md
   - Analytics Guide: user-guide/analytics.md
@@ -82,6 +83,7 @@ nav:
       - 0012 Documentation site: adr/0012-documentation-site.md
       - 0013 TLS and client certificates: adr/0013-tls-and-client-certificates.md
       - 0014 Python 3.11 to 3.13: adr/0014-python-3-11-to-3-13.md
+      - 0015 OAuth authorization server: adr/0015-oauth-authorization-server.md
   - Project:
       - Feature parity matrix: FEATURE_MATRIX.md
       - Project guide: PROJECT_GUIDE.md

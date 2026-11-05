@@ -51,6 +51,8 @@ from apiedge.analytics.metrics import MetricsCollector, RequestRecord
 from apiedge.config import Settings, get_settings
 from apiedge.db.base import make_engine, make_session_factory
 from apiedge.gateway.bus import ConfigBus, build_bus
+from apiedge.gateway.oauth_server import build_server, load_issuers
+from apiedge.gateway.oauth_server import handle as oauth_handle
 from apiedge.gateway.snapshot import DEPRECATED, RETIRED, RuntimeApi, Snapshot, load_snapshot
 from apiedge.gateway.transport import build_client, build_client_for_context
 from apiedge.inspector.recorder import CaptureRecorder
@@ -199,6 +201,14 @@ class GatewayRuntime:
             settings.inspector_queue_max_bytes, tuple(settings.inspector_mask_fields)
         )
         self.trace_listeners: list[TraceListener] = [self.inspector.listener]
+        self.oauth = build_server(
+            self._factory,
+            self.secret_box,
+            settings.effective_gateway_public_url,
+            max_failures=settings.login_max_failures,
+            lockout_minutes=settings.login_lockout_minutes,
+            rate_per_minute=settings.login_rate_limit_per_minute,
+        )
 
     @property
     def session_factory(self) -> Any:
@@ -216,8 +226,16 @@ class GatewayRuntime:
         except Exception:
             log.exception("gateway configuration reload failed; keeping the previous one")
             return
+        try:
+            issuers = await anyio.to_thread.run_sync(
+                load_issuers, self._factory, self.settings.effective_gateway_public_url
+            )
+        except Exception:
+            log.exception("OAuth issuer keys could not be loaded; keeping the previous ones")
+            issuers = self.services.issuers
         retired, self._retired_clients = self._retired_clients, []
         self._sync_tls_clients(snapshot)
+        self.services.issuers = issuers
         self.snapshot = snapshot
         self.version += 1
         for stale in retired:  # replaced one reload ago: their requests have finished
@@ -758,6 +776,19 @@ async def _send(
     return json_error(status, code, message)
 
 
+async def oauth_endpoint(request: Request) -> Response:
+    runtime: GatewayRuntime = request.app.state.runtime
+    peer = request.client.host if request.client else ""
+    ip = client_address(peer, request.headers.getlist("x-forwarded-for"), runtime.trusted_proxies)
+    return await oauth_handle(
+        request,
+        runtime.oauth,
+        request.path_params["slug"],
+        request.path_params["endpoint"],
+        ip or None,
+    )
+
+
 async def healthz(_request: Request) -> Response:
     return JSONResponse({"status": "ok"})
 
@@ -791,6 +822,12 @@ def create_gateway_app(
             # Tenant slugs cannot start with "-", so these never shadow an API.
             Route("/-/healthz", healthz, methods=["GET"]),
             Route("/-/readyz", readyz, methods=["GET"]),
+            # The tenant's OAuth 2.0 / OIDC server (T-023); API base paths cannot be /oauth2.
+            Route(
+                "/{slug}/oauth2/{endpoint:path}",
+                oauth_endpoint,
+                methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+            ),
             Route("/{path:path}", proxy, methods=METHODS),
         ],
         lifespan=lifespan,

@@ -23,3 +23,4 @@ rewritten, they are superseded.
 | [0012](0012-documentation-site.md) | Documentation site and generated Admin API reference | T-017 |
 | [0013](0013-tls-and-client-certificates.md) | Native TLS, keystores, truststores and client certificates | T-023 |
 | [0014](0014-python-3-11-to-3-13.md) | Supported Python range 3.11 to 3.13 | T-032 |
+| [0015](0015-oauth-authorization-server.md) | Built-in OAuth 2.0 authorization server and OpenID Connect provider | T-023 |
