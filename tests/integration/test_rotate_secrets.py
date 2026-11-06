@@ -208,7 +208,7 @@ def test_rotate_secrets_skips_rows_changed_concurrently(tmp_path: Path) -> None:
                     other.commit()
             return original(stmt, *args, **kwargs)
 
-        s.execute = racing_execute  # type: ignore[method-assign]
+        s.execute = racing_execute  # type: ignore[assignment]
         report = rotate_secrets(s, box)
     with factory() as s:
         k = s.scalars(select(Keystore)).one()
