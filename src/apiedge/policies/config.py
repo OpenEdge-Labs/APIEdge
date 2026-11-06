@@ -41,6 +41,7 @@ POLICY_TYPES = (
     "cache",
     "mock",
     "mtls",
+    "basic-ldap",
 )
 
 # type -> config fields that hold secrets (encrypted at rest, write-only in the admin API).
@@ -317,6 +318,27 @@ class MtlsConfig(_Strict):
         return self
 
 
+class BasicLdapConfig(_Strict):
+    """HTTP Basic credentials checked against a directory of the tenant (T-023, ADR 0016)."""
+
+    directory_id: int = Field(ge=1)
+    realm: Annotated[
+        str, StringConstraints(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9 _.@-]+$")
+    ] = "APIEdge"
+    # Seconds a checked password is remembered (salted digest in memory); 0 asks the directory on
+    # every request. Refused credentials are remembered for at most 30 seconds.
+    cache_seconds: int = Field(default=60, ge=0, le=3600)
+    hide_credentials: bool = True  # do not send the Authorization header to the upstream
+    # Send the verified user name to the upstream in this header (any client value is replaced).
+    forward_user_header: HeaderName | None = None
+
+    @model_validator(mode="after")
+    def _reserved(self) -> BasicLdapConfig:
+        if self.forward_user_header:
+            _headers_ok([self.forward_user_header], RESERVED_REQUEST_HEADERS)
+        return self
+
+
 # --------------------------------------------------------------------------- chain entries
 
 
@@ -374,6 +396,11 @@ class MtlsPolicy(_Spec):
     config: MtlsConfig
 
 
+class BasicLdapPolicy(_Spec):
+    type: Literal["basic-ldap"]
+    config: BasicLdapConfig
+
+
 PolicySpec = Annotated[
     Union[  # noqa: UP007 - pydantic discriminated union
         ApiKeyPolicy,
@@ -385,6 +412,7 @@ PolicySpec = Annotated[
         CachePolicy,
         MockPolicy,
         MtlsPolicy,
+        BasicLdapPolicy,
     ],
     Field(discriminator="type"),
 ]

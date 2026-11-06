@@ -16,6 +16,7 @@ import { ProductsPage } from "./pages/Products";
 import { RolesPage } from "./pages/Roles";
 import { SettingsPage } from "./pages/Settings";
 import { TenantsPage } from "./pages/Tenants";
+import { LdapPage } from "./pages/Ldap";
 import { OAuthPage } from "./pages/OAuth";
 import { TlsPage } from "./pages/Tls";
 import { UsersPage } from "./pages/Users";
@@ -165,6 +166,8 @@ function PageView(props: { page: Page; me: Me; tenantId: number | null; onMeChan
       return tenantId === null ? null : <TlsPage key={tenantId} me={me} tenantId={tenantId} />;
     case "oauth":
       return tenantId === null ? null : <OAuthPage key={tenantId} me={me} tenantId={tenantId} />;
+    case "ldap":
+      return tenantId === null ? null : <LdapPage key={tenantId} me={me} tenantId={tenantId} />;
     case "users":
       return tenantId === null ? null : <UsersPage key={tenantId} me={me} tenantId={tenantId} />;
     case "roles":

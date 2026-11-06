@@ -16,12 +16,16 @@
 
 from __future__ import annotations
 
+import asyncio
+import base64
 import hashlib
+import hmac
 import ipaddress
 import json
 import logging
 import math
 import re
+import secrets
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -43,6 +47,7 @@ from apiedge.policies.base import (
 from apiedge.policies.config import (
     SECRET_FIELDS,
     ApiKeyConfig,
+    BasicLdapConfig,
     CacheConfig,
     CorsConfig,
     IpFilterConfig,
@@ -64,7 +69,9 @@ from apiedge.policies.jwt import (
     load_pem_key,
 )
 from apiedge.policies.stores import CachedResponse, Limiter, ResponseCache
+from apiedge.security import ldap
 from apiedge.security.crypto import CryptoError, SecretBox
+from apiedge.security.ssrf import SsrfPolicy
 from apiedge.security.x509 import Certificate, CertificateError, parse_certificate, verify_chain
 
 log = logging.getLogger("apiedge.gateway.policies")
@@ -96,6 +103,7 @@ class PolicyServices:
     jwks: JwksCache
     # tenant id -> its built-in OAuth server's issuer and public keys; replaced on every reload.
     issuers: dict[int, IssuerKeys] = field(default_factory=dict)
+    ssrf_policy: SsrfPolicy = field(default_factory=SsrfPolicy)  # LDAP connections
 
 
 def hash_api_key(key: str) -> str:
@@ -299,6 +307,120 @@ class JwtAuth(Policy):
 
 
 # --------------------------------------------------------------------------- traffic
+
+
+class LdapBasicAuth(Policy):
+    """``basic-ldap``: HTTP Basic credentials checked against a directory (T-023, ADR 0016).
+
+    Binding is a network round trip with blocking sockets, so it runs in a worker thread, with at
+    most ``_MAX_CONCURRENT`` running and ``_MAX_PENDING`` in total (more answer 503 rather than
+    queue without limit). Results are remembered under a salted HMAC of the credentials, never
+    the password itself, so a client that repeats a wrong password cannot lock the account in the
+    directory. A policy instance lives until the next configuration reload, which empties it.
+    """
+
+    type = "basic-ldap"
+    _CACHE_MAX = 10_000
+    _REFUSED_SECONDS = 30
+    _MAX_CONCURRENT = 8
+    _MAX_PENDING = 64
+    _MAX_HEADER = 4096
+
+    def __init__(
+        self,
+        policy_id: str,
+        routes: frozenset[str],
+        config: BasicLdapConfig,
+        directory: ldap.LdapDirectory,
+        ssrf_policy: SsrfPolicy,
+    ) -> None:
+        super().__init__(policy_id, routes)
+        self.config = config
+        self.directory = directory
+        self.ssrf_policy = ssrf_policy
+        self._salt = secrets.token_bytes(32)
+        # digest -> (expiry, entry or None for refused credentials)
+        self._seen: dict[bytes, tuple[float, ldap.LdapEntry | None]] = {}
+        self._slots = asyncio.Semaphore(self._MAX_CONCURRENT)
+        self._pending = 0
+
+    def _credentials(self, ctx: RequestContext) -> tuple[str, str] | None:
+        scheme, _, token = (ctx.header("authorization") or "").strip().partition(" ")
+        token = token.strip()
+        if scheme.lower() != "basic" or not token or len(token) > self._MAX_HEADER:
+            return None
+        try:
+            decoded = base64.b64decode(token, validate=True).decode("utf-8")
+        except ValueError:  # binascii.Error and UnicodeDecodeError
+            return None
+        username, separator, password = decoded.partition(":")
+        return (username, password) if separator and username and password else None
+
+    def _digest(self, username: str, password: str) -> bytes:
+        message = f"{len(username)}:{username}{password}".encode()
+        return hmac.new(self._salt, message, hashlib.sha256).digest()
+
+    def _remember(self, digest: bytes, entry: ldap.LdapEntry | None) -> None:
+        seconds = self.config.cache_seconds
+        ttl = seconds if entry is not None else min(seconds, self._REFUSED_SECONDS)
+        if ttl <= 0:
+            return
+        if len(self._seen) >= self._CACHE_MAX:
+            self._seen.clear()
+        self._seen[digest] = (time.monotonic() + ttl, entry)
+
+    async def on_request(self, ctx: RequestContext) -> RequestResult:
+        cfg = self.config
+        challenge = [("www-authenticate", f'Basic realm="{cfg.realm}", charset="UTF-8"')]
+        credentials = self._credentials(ctx)
+        if credentials is None:
+            return (
+                "reject",
+                "no basic credentials",
+                json_error(
+                    401, "unauthorized", "A user name and password are required.", challenge
+                ),
+            )
+        username, password = credentials
+        digest = self._digest(username, password)
+        hit = self._seen.get(digest)
+        if hit is not None and hit[0] > time.monotonic():
+            entry = hit[1]
+        else:
+            unavailable = json_error(
+                503, "auth_unavailable", "Authentication is unavailable right now."
+            )
+            if self._pending >= self._MAX_PENDING:
+                return "error", "too many directory checks in progress", unavailable
+            self._pending += 1
+            try:
+                async with self._slots:
+                    entry = await asyncio.to_thread(
+                        ldap.authenticate,
+                        self.directory,
+                        username,
+                        password,
+                        ssrf_policy=self.ssrf_policy,
+                    )
+            except (ldap.LdapError, OSError) as exc:
+                log.warning("LDAP directory %s failed: %s", self.directory.host, exc)
+                return "error", f"directory unavailable ({type(exc).__name__})", unavailable
+            finally:
+                self._pending -= 1
+            self._remember(digest, entry)
+        if entry is None:
+            return (
+                "reject",
+                "invalid credentials",
+                json_error(401, "unauthorized", "The credentials are not valid.", challenge),
+            )
+        name = _safe(entry.first(self.directory.username_attribute) or username, 120)
+        ctx.identity = Identity("ldap", _safe(entry.dn, 512), name, {"dn": entry.dn})
+        if cfg.hide_credentials:
+            ctx.remove_header("authorization")
+        if cfg.forward_user_header:
+            ctx.set_header(cfg.forward_user_header, name)
+        return "pass", f"directory user {name}", None
 
 
 class RateLimit(Policy):
@@ -743,6 +865,7 @@ def build_policy(
     keys: Mapping[str, ApiKeyInfo],
     services: PolicyServices,
     truststores: Mapping[int, tuple[Certificate, ...]] | None = None,
+    directories: Mapping[int, ldap.LdapDirectory] | None = None,
 ) -> Policy:
     routes = frozenset(spec.routes)
     pid: str = spec.id
@@ -782,6 +905,11 @@ def build_policy(
         if not anchors:
             raise ValueError("the policy's truststore does not exist or is empty")
         return ClientCertAuth(pid, routes, cfg, anchors)
+    if spec.type == "basic-ldap":
+        directory = (directories or {}).get(cfg.directory_id)
+        if directory is None:
+            raise ValueError("the policy's directory does not exist or is unusable")
+        return LdapBasicAuth(pid, routes, cfg, directory, services.ssrf_policy)
     raise ValueError(f"unknown policy type {spec.type}")  # pragma: no cover - union is closed
 
 
@@ -794,6 +922,7 @@ def build_pipeline(
     services: PolicyServices,
     box: SecretBox | None,
     truststores: Mapping[int, tuple[Certificate, ...]] | None = None,
+    directories: Mapping[int, ldap.LdapDirectory] | None = None,
 ) -> Pipeline:
     """The pipeline for an API's stored chain. Unusable entries fail closed (503)."""
     try:
@@ -826,6 +955,7 @@ def build_pipeline(
                     keys=keys,
                     services=services,
                     truststores=truststores,
+                    directories=directories,
                 )
             )
         except (ValidationError, ValueError, CryptoError) as exc:

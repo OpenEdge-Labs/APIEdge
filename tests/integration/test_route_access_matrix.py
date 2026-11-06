@@ -121,6 +121,12 @@ EXPECTED: dict[tuple[str, str], str] = {
     ("GET", T + "/oauth/keys"): "tenant:oauth:read",
     ("POST", T + "/oauth/keys"): "tenant:oauth:manage",
     ("DELETE", T + "/oauth/keys/{signing_key_id}"): "tenant:oauth:manage",
+    ("GET", T + "/ldap/directories"): "tenant:ldap:read",
+    ("POST", T + "/ldap/directories"): "tenant:ldap:manage",
+    ("GET", T + "/ldap/directories/{directory_id}"): "tenant:ldap:read",
+    ("PATCH", T + "/ldap/directories/{directory_id}"): "tenant:ldap:manage",
+    ("DELETE", T + "/ldap/directories/{directory_id}"): "tenant:ldap:manage",
+    ("POST", T + "/ldap/directories/{directory_id}/test"): "tenant:ldap:manage",
 }
 
 PARAM = re.compile(r"\{(\w+)\}")
@@ -142,6 +148,12 @@ BODIES: dict[tuple[str, str], dict[str, Any]] = {
     ("PATCH", T + "/tls/profiles/{profile_id}"): {"min_version": "1.3"},
     ("POST", T + "/oauth/clients"): {"name": "other", "grant_types": ["client_credentials"]},
     ("PATCH", T + "/oauth/clients/{client_pk}"): {"description": "changed"},
+    ("POST", T + "/ldap/directories"): {
+        "name": "other",
+        "host": "93.184.216.34",
+        "user_base_dn": "dc=x",
+    },
+    ("PATCH", T + "/ldap/directories/{directory_id}"): {"description": "changed"},
     ("POST", T + "/tls/keystores"): {
         "name": "other",
         "certificate_chain": _CA.pem(),
@@ -234,6 +246,9 @@ def _seed(world: World) -> dict[str, Any]:
         "assignment_id": grant["id"],
         "client_pk": oauth_client["id"],
         "signing_key_id": retired[0]["id"],
+        "directory_id": post(
+            "/ldap/directories", {"name": "d", "host": "93.184.216.34", "user_base_dn": "dc=x"}
+        )["id"],
     }
     return {"ids": ids, "x": x, "admin": admin}
 

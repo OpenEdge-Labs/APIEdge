@@ -196,6 +196,7 @@ class GatewayRuntime:
             limiter=limiter,
             cache=ResponseCache(settings.gateway_cache_max_bytes),
             jwks=JwksCache(lambda: self.client),
+            ssrf_policy=settings.ssrf_policy(),
         )
         self.inspector = CaptureRecorder(
             settings.inspector_queue_max_bytes, tuple(settings.inspector_mask_fields)

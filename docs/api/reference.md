@@ -125,6 +125,15 @@ APIEdge Admin API, version `0.1.0.dev0`, OpenAPI `3.1.0`. The machine-readable d
 | `POST /api/v1/tenants/{tenant_id}/oauth/keys` | Rotate the signing key (the previous key stays published until deleted) |
 | `DELETE /api/v1/tenants/{tenant_id}/oauth/keys/{signing_key_id}` | Delete a retired signing key |
 
+| ldap | |
+|---|---|
+| `GET /api/v1/tenants/{tenant_id}/ldap/directories` | List LDAP directories |
+| `POST /api/v1/tenants/{tenant_id}/ldap/directories` | Create an LDAP directory |
+| `GET /api/v1/tenants/{tenant_id}/ldap/directories/{directory_id}` | Get an LDAP directory |
+| `PATCH /api/v1/tenants/{tenant_id}/ldap/directories/{directory_id}` | Change an LDAP directory |
+| `DELETE /api/v1/tenants/{tenant_id}/ldap/directories/{directory_id}` | Delete an LDAP directory |
+| `POST /api/v1/tenants/{tenant_id}/ldap/directories/{directory_id}/test` | Connect to an LDAP directory and bind as its service account |
+
 | system | |
 |---|---|
 | `GET /api/v1/system/settings` | Effective settings (no secrets) |
@@ -1489,6 +1498,106 @@ Delete a retired signing key.
 | 204 | Successful Response | - |
 | 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
 
+## ldap
+
+### GET /api/v1/tenants/{tenant_id}/ldap/directories
+
+List LDAP directories.
+
+**Access:** `ldap:read` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: array of [DirectoryOut](#schema-directoryout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### POST /api/v1/tenants/{tenant_id}/ldap/directories
+
+Create an LDAP directory.
+
+**Access:** `ldap:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `tenant_id` | path | integer | yes | min 1 |
+
+**Request body (required):** <code>application/json</code>: [DirectoryIn](#schema-directoryin)
+
+| Status | Meaning | Body |
+|---|---|---|
+| 201 | Successful Response | <code>application/json</code>: [DirectoryOut](#schema-directoryout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### GET /api/v1/tenants/{tenant_id}/ldap/directories/{directory_id}
+
+Get an LDAP directory.
+
+**Access:** `ldap:read` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `directory_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: [DirectoryOut](#schema-directoryout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### PATCH /api/v1/tenants/{tenant_id}/ldap/directories/{directory_id}
+
+Change an LDAP directory.
+
+**Access:** `ldap:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `directory_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+**Request body (required):** <code>application/json</code>: [DirectoryUpdate](#schema-directoryupdate)
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: [DirectoryOut](#schema-directoryout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### DELETE /api/v1/tenants/{tenant_id}/ldap/directories/{directory_id}
+
+Delete an LDAP directory.
+
+**Access:** `ldap:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `directory_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 204 | Successful Response | - |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
+### POST /api/v1/tenants/{tenant_id}/ldap/directories/{directory_id}/test
+
+Connect to an LDAP directory and bind as its service account.
+
+**Access:** `ldap:manage` in the tenant
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|---|---|
+| `directory_id` | path | integer | yes |  |
+| `tenant_id` | path | integer | yes | min 1 |
+
+| Status | Meaning | Body |
+|---|---|---|
+| 200 | Successful Response | <code>application/json</code>: [DirectoryTestOut](#schema-directorytestout) |
+| 422 | Validation Error | <code>application/json</code>: [HTTPValidationError](#schema-httpvalidationerror) |
+
 ## system
 
 ### GET /api/v1/system/settings
@@ -1662,6 +1771,29 @@ Requires an API key of the API's product (``admin.policies`` issues them).
 | `details` | string or null | yes |  |
 | `created_at` | string (date-time) | yes |  |
 
+### BasicLdapConfig {#schema-basicldapconfig}
+
+HTTP Basic credentials checked against a directory of the tenant (T-023, ADR 0016).
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `directory_id` | integer | yes | min 1 |
+| `realm` | string | no | min length 1; max length 100; pattern <code>^&#91;A-Za-z0-9 &#95;.@-&#93;+$</code>; default <code>"APIEdge"</code> |
+| `cache_seconds` | integer | no | min 0; max 3600; default <code>60</code> |
+| `hide_credentials` | boolean | no | default <code>true</code> |
+| `forward_user_header` | string or null | no |  |
+
+### BasicLdapPolicy {#schema-basicldappolicy}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | string or null | no |  |
+| `name` | string | no | max length 100; default <code>""</code> |
+| `enabled` | boolean | no | default <code>true</code> |
+| `routes` | array of string | no | max items 200 |
+| `type` | <code>"basic-ldap"</code> | yes |  |
+| `config` | [BasicLdapConfig](#schema-basicldapconfig) | yes |  |
+
 ### CacheConfig {#schema-cacheconfig}
 
 | Field | Type | Required | Notes |
@@ -1828,6 +1960,78 @@ Requires an API key of the API's product (``admin.policies`` issues them).
 | `routes` | array of string | no | max items 200 |
 | `type` | <code>"cors"</code> | yes |  |
 | `config` | [CorsConfig](#schema-corsconfig) | yes |  |
+
+### DirectoryIn {#schema-directoryin}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `name` | string | yes | pattern <code>^&#91;A-Za-z0-9&#93;&#91;A-Za-z0-9 &#95;.@-&#93;&#123;0,99&#125;$</code> |
+| `description` | string | no | max length 500; default <code>""</code> |
+| `host` | string | yes | pattern <code>^&#91;A-Za-z0-9:&#93;&#91;A-Za-z0-9:.-&#93;&#123;0,254&#125;$</code> |
+| `port` | integer | no | min 1; max 65535; default <code>636</code> |
+| `security` | string: <code>"ldaps"</code>, <code>"starttls"</code>, <code>"plain"</code> | no | default <code>"ldaps"</code> |
+| `truststore_id` | integer or null | no |  |
+| `timeout_seconds` | integer | no | min 1; max 60; default <code>5</code> |
+| `bind_dn` | string | no | max length 1024; pattern <code>^&#91;^&#92;x00-&#92;x1f&#92;x7f&#93;&#42;$</code>; default <code>""</code> |
+| `bind_password` | string | no | max length 1024; default <code>""</code> |
+| `user_base_dn` | string | no | max length 1024; pattern <code>^&#91;^&#92;x00-&#92;x1f&#92;x7f&#93;&#42;$</code>; default <code>""</code> |
+| `user_filter` | string | no | max length 1024; default <code>"(uid=&#123;username&#125;)"</code> |
+| `user_dn_template` | string | no | max length 1024; pattern <code>^&#91;^&#92;x00-&#92;x1f&#92;x7f&#93;&#42;$</code>; default <code>""</code> |
+| `username_attribute` | string | no | pattern <code>^&#91;A-Za-z0-9&#93;&#91;A-Za-z0-9.;-&#93;&#123;0,127&#125;$</code>; default <code>"uid"</code> |
+| `email_attribute` | string | no | pattern <code>^(&#91;A-Za-z0-9&#93;&#91;A-Za-z0-9.;-&#93;&#123;0,127&#125;)?$</code>; default <code>"mail"</code> |
+| `name_attribute` | string | no | pattern <code>^(&#91;A-Za-z0-9&#93;&#91;A-Za-z0-9.;-&#93;&#123;0,127&#125;)?$</code>; default <code>"cn"</code> |
+
+### DirectoryOut {#schema-directoryout}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | integer | yes |  |
+| `name` | string | yes |  |
+| `description` | string | yes |  |
+| `host` | string | yes |  |
+| `port` | integer | yes |  |
+| `security` | string | yes |  |
+| `truststore_id` | integer or null | yes |  |
+| `timeout_seconds` | integer | yes |  |
+| `bind_dn` | string | yes |  |
+| `bind_password_set` | boolean | yes |  |
+| `user_base_dn` | string | yes |  |
+| `user_filter` | string | yes |  |
+| `user_dn_template` | string | yes |  |
+| `username_attribute` | string | yes |  |
+| `email_attribute` | string | yes |  |
+| `name_attribute` | string | yes |  |
+| `apis` | array of string | yes |  |
+| `created_at` | string (date-time) | yes |  |
+| `updated_at` | string (date-time) | yes |  |
+
+### DirectoryTestOut {#schema-directorytestout}
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `ok` | boolean | yes |  |
+| `message` | string | yes |  |
+
+### DirectoryUpdate {#schema-directoryupdate}
+
+Omitted fields keep their value. ``bind_password``: omitted keeps it, empty clears it.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `description` | string or null | no |  |
+| `host` | string or null | no |  |
+| `port` | integer or null | no |  |
+| `security` | string: <code>"ldaps"</code>, <code>"starttls"</code>, <code>"plain"</code> or null | no |  |
+| `truststore_id` | integer or null | no |  |
+| `timeout_seconds` | integer or null | no |  |
+| `bind_dn` | string or null | no |  |
+| `bind_password` | string or null | no |  |
+| `user_base_dn` | string or null | no |  |
+| `user_filter` | string or null | no |  |
+| `user_dn_template` | string or null | no |  |
+| `username_attribute` | string or null | no |  |
+| `email_attribute` | string or null | no |  |
+| `name_attribute` | string or null | no |  |
 
 ### ExchangeDetailOut {#schema-exchangedetailout}
 
@@ -2077,13 +2281,13 @@ Requires a client certificate issued by a CA of one of the tenant's truststores 
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `policies` | array of [ApiKeyPolicy](#schema-apikeypolicy) or [JwtPolicy](#schema-jwtpolicy) or [RateLimitPolicy](#schema-ratelimitpolicy) or [TransformPolicy](#schema-transformpolicy) or [CorsPolicy](#schema-corspolicy) or [IpFilterPolicy](#schema-ipfilterpolicy) or [CachePolicy](#schema-cachepolicy) or [MockPolicy](#schema-mockpolicy) or [MtlsPolicy](#schema-mtlspolicy) | no | max items 50 |
+| `policies` | array of [ApiKeyPolicy](#schema-apikeypolicy) or [JwtPolicy](#schema-jwtpolicy) or [RateLimitPolicy](#schema-ratelimitpolicy) or [TransformPolicy](#schema-transformpolicy) or [CorsPolicy](#schema-corspolicy) or [IpFilterPolicy](#schema-ipfilterpolicy) or [CachePolicy](#schema-cachepolicy) or [MockPolicy](#schema-mockpolicy) or [MtlsPolicy](#schema-mtlspolicy) or [BasicLdapPolicy](#schema-basicldappolicy) | no | max items 50 |
 
 ### PolicyChainOut {#schema-policychainout}
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `policies` | array of [ApiKeyPolicy](#schema-apikeypolicy) or [JwtPolicy](#schema-jwtpolicy) or [RateLimitPolicy](#schema-ratelimitpolicy) or [TransformPolicy](#schema-transformpolicy) or [CorsPolicy](#schema-corspolicy) or [IpFilterPolicy](#schema-ipfilterpolicy) or [CachePolicy](#schema-cachepolicy) or [MockPolicy](#schema-mockpolicy) or [MtlsPolicy](#schema-mtlspolicy) | yes |  |
+| `policies` | array of [ApiKeyPolicy](#schema-apikeypolicy) or [JwtPolicy](#schema-jwtpolicy) or [RateLimitPolicy](#schema-ratelimitpolicy) or [TransformPolicy](#schema-transformpolicy) or [CorsPolicy](#schema-corspolicy) or [IpFilterPolicy](#schema-ipfilterpolicy) or [CachePolicy](#schema-cachepolicy) or [MockPolicy](#schema-mockpolicy) or [MtlsPolicy](#schema-mtlspolicy) or [BasicLdapPolicy](#schema-basicldappolicy) | yes |  |
 | `secrets_set` | map of array of string | no |  |
 
 ### ProductIn {#schema-productin}

@@ -91,6 +91,23 @@ test("policies can be reordered", () => {
   assert.deepEqual(move([1, 2, 3], 0, -1), [1, 2, 3]);
 });
 
+test("the basic-ldap policy needs a directory and round-trips", () => {
+  assert.ok(specFromForm(newPolicy("basic-ldap"), 0).errors.some((e) => e.includes("directory")));
+  const spec: PolicySpec = {
+    id: "l1",
+    type: "basic-ldap",
+    name: "",
+    enabled: true,
+    routes: [],
+    config: { directory_id: 4, realm: "Orders", cache_seconds: 0, hide_credentials: false },
+  };
+  const out = specFromForm(formFromSpec(spec), 0);
+  assert.deepEqual(out.errors, []);
+  assert.equal(out.spec?.config.directory_id, 4);
+  assert.equal(out.spec?.config.cache_seconds, 0);
+  assert.equal(out.spec?.config.hide_credentials, false);
+});
+
 test("the mtls policy needs a truststore and round-trips its allow-lists", () => {
   assert.ok(specFromForm(newPolicy("mtls"), 0).errors.some((e) => e.includes("truststore")));
   const spec: PolicySpec = {

@@ -118,7 +118,7 @@ priorities and are not a procurement comparison.
 | OAuth 2.0 authorization server (client credentials, code with PKCE, refresh, introspection, revocation) | Y | Y | Y | P | P | P | Y | Y | Y | **Done** | T-023 | Per tenant, served by the gateway under `/<tenant>/oauth2/`; PKCE S256 mandatory; rotating refresh tokens with reuse detection |
 | OpenID Connect | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Partial** | T-023 | Provider side done (discovery, JWKS, ID tokens, userinfo; tenant console users sign in). Console SSO with an external OIDC provider still planned |
 | JWT generation | Y | Y | Y | P | - | Y | Y | Y | Y | **Done** | T-023 | RS256 access and ID tokens with per-tenant keys, rotation and JWKS; validated by the `jwt` policy's built-in issuer |
-| Basic authentication with LDAP or Active Directory | Y | Y | P | P | P | Y | Y | Y | Y | **Planned** | T-023 | |
+| Basic authentication with LDAP or Active Directory | Y | Y | P | P | P | Y | Y | Y | Y | **Done** | T-023 | `basic-ldap` policy with tenant directories over LDAPS or StartTLS, using our own LDAPv3 client (ADR 0016) |
 | Mutual TLS client authentication | Y | Y | Y | Y | Y | Y | Y | Y | Y | **Partial** | T-023 | Delivered in the first T-023 slice (Done when T-023 closes): `mtls` policy against tenant truststores; client certificates from the gateway's TLS listener or a trusted proxy header. No CRL/OCSP |
 | HMAC request signatures | Y | Y | P | P | - | P | P | Y | Y | **Planned** | T-023 | |
 | JSON and XML threat protection | Y | P | Y | Y | - | Y | Y | P | Y | **Planned** | T-023 | A global request body-size limit is already enforced (T-007) |

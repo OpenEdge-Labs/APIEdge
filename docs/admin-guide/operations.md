@@ -149,7 +149,7 @@ supported.
      the new key; existing data stays readable with the old one.
   3. Run `apiedge rotate-secrets` (same environment as `apiedge run`). It re-encrypts every
      stored secret with the new key: user MFA secrets, policy secrets, keystore private keys,
-     OAuth signing keys and captured traffic. It prints a count per kind and never prints
+     OAuth signing keys, LDAP service-account passwords and captured traffic. It prints a count per kind and never prints
      values. `--dry-run` only reports. It is safe to re-run and to run while APIEdge serves
      traffic: a row changed meanwhile is skipped and reported, so run it again.
   4. When it ends with "APIEDGE_SECRET_KEY_PREVIOUS can be removed" (exit code 0), remove the old

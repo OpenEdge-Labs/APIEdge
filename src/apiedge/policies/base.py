@@ -52,9 +52,9 @@ class TraceEntry:
 
 @dataclass(frozen=True)
 class Identity:
-    """Who the request authenticated as (API key, JWT or client certificate)."""
+    """Who the request authenticated as (API key, JWT, client certificate or directory user)."""
 
-    kind: Literal["api-key", "jwt", "mtls"]
+    kind: Literal["api-key", "jwt", "mtls", "ldap"]
     subject: str  # key id or the JWT's consumer claim
     name: str  # display name (analytics consumer label)
     claims: dict[str, Any] = field(default_factory=dict)
@@ -165,7 +165,9 @@ class RequestContext:
         """The analytics consumer label ("" = anonymous)."""
         if self.identity is None:
             return ""
-        prefix = {"api-key": "key", "jwt": "jwt", "mtls": "cert"}[self.identity.kind]
+        prefix = {"api-key": "key", "jwt": "jwt", "mtls": "cert", "ldap": "ldap"}[
+            self.identity.kind
+        ]
         return f"{prefix}:{self.identity.name}"[:128]
 
     def header(self, name: str) -> str | None:

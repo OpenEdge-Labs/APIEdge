@@ -75,7 +75,7 @@ Permissions are `resource:action` (for example `user:create`, `api:publish`, `in
 |---|---|
 | SuperAdmin | Everything, in every tenant, plus platform permissions (`tenant:create`, `tenant:delete`, `settings:update`). Created with `apiedge create-admin`; not assignable through the API |
 | TenantAdmin | Every tenant permission |
-| ProductOwner | Products (read/update/publish), APIs, policies, scripts, plans, subscriptions, inspector, analytics |
+| ProductOwner | Products (read/update/publish), APIs, policies, scripts, plans, subscriptions, inspector, analytics; can view TLS material, OAuth settings and LDAP directories |
 | APIDeveloper | Read products, create and change APIs, policies and scripts, inspector, analytics |
 | Viewer | Read-only access, analytics, masked inspector |
 | Consumer | Read products, APIs, plans and own subscriptions |

@@ -9,7 +9,8 @@ primary key, decrypts it with the previous key and re-encrypts it with the prima
 the same associated data. The old key can then be removed.
 
 Covered columns: user TOTP secrets, secret fields of API policy chains, captured exchanges of
-the packet inspector, keystore private keys and OAuth signing keys.
+the packet inspector, keystore private keys, OAuth signing keys and LDAP service-account
+passwords.
 
 Properties:
 
@@ -32,11 +33,19 @@ from typing import Any
 from sqlalchemy import Column, select, update
 from sqlalchemy.orm import Session
 
-from apiedge.db.models import Api, CapturedExchange, Keystore, OAuthSigningKey, User
+from apiedge.db.models import (
+    Api,
+    CapturedExchange,
+    Keystore,
+    LdapDirectory,
+    OAuthSigningKey,
+    User,
+)
 from apiedge.inspector.store import exchange_aad
 from apiedge.policies.builtin import secret_aad
 from apiedge.policies.config import SECRET_FIELDS
 from apiedge.security.crypto import DecryptionError, SecretBox
+from apiedge.security.ldap import bind_password_aad
 from apiedge.security.oauth import signing_key_aad
 from apiedge.security.tls import keystore_aad
 
@@ -223,6 +232,16 @@ def rotate_secrets(session: Session, box: SecretBox, *, dry_run: bool = False) -
         OAuthSigningKey.private_key,
         lambda r: signing_key_aad(r[2], r[3]),
         (OAuthSigningKey.tenant_id, OAuthSigningKey.kid),
+    )
+    _rotate_column(
+        session,
+        box,
+        report,
+        "LDAP service-account passwords",
+        LdapDirectory,
+        LdapDirectory.bind_password,
+        lambda r: bind_password_aad(r[2], r[0]),
+        (LdapDirectory.tenant_id,),
     )
     _rotate_column(
         session,

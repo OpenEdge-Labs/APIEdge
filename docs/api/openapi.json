@@ -4952,6 +4952,335 @@
         }
       }
     },
+    "/api/v1/tenants/{tenant_id}/ldap/directories": {
+      "get": {
+        "tags": [
+          "ldap"
+        ],
+        "summary": "List LDAP directories",
+        "operationId": "list_directories_api_v1_tenants__tenant_id__ldap_directories_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DirectoryOut"
+                  },
+                  "title": "Response List Directories Api V1 Tenants  Tenant Id  Ldap Directories Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "ldap:read"
+        }
+      },
+      "post": {
+        "tags": [
+          "ldap"
+        ],
+        "summary": "Create an LDAP directory",
+        "operationId": "create_directory_api_v1_tenants__tenant_id__ldap_directories_post",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectoryIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "ldap:manage"
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/ldap/directories/{directory_id}": {
+      "get": {
+        "tags": [
+          "ldap"
+        ],
+        "summary": "Get an LDAP directory",
+        "operationId": "get_directory_api_v1_tenants__tenant_id__ldap_directories__directory_id__get",
+        "parameters": [
+          {
+            "name": "directory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Directory Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "ldap:read"
+        }
+      },
+      "patch": {
+        "tags": [
+          "ldap"
+        ],
+        "summary": "Change an LDAP directory",
+        "operationId": "update_directory_api_v1_tenants__tenant_id__ldap_directories__directory_id__patch",
+        "parameters": [
+          {
+            "name": "directory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Directory Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectoryUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "ldap:manage"
+        }
+      },
+      "delete": {
+        "tags": [
+          "ldap"
+        ],
+        "summary": "Delete an LDAP directory",
+        "operationId": "delete_directory_api_v1_tenants__tenant_id__ldap_directories__directory_id__delete",
+        "parameters": [
+          {
+            "name": "directory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Directory Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "ldap:manage"
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/ldap/directories/{directory_id}/test": {
+      "post": {
+        "tags": [
+          "ldap"
+        ],
+        "summary": "Connect to an LDAP directory and bind as its service account",
+        "operationId": "test_directory_api_v1_tenants__tenant_id__ldap_directories__directory_id__test_post",
+        "parameters": [
+          {
+            "name": "directory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Directory Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Tenant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryTestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-apiedge-access": {
+          "scope": "tenant",
+          "permission": "ldap:manage"
+        }
+      }
+    },
     "/api/v1/system/settings": {
       "get": {
         "tags": [
@@ -5768,6 +6097,106 @@
           "created_at"
         ],
         "title": "AuditOut"
+      },
+      "BasicLdapConfig": {
+        "properties": {
+          "directory_id": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Directory Id"
+          },
+          "realm": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9 _.@-]+$",
+            "title": "Realm",
+            "default": "APIEdge"
+          },
+          "cache_seconds": {
+            "type": "integer",
+            "maximum": 3600.0,
+            "minimum": 0.0,
+            "title": "Cache Seconds",
+            "default": 60
+          },
+          "hide_credentials": {
+            "type": "boolean",
+            "title": "Hide Credentials",
+            "default": true
+          },
+          "forward_user_header": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,100}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forward User Header"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "directory_id"
+        ],
+        "title": "BasicLdapConfig",
+        "description": "HTTP Basic credentials checked against a directory of the tenant (T-023, ADR 0016)."
+      },
+      "BasicLdapPolicy": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z0-9]{1,32}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Name",
+            "default": ""
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "routes": {
+            "items": {
+              "type": "string",
+              "maxLength": 500,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Routes"
+          },
+          "type": {
+            "type": "string",
+            "const": "basic-ldap",
+            "title": "Type"
+          },
+          "config": {
+            "$ref": "#/components/schemas/BasicLdapConfig"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "config"
+        ],
+        "title": "BasicLdapPolicy"
       },
       "CacheConfig": {
         "properties": {
@@ -6706,6 +7135,438 @@
           "config"
         ],
         "title": "CorsPolicy"
+      },
+      "DirectoryIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.@-]{0,99}$",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Description",
+            "default": ""
+          },
+          "host": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9:][A-Za-z0-9:.-]{0,254}$",
+            "title": "Host"
+          },
+          "port": {
+            "type": "integer",
+            "maximum": 65535.0,
+            "minimum": 1.0,
+            "title": "Port",
+            "default": 636
+          },
+          "security": {
+            "type": "string",
+            "enum": [
+              "ldaps",
+              "starttls",
+              "plain"
+            ],
+            "title": "Security",
+            "default": "ldaps"
+          },
+          "truststore_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Truststore Id"
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Timeout Seconds",
+            "default": 5
+          },
+          "bind_dn": {
+            "type": "string",
+            "maxLength": 1024,
+            "pattern": "^[^\\x00-\\x1f\\x7f]*$",
+            "title": "Bind Dn",
+            "default": ""
+          },
+          "bind_password": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Bind Password",
+            "default": ""
+          },
+          "user_base_dn": {
+            "type": "string",
+            "maxLength": 1024,
+            "pattern": "^[^\\x00-\\x1f\\x7f]*$",
+            "title": "User Base Dn",
+            "default": ""
+          },
+          "user_filter": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "User Filter",
+            "default": "(uid={username})"
+          },
+          "user_dn_template": {
+            "type": "string",
+            "maxLength": 1024,
+            "pattern": "^[^\\x00-\\x1f\\x7f]*$",
+            "title": "User Dn Template",
+            "default": ""
+          },
+          "username_attribute": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9.;-]{0,127}$",
+            "title": "Username Attribute",
+            "default": "uid"
+          },
+          "email_attribute": {
+            "type": "string",
+            "pattern": "^([A-Za-z0-9][A-Za-z0-9.;-]{0,127})?$",
+            "title": "Email Attribute",
+            "default": "mail"
+          },
+          "name_attribute": {
+            "type": "string",
+            "pattern": "^([A-Za-z0-9][A-Za-z0-9.;-]{0,127})?$",
+            "title": "Name Attribute",
+            "default": "cn"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "host"
+        ],
+        "title": "DirectoryIn"
+      },
+      "DirectoryOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "host": {
+            "type": "string",
+            "title": "Host"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port"
+          },
+          "security": {
+            "type": "string",
+            "title": "Security"
+          },
+          "truststore_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Truststore Id"
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "title": "Timeout Seconds"
+          },
+          "bind_dn": {
+            "type": "string",
+            "title": "Bind Dn"
+          },
+          "bind_password_set": {
+            "type": "boolean",
+            "title": "Bind Password Set"
+          },
+          "user_base_dn": {
+            "type": "string",
+            "title": "User Base Dn"
+          },
+          "user_filter": {
+            "type": "string",
+            "title": "User Filter"
+          },
+          "user_dn_template": {
+            "type": "string",
+            "title": "User Dn Template"
+          },
+          "username_attribute": {
+            "type": "string",
+            "title": "Username Attribute"
+          },
+          "email_attribute": {
+            "type": "string",
+            "title": "Email Attribute"
+          },
+          "name_attribute": {
+            "type": "string",
+            "title": "Name Attribute"
+          },
+          "apis": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Apis"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "host",
+          "port",
+          "security",
+          "truststore_id",
+          "timeout_seconds",
+          "bind_dn",
+          "bind_password_set",
+          "user_base_dn",
+          "user_filter",
+          "user_dn_template",
+          "username_attribute",
+          "email_attribute",
+          "name_attribute",
+          "apis",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DirectoryOut"
+      },
+      "DirectoryTestOut": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "message"
+        ],
+        "title": "DirectoryTestOut"
+      },
+      "DirectoryUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9:][A-Za-z0-9:.-]{0,254}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 65535.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port"
+          },
+          "security": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ldaps",
+                  "starttls",
+                  "plain"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Security"
+          },
+          "truststore_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Truststore Id"
+          },
+          "timeout_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 60.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeout Seconds"
+          },
+          "bind_dn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024,
+                "pattern": "^[^\\x00-\\x1f\\x7f]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bind Dn"
+          },
+          "bind_password": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bind Password"
+          },
+          "user_base_dn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024,
+                "pattern": "^[^\\x00-\\x1f\\x7f]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Base Dn"
+          },
+          "user_filter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Filter"
+          },
+          "user_dn_template": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024,
+                "pattern": "^[^\\x00-\\x1f\\x7f]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Dn Template"
+          },
+          "username_attribute": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9.;-]{0,127}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username Attribute"
+          },
+          "email_attribute": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^([A-Za-z0-9][A-Za-z0-9.;-]{0,127})?$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Attribute"
+          },
+          "name_attribute": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^([A-Za-z0-9][A-Za-z0-9.;-]{0,127})?$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Attribute"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DirectoryUpdate",
+        "description": "Omitted fields keep their value. ``bind_password``: omitted keeps it, empty clears it."
       },
       "ExchangeDetailOut": {
         "properties": {
@@ -7808,12 +8669,16 @@
                 },
                 {
                   "$ref": "#/components/schemas/MtlsPolicy"
+                },
+                {
+                  "$ref": "#/components/schemas/BasicLdapPolicy"
                 }
               ],
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
                   "api-key": "#/components/schemas/ApiKeyPolicy",
+                  "basic-ldap": "#/components/schemas/BasicLdapPolicy",
                   "cache": "#/components/schemas/CachePolicy",
                   "cors": "#/components/schemas/CorsPolicy",
                   "ip-filter": "#/components/schemas/IpFilterPolicy",
@@ -7865,12 +8730,16 @@
                 },
                 {
                   "$ref": "#/components/schemas/MtlsPolicy"
+                },
+                {
+                  "$ref": "#/components/schemas/BasicLdapPolicy"
                 }
               ],
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
                   "api-key": "#/components/schemas/ApiKeyPolicy",
+                  "basic-ldap": "#/components/schemas/BasicLdapPolicy",
                   "cache": "#/components/schemas/CachePolicy",
                   "cors": "#/components/schemas/CorsPolicy",
                   "ip-filter": "#/components/schemas/IpFilterPolicy",

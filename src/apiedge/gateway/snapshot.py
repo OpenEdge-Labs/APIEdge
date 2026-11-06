@@ -31,10 +31,20 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from apiedge.db.models import Api, ApiKey, Keystore, Product, Tenant, TlsProfile, Truststore
+from apiedge.db.models import (
+    Api,
+    ApiKey,
+    Keystore,
+    LdapDirectory,
+    Product,
+    Tenant,
+    TlsProfile,
+    Truststore,
+)
 from apiedge.gateway.transport import UpstreamTls, build_profile_context
 from apiedge.policies.base import Pipeline
 from apiedge.policies.builtin import ApiKeyInfo, PolicyServices, build_pipeline
+from apiedge.security import ldap
 from apiedge.security.crypto import CryptoError, SecretBox
 from apiedge.security.tls import keystore_aad
 from apiedge.security.x509 import Certificate, CertificateError, load_pem_certificates
@@ -166,6 +176,7 @@ def build_runtime_api(
     box: SecretBox | None = None,
     truststores: Mapping[int, tuple[Certificate, ...]] | None = None,
     profiles: Mapping[int, ResolvedProfile] | None = None,
+    directories: Mapping[int, ldap.LdapDirectory] | None = None,
 ) -> RuntimeApi | None:
     state = _state(api.lifecycle, product_lifecycle)
     if state is None:
@@ -187,6 +198,7 @@ def build_runtime_api(
             services=services,
             box=box,
             truststores=truststores,
+            directories=directories,
         )
     resolved: ResolvedProfile | None = None
     if api.tls_profile_id is not None:
@@ -231,6 +243,53 @@ def _truststores(session: Session) -> dict[int, dict[int, tuple[Certificate, ...
             log.error("truststore %s cannot be read; policies using it fail closed", t.id)
             continue
         out.setdefault(t.tenant_id, {})[t.id] = certs
+    return out
+
+
+def runtime_directory(
+    session: Session, row: LdapDirectory, box: SecretBox | None
+) -> ldap.LdapDirectory:
+    """A stored directory ready to connect. Raises ValueError or CryptoError if it is unusable."""
+    if row.bind_password and box is None:
+        raise ValueError("secrets key not configured")
+    password = (
+        box.decrypt_str(row.bind_password, ldap.bind_password_aad(row.tenant_id, row.id))
+        if row.bind_password and box is not None
+        else ""
+    )
+    ca_pem: str | None = None
+    if row.truststore_id is not None:
+        store = session.get(Truststore, row.truststore_id)
+        if store is None or store.tenant_id != row.tenant_id:
+            raise ValueError("truststore missing")
+        ca_pem = store.certificates
+    return ldap.LdapDirectory(
+        host=row.host,
+        port=row.port,
+        security=row.security,
+        ca_pem=ca_pem,
+        timeout=float(row.timeout_seconds),
+        bind_dn=row.bind_dn,
+        bind_password=password,
+        user_base_dn=row.user_base_dn,
+        user_filter=row.user_filter,
+        user_dn_template=row.user_dn_template,
+        username_attribute=row.username_attribute,
+        email_attribute=row.email_attribute,
+        name_attribute=row.name_attribute,
+    )
+
+
+def _directories(
+    session: Session, box: SecretBox | None
+) -> dict[int, dict[int, ldap.LdapDirectory]]:
+    """tenant -> {directory id -> directory}; unusable ones are left out (policies fail closed)."""
+    out: dict[int, dict[int, ldap.LdapDirectory]] = {}
+    for row in session.scalars(select(LdapDirectory)):
+        try:
+            out.setdefault(row.tenant_id, {})[row.id] = runtime_directory(session, row, box)
+        except (ValueError, CryptoError):
+            log.error("LDAP directory %s cannot be used; policies using it fail closed", row.id)
     return out
 
 
@@ -289,6 +348,7 @@ def load_snapshot(
         keys = _active_keys(session) if services is not None else {}
         stores = _truststores(session) if services is not None else {}
         profiles = _profiles(session, box, ca_bundle)
+        directories = _directories(session, box) if services is not None else {}
         rows = session.execute(
             select(Api, Product.lifecycle)
             .join(Product, (Product.id == Api.product_id) & (Product.tenant_id == Api.tenant_id))
@@ -307,6 +367,7 @@ def load_snapshot(
                 box=box,
                 truststores=stores.get(api.tenant_id, {}),
                 profiles=profiles.get(api.tenant_id, {}),
+                directories=directories.get(api.tenant_id, {}),
             )
             if runtime is not None:
                 tenants.setdefault(slug, []).append(runtime)

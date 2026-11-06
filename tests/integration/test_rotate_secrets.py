@@ -18,6 +18,7 @@ from apiedge.db.models import (
     CapturedExchange,
     CaptureSession,
     Keystore,
+    LdapDirectory,
     OAuthSigningKey,
     Product,
     Tenant,
@@ -26,6 +27,7 @@ from apiedge.db.models import (
 from apiedge.inspector.store import exchange_aad
 from apiedge.policies.builtin import secret_aad
 from apiedge.security.crypto import SecretBox, generate_key, parse_key
+from apiedge.security.ldap import bind_password_aad
 from apiedge.security.oauth import signing_key_aad
 from apiedge.security.rotation import rotate_secrets
 from apiedge.security.tls import keystore_aad
@@ -80,8 +82,10 @@ def _seed(url: str, box: SecretBox) -> dict[str, int]:
             not_after=now,
         )
         sk = OAuthSigningKey(tenant_id=t.id, kid="kid1", private_key="", public_jwk="{}")
-        s.add_all([cs, ks, sk])
+        ld = LdapDirectory(tenant_id=t.id, name="corp", host="ldap.example.com", bind_dn="cn=s")
+        s.add_all([cs, ks, sk, ld])
         s.flush()
+        ld.bind_password = box.encrypt("LDAP-BIND", bind_password_aad(t.id, ld.id))
         ks.private_key = box.encrypt("PEM-KS", keystore_aad(t.id, ks.id))
         sk.private_key = box.encrypt("PEM-SK", signing_key_aad(t.id, "kid1"))
         ex = CapturedExchange(
@@ -100,7 +104,14 @@ def _seed(url: str, box: SecretBox) -> dict[str, int]:
         )
         s.add(ex)
         s.commit()
-        ids = {"tenant": t.id, "user": u.id, "api": a.id, "session": cs.id, "ks": ks.id}
+        ids = {
+            "tenant": t.id,
+            "user": u.id,
+            "api": a.id,
+            "session": cs.id,
+            "ks": ks.id,
+            "ldap": ld.id,
+        }
     engine.dispose()
     return ids
 
@@ -113,6 +124,7 @@ def _tokens(url: str) -> list[str]:
         out.append(s.scalars(select(Keystore.private_key)).one())
         out.append(s.scalars(select(OAuthSigningKey.private_key)).one())
         out.append(s.scalars(select(CapturedExchange.data)).one())
+        out.append(s.scalars(select(LdapDirectory.bind_password)).one() or "")
     engine.dispose()
     return out
 
@@ -129,13 +141,13 @@ def test_rotate_secrets_reencrypts_everything_and_is_idempotent(
     # Dry run reports but writes nothing.
     assert main(["rotate-secrets", "--data-dir", str(tmp_path), "--dry-run"]) == 0
     out = capsys.readouterr().out
-    assert "5 secret(s) still use an old key" in out
+    assert "6 secret(s) still use an old key" in out
     assert all(new_only.needs_rotation(t) for t in _tokens(url))
 
     assert main(["rotate-secrets", "--data-dir", str(tmp_path)]) == 0
     out = capsys.readouterr().out
     assert "APIEDGE_SECRET_KEY_PREVIOUS can be removed" in out
-    assert "JBSWY3DPEHPK3PXP" not in out and "PEM" not in out
+    assert "JBSWY3DPEHPK3PXP" not in out and "PEM" not in out and "LDAP-BIND" not in out
     tokens = _tokens(url)
     assert not any(new_only.needs_rotation(t) for t in tokens)
     # The plaintext and the row binding (associated data) are unchanged.
@@ -145,6 +157,7 @@ def test_rotate_secrets_reencrypts_everything_and_is_idempotent(
     assert new_only.decrypt_str(tokens[2], keystore_aad(tid, ids["ks"])) == "PEM-KS"
     assert new_only.decrypt_str(tokens[3], signing_key_aad(tid, "kid1")) == "PEM-SK"
     assert new_only.decrypt_str(tokens[4], exchange_aad(tid, sid)) == '{"k":1}'
+    assert new_only.decrypt_str(tokens[5], bind_password_aad(tid, ids["ldap"])) == "LDAP-BIND"
 
     # Second run: nothing left to do, nothing rewritten.
     assert main(["rotate-secrets", "--data-dir", str(tmp_path)]) == 0

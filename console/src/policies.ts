@@ -4,7 +4,7 @@
 // definitions; the editor renders them generically and converts between the form (strings,
 // one item per line) and the admin API's JSON. The server validates everything again.
 
-export type PolicyType = "api-key" | "jwt" | "rate-limit" | "transform" | "cors" | "ip-filter" | "cache" | "mock" | "mtls";
+export type PolicyType = "api-key" | "jwt" | "rate-limit" | "transform" | "cors" | "ip-filter" | "cache" | "mock" | "mtls" | "basic-ldap";
 
 export interface PolicySpec {
   id?: string | null;
@@ -169,6 +169,18 @@ export const POLICY_TYPES: { type: PolicyType; label: string; summary: string; f
       { key: "forward_subject_header", label: "Send the verified subject to the upstream in header (optional)", kind: "text", placeholder: "x-client-subject" },
     ],
   },
+  {
+    type: "basic-ldap",
+    label: "Basic authentication (LDAP)",
+    summary: "Checks HTTP Basic user names and passwords against one of this tenant's LDAP or Active Directory directories.",
+    fields: [
+      { key: "directory_id", label: "Directory id", kind: "number", hint: "Shown on the LDAP directories page." },
+      { key: "realm", label: "Realm", kind: "text" },
+      { key: "cache_seconds", label: "Remember results for (s, 0 = ask the directory every time)", kind: "number" },
+      { key: "hide_credentials", label: "Do not forward the credentials to the upstream", kind: "bool" },
+      { key: "forward_user_header", label: "Send the verified user name to the upstream in header (optional)", kind: "text", placeholder: "x-user" },
+    ],
+  },
 ];
 
 export function typeInfo(type: PolicyType) {
@@ -187,6 +199,7 @@ const DEFAULTS: Record<PolicyType, Record<string, unknown>> = {
   cache: { ttl_seconds: 60, max_entry_bytes: 1048576 },
   mock: { status: 200, content_type: "application/json", body: '{"message": "mocked"}' },
   mtls: { consumer_from: "common_name" },
+  "basic-ldap": { realm: "APIEdge", cache_seconds: 60, hide_credentials: true },
 };
 
 function getPath(obj: Record<string, unknown>, path: string[]): unknown {
@@ -343,6 +356,7 @@ export function configErrors(type: PolicyType, config: Record<string, unknown>, 
     errors.push(`${label}: list at least one allowed or denied address range.`);
   }
   if (type === "mtls" && !config.truststore_id) errors.push(`${label}: choose a truststore (its id from the TLS page).`);
+  if (type === "basic-ldap" && !config.directory_id) errors.push(`${label}: choose a directory (its id from the LDAP directories page).`);
   if (type === "rate-limit" && config.limit === undefined) errors.push(`${label}: set the number of requests per window.`);
   return errors;
 }

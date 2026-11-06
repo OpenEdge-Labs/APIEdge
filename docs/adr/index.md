@@ -24,3 +24,4 @@ rewritten, they are superseded.
 | [0013](0013-tls-and-client-certificates.md) | Native TLS, keystores, truststores and client certificates | T-023 |
 | [0014](0014-python-3-11-to-3-13.md) | Supported Python range 3.11 to 3.13 | T-032 |
 | [0015](0015-oauth-authorization-server.md) | Built-in OAuth 2.0 authorization server and OpenID Connect provider | T-023 |
+| [0016](0016-ldap-client.md) | In-house LDAPv3 client and the basic-ldap policy | T-023 |

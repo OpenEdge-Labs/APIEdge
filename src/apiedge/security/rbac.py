@@ -61,6 +61,9 @@ PERMISSIONS: dict[str, str] = {
     # OAuth 2.0 / OIDC authorization server (T-023)
     "oauth:read": "View OAuth clients, signing keys and the authorization server",
     "oauth:manage": "Create, change and delete OAuth clients and rotate signing keys",
+    # LDAP and Active Directory (T-023)
+    "ldap:read": "View LDAP and Active Directory directories",
+    "ldap:manage": "Create, change, test and delete LDAP and Active Directory directories",
     # Consumers (T-014)
     "plan:read": "View plans",
     "plan:update": "Create and change plans",
@@ -96,7 +99,7 @@ BUILTIN_ROLES: dict[str, tuple[str, frozenset[str]]] = {
             _all("product", actions=("read", "update", "publish"))
             | _all("api", "policy", "script", "plan", "subscription", "apikey")
             | {"consumer:read", "inspector:view", "inspector:capture", "analytics:view"}
-            | {"tls:read", "oauth:read"}
+            | {"tls:read", "oauth:read", "ldap:read"}
         ),
     ),
     "APIDeveloper": (
@@ -105,7 +108,7 @@ BUILTIN_ROLES: dict[str, tuple[str, frozenset[str]]] = {
             {"product:read", "api:read", "api:create", "api:update"}
             | _all("policy", "script", "apikey")
             | {"inspector:view", "inspector:capture", "analytics:view", "plan:read", "tls:read"}
-            | {"oauth:read"}
+            | {"oauth:read", "ldap:read"}
         ),
     ),
     "Viewer": ("Read-only access", frozenset(_READ | {"analytics:view", "inspector:view"})),

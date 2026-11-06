@@ -797,3 +797,28 @@ Closes finding F-06 (VP-008). Also recorded the customer decision on VP-010.
 **Tests.** Locally on Python 3.12: `test_rotate_secrets.py` (5: full rotation and idempotence,
 undecryptable tokens kept, token moved between rows rejected, concurrent change skipped, missing
 key) and `test_cli.py`; ruff, ruff format, mypy --strict, bandit. Full suite on GitHub CI.
+
+## 2026-11-06 — T-023 slice 3: basic authentication with LDAP or Active Directory
+
+**Summary.** Tenants define LDAP or Active Directory directories, and the new `basic-ldap` policy
+checks HTTP Basic credentials against them. The check uses APIEdge's own minimal LDAPv3 client
+(VP-010, ADR 0016): simple bind and search over LDAPS or StartTLS with mandatory verification,
+strict BER decoding with limits, and filter and DN escaping. The policy fails closed (503) when
+the directory cannot be used and remembers results only as a salted HMAC in memory. A stored
+service-account password must be re-entered when the server settings change. `apiedge
+rotate-secrets` covers these passwords. LDAP for the OAuth user registry and console SSO is not
+part of this slice.
+
+**Files.** `src/apiedge/{security/ldap.py,admin/ldap.py}`, migration `0011_ldap_directories.py`,
+`db/models.py`, `policies/{base,builtin,config}.py`, `gateway/{app,bus,snapshot}.py`,
+`security/{rbac,rotation}.py`, `admin/{__init__,policies,tls}.py`, console (`ldap.ts`,
+`pages/Ldap.tsx`, access, App, policies, tests) and `static/`, tests
+(`tests/unit/test_ldap.py`, `tests/integration/{test_ldap_directories,test_ldap_server}.py`, access
+matrix, rotation), CI job `ldap-integration`, docs (LDAP guide, policies guide, operations,
+access control, ADR 0016, SECURITY.md, FEATURE_MATRIX.md, API reference), `CHANGELOG.md`,
+`APIProjectTask.md`.
+
+**Tests.** Locally on Python 3.12: LDAP client unit tests, directory admin API and gateway tests
+against a directory on a real socket, rotation, access matrix, migrations and RBAC; console tests;
+ruff, ruff format, mypy --strict, bandit. The tests against a real OpenLDAP server and the full
+suite run on GitHub CI.

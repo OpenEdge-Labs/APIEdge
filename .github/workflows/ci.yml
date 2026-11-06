@@ -65,6 +65,77 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then PY=.venv/Scripts/python; else PY=.venv/bin/python; fi
           "$PY" -m pytest
 
+  ldap-integration:
+    name: LDAP client against OpenLDAP
+    runs-on: ubuntu-latest
+    env:
+      APIEDGE_TEST_LDAP_ADMIN_PASSWORD: ci-only-admin-password
+      APIEDGE_TEST_LDAP_USER_PASSWORD: ci-only-user-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Developer install (hash-locked)
+        run: python scripts/install.py --local --dev --yes --no-start --no-shortcut
+      - name: Test CA and server certificate for localhost
+        env:
+          CERTS: ${{ runner.temp }}/ldap-certs
+        run: |
+          mkdir -p "$CERTS"
+          .venv/bin/python - <<'PY'
+          import os
+          from pathlib import Path
+          from apiedge.security import x509 as x
+          out = Path(os.environ["CERTS"])
+          ca_key = x.generate_key()
+          ca = x.build_certificate(subject_key=ca_key, common_name="CI LDAP CA", is_ca=True)
+          key = x.generate_key()
+          cert = x.build_certificate(
+              subject_key=key, common_name="localhost", issuer=ca, issuer_key=ca_key,
+              dns_names=["localhost"],
+          )
+          (out / "ca.crt").write_text(x.der_to_pem(ca.der))
+          (out / "ldap.crt").write_text(x.der_to_pem(cert.der))
+          (out / "ldap.key").write_text(x.private_key_pem(key))
+          PY
+          chmod -R a+rX "$CERTS"
+      - name: Start OpenLDAP (pinned by digest, CI only)
+        env:
+          CERTS: ${{ runner.temp }}/ldap-certs
+        run: |
+          docker run -d --name openldap --hostname ldap.example.org \
+            -p 10389:389 -p 10636:636 \
+            -v "$CERTS:/container/service/slapd/assets/certs" \
+            -e LDAP_ADMIN_PASSWORD="$APIEDGE_TEST_LDAP_ADMIN_PASSWORD" \
+            -e LDAP_READONLY_USER=true \
+            -e LDAP_READONLY_USER_PASSWORD="$APIEDGE_TEST_LDAP_USER_PASSWORD" \
+            -e LDAP_TLS_CRT_FILENAME=ldap.crt \
+            -e LDAP_TLS_KEY_FILENAME=ldap.key \
+            -e LDAP_TLS_CA_CRT_FILENAME=ca.crt \
+            -e LDAP_TLS_VERIFY_CLIENT=never \
+            osixia/openldap@sha256:18742e9c449c9c1afe129d3f2f3ee15fb34cc43e5f940a20f3399728f41d7c28 \
+            --copy-service
+          for _ in $(seq 1 90); do
+            if docker exec openldap ldapsearch -x -H ldap://localhost -b dc=example,dc=org \
+                -D cn=admin,dc=example,dc=org -w "$APIEDGE_TEST_LDAP_ADMIN_PASSWORD" cn=readonly dn \
+                2>/dev/null | grep -q '^dn: cn=readonly'; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs openldap
+          exit 1
+      - name: pytest against the server (a skipped test fails this job)
+        env:
+          APIEDGE_TEST_LDAP_CA: ${{ runner.temp }}/ldap-certs/ca.crt
+        run: |
+          .venv/bin/python -m pytest tests/integration/test_ldap_server.py -v -ra | tee pytest.out
+          if grep -qE ' skipped|SKIPPED' pytest.out; then exit 1; fi
+      - name: Server logs
+        if: failure()
+        run: docker logs openldap || true
+
   installer:
     name: One-click installer smoke test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

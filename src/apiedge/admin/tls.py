@@ -33,7 +33,7 @@ from sqlalchemy import select
 
 from apiedge.admin.deps import TenantCaller, not_found, require
 from apiedge.admin.schemas import In, Out
-from apiedge.db.models import Api, Keystore, TlsProfile, Truststore
+from apiedge.db.models import Api, Keystore, LdapDirectory, TlsProfile, Truststore
 from apiedge.security.audit import audit
 from apiedge.security.crypto import SecretBox
 from apiedge.security.tls import keystore_aad
@@ -207,6 +207,13 @@ def _profile_users(caller: TenantCaller, column: str, obj_id: int) -> list[str]:
     return [f"TLS profile {n}" for n in caller.session.scalars(stmt)]
 
 
+def _directory_users(caller: TenantCaller, truststore_id: int) -> list[str]:
+    stmt = select(LdapDirectory.name).where(
+        LdapDirectory.tenant_id == caller.tenant_id, LdapDirectory.truststore_id == truststore_id
+    )
+    return [f"LDAP directory {n}" for n in caller.session.scalars(stmt)]
+
+
 # --------------------------------------------------------------------------- truststores
 
 
@@ -293,7 +300,11 @@ def delete_truststore(
     truststore_id: int, caller: Annotated[TenantCaller, Depends(require("tls:manage"))]
 ) -> Response:
     t = _truststore(caller, truststore_id)
-    users = truststore_users(caller, t.id) + _profile_users(caller, "truststore_id", t.id)
+    users = (
+        truststore_users(caller, t.id)
+        + _profile_users(caller, "truststore_id", t.id)
+        + _directory_users(caller, t.id)
+    )
     if users:
         raise HTTPException(
             status.HTTP_409_CONFLICT,

@@ -181,6 +181,13 @@ authentication usage gets **401**; a valid certificate outside the allow-lists g
 the truststore was deleted or is unreadable, the API answers **503** (fails closed). Revocation
 (CRL/OCSP) is not checked.
 
+## Basic authentication (LDAP)
+
+Checks HTTP Basic user names and passwords against one of the tenant's LDAP or Active Directory
+directories. See [LDAP and Active Directory](ldap.md) for the settings and for what each answer
+means. Wrong credentials get **401**; if the directory cannot be used the API answers **503**
+(fails closed). The consumer shown in analytics is `ldap:<user name>`.
+
 ## Admin API
 
 ```

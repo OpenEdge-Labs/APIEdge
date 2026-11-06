@@ -11,6 +11,7 @@ from apiedge.admin import (
     apis,
     auth_routes,
     inspector,
+    ldap,
     oauth,
     policies,
     products,
@@ -37,6 +38,7 @@ def build_router() -> APIRouter:
         inspector,
         tls,
         oauth,
+        ldap,
         system,
     ):
         # Publish each operation's permission as ``x-apiedge-access`` in the OpenAPI document.

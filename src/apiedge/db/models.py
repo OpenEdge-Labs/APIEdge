@@ -579,6 +579,51 @@ class TlsProfile(TenantOwned, Base):
     )
 
 
+# --------------------------------------------------------------------------- LDAP
+
+
+class LdapDirectory(TenantOwned, Base):
+    """A tenant's LDAP or Active Directory server (T-023, ADR 0016).
+
+    The service account's password is stored only encrypted with the secrets box and is never
+    returned. ``truststore_id`` selects the CAs that verify the server (default: system store).
+    """
+
+    __tablename__ = "ldap_directories"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="uq_ldap_directories_tenant_id_name"),
+        CheckConstraint("security IN ('ldaps', 'starttls', 'plain')", name="security"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    host: Mapped[str] = mapped_column(String(255), nullable=False)
+    port: Mapped[int] = mapped_column(Integer, nullable=False, default=636)
+    security: Mapped[str] = mapped_column(String(16), nullable=False, default="ldaps")
+    truststore_id: Mapped[int | None] = mapped_column(ForeignKey("truststores.id"), nullable=True)
+    timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    bind_dn: Mapped[str] = mapped_column(String(1024), nullable=False, default="")
+    bind_password: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_base_dn: Mapped[str] = mapped_column(String(1024), nullable=False, default="")
+    user_filter: Mapped[str] = mapped_column(
+        String(1024), nullable=False, default="(uid={username})"
+    )
+    user_dn_template: Mapped[str] = mapped_column(String(1024), nullable=False, default="")
+    username_attribute: Mapped[str] = mapped_column(String(128), nullable=False, default="uid")
+    email_attribute: Mapped[str] = mapped_column(String(128), nullable=False, default="mail")
+    name_attribute: Mapped[str] = mapped_column(String(128), nullable=False, default="cn")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+
 # --------------------------------------------------------------------------- OAuth 2.0 / OIDC
 
 

@@ -34,6 +34,7 @@ from apiedge.db.models import (
     ApiRoute,
     ApiUpstream,
     Keystore,
+    LdapDirectory,
     OAuthSigningKey,
     Product,
     Tenant,
@@ -161,6 +162,7 @@ WATCHED = (
     Keystore,
     TlsProfile,
     OAuthSigningKey,
+    LdapDirectory,
 )
 _CHANGED = "apiedge_gateway_config_changed"
 _INSTALLED = "_apiedge_change_notifier"
