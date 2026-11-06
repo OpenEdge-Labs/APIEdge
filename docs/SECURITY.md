@@ -140,6 +140,7 @@ row has no inline marker, when a row is incomplete, or when a finding is not cov
 | File | Rule | Justification | Date |
 |---|---|---|---|
 | `src/apiedge/cli.py` | `py/clear-text-logging-sensitive-data` | `create-admin --generate-password` prints the generated first-admin password once to the operator's terminal by design (T-019, needed for unattended installs). It is never written to a log (the installer runs this step with logging off), and a password change is forced at first login. | 2026-11-01 |
+| `src/apiedge/policies/builtin.py` | `py/weak-sensitive-data-hashing` | The `basic-ldap` policy (T-023) remembers directory results under an HMAC-SHA256 of the credentials. This is a lookup key, not stored password hashing: the key is 32 random bytes per policy instance, the digests live only in process memory for at most `cache_seconds` (default 60, 0 disables them) and are never written to disk or logs, and the passwords themselves stay in the directory. A slow hash is not used because this runs on every request, so it would let any client consume gateway CPU. Remaining risk: someone able to read the gateway's memory could test password guesses against the digests, but such an attacker can already read passwords in transit and decrypted service-account passwords. | 2026-11-06 |
 
 Fixed, not accepted (recorded for transparency): CodeQL's name heuristic treats any identifier
 containing "password" as a secret, so the policy constants were renamed (`MIN_PASSWORD_LENGTH` to

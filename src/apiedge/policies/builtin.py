@@ -357,8 +357,12 @@ class LdapBasicAuth(Policy):
         return (username, password) if separator and username and password else None
 
     def _digest(self, username: str, password: str) -> bytes:
+        # A lookup key for this in-memory cache, not a stored password hash: it is keyed with a
+        # random secret and runs on every request, where a slow hash would hand out CPU for free.
+        key = self._salt
         message = f"{len(username)}:{username}{password}".encode()
-        return hmac.new(self._salt, message, hashlib.sha256).digest()
+        mac = hmac.new(key, message, hashlib.sha256)  # codeql[py/weak-sensitive-data-hashing] T-023
+        return mac.digest()
 
     def _remember(self, digest: bytes, entry: ldap.LdapEntry | None) -> None:
         seconds = self.config.cache_seconds

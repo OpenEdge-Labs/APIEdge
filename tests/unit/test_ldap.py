@@ -303,6 +303,7 @@ def _auth(handler: Handler, username: str, password: str, **kw: Any) -> tuple[An
 def test_search_then_bind() -> None:
     entry, srv = _auth(directory_handler, "alice", "Wonder-Land-1")
     assert entry is not None and entry.first("mail") == "a@x.io"
+    srv.thread.join(timeout=5)  # the server thread ends once it has read the unbind
     assert [r.tag for r in srv.requests] == [0x60, 0x63, 0x60, 0x42]
 
 
